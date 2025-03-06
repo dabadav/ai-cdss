@@ -1,0 +1,20 @@
+[project]
+name = "ai-cdss"
+version = "0.1.0"
+description = "The EOD Clinical Decision Support System uses RGS data, and patient clinical scores (ARAT, MoCA) to provide data-driven recommendation to clinicians of the best RGS activities a patient should perform."
+authors = [
+    {name = "Eodyne Systems SL"}
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pandera (==0.23.0)",
+    "gower (>=0.1.2,<0.2.0)"
+]
+packages = [{ include = "ai_cdss", from = "src" }]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
