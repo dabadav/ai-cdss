@@ -1,27 +1,29 @@
 # src/pipeline.py
-from ai_cdss.services.data import DataProcessor
+from ai_cdss.services.data import DataProcessor, DataLoader
 from ai_cdss.services.scoring import ScoringComputer
 from ai_cdss.services.prescription import PrescriptionRecommender
-from ai_cdss.models import DataBatch
 
 class PipelineBase:
     """Base class for the rehabilitation recommendation pipeline."""
     
-    def __init__(self, patient_list, clinical_score_path, protocol_csv_path, mapping_dict):
+    def __init__(self, patient_list, clinical_score_path, protocol_csv_path, mapping_dict, max_subscales):
         """
         Initialize the pipeline with patient list and data sources.
         """
         self.patient_list = patient_list
         self.clinical_score_path = clinical_score_path
         self.protocol_csv_path = protocol_csv_path
+        self.max_subscales = max_subscales
 
         # Instantiate pipeline components
-        self.data_processor = DataProcessor(patient_list, mapping_dict)
+        self.data_loader = DataLoader(patient_list)
+        self.data_processor = DataProcessor(mapping_dict)
         self.scoring_computer = ScoringComputer()
         self.prescription_recommender = PrescriptionRecommender()
         
         # Initialize internal data containers
         self.sessions = None
+        self.sessions_expanded = None
         self.timeseries = None
         self.patient_profiles = None
         self.protocol_profiles = None
@@ -44,22 +46,24 @@ class PipelineBase:
         print("Computing similarity...")
         self.compute_scores()
         print("Generating prescriptions...")
-        self.generate_prescriptions()
+        result = self.generate_prescriptions()
         print("Pipeline completed successfully!")
+        return result.to_csv("recommendations.csv")
 
-    def extract_data(self):
+    def load_data(self):
         """Extract session and time-series data for patients. Populate internal data structures."""
-        self.sessions = self.data_processor.get_session()
-        self.timeseries = self.data_processor.get_timeseries()
-        self.patient_profiles = self.data_processor.get_patient(self.clinical_score_path)
-        self.protocol_profiles = self.data_processor.get_protocol(self.protocol_csv_path)
+        self.sessions = self.data_loader.load_session_data()
+        self.timeseries = self.data_loader.load_timeseries_data()
+        self.patient_profiles = self.data_loader.load_patient_data()
+        self.protocol_profiles = self.data_loader.load_protocol_data()
 
     def process_data(self):
         """Process session and time-series data. Clean and validate data"""
-        self.sessions = self.data_processor.process_session_batch(self.sessions)
-        # self.sessions = self.data_processor.expand_expected_sessions(self.sessions)
+        self.sessions = self.data_processor.process_session_data(self.sessions)
         self.timeseries = self.data_processor.process_timeseries_data(self.timeseries)
+        self.patient_profiles = self.data_processor.process_patient_data(self.patient_profiles, self.max_subscales)
         self.protocol_profiles = self.data_processor.map_latent_to_clinical(self.protocol_profiles)
+        # self.sessions_expanded = self.data_processor.expand_session_batch(self.sessions)
 
     def compute_scores(self):
         """Compute Patient-Protocol Fit (PPF) and protocol similarity."""
@@ -71,9 +75,15 @@ class PipelineBase:
     def generate_prescriptions(self):
         """Generate protocol recommendations."""
         self.recommendations = self.prescription_recommender.recommend_protocols(self.prescriptions)
-        self.display_recommendations()
+        return self.recommendations
 
     def update_prescriptions(self):
+        """
+        **TODO**
+        
+        Load Last week Prescription
+        Add swapping implementations from pipeline.ipynba to prescription module
+        """
         raise NotImplementedError
 
     def display_recommendations(self):

@@ -8,6 +8,21 @@ def main():
         2955, 2956, 2957, 2958, 2959, 2960, 2961, 2962, 2963, 3081, 3229, 3318, 3432
     ]
 
+    max_values = {
+        'BARTHEL': 100,
+        'ASH_PROXIMAL': 4,
+        'MA_DISTAL': 4,
+        'FATIGUE': 63,
+        'VAS': 10,
+        'FM_A': 36,
+        'FM_B': 10,
+        'FM_C': 14,
+        'FM_D': 6,
+        'FM_TOTAL': 66,
+        'ACT_AU': 10,
+        'ACT_QOM': 10
+    }
+
     latent_to_clinical_mapping_nest = {
         # Functional Independence
         "BARTHEL": ["DAILY_LIVING_ACTIVITY"],  # Barthel Index measures independence in ADLs.
@@ -36,7 +51,8 @@ def main():
         PATIENT_LIST, 
         clinical_score_path="../../data/clinical_scores.csv", 
         protocol_csv_path="../../data/protocol_attributes.csv",
-        mapping_dict=latent_to_clinical_mapping_nest
+        mapping_dict=latent_to_clinical_mapping_nest,
+        max_subscales=max_values
     )
     pipeline.run()
 

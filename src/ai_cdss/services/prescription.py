@@ -1,5 +1,9 @@
 # src/prescription.py
 import pandas as pd
+import numpy as np
+import pandera as pa
+from pandera.typing import DataFrame
+from ai_cdss.models import PrescriptionSchema
 
 class PrescriptionRecommender:
     """
@@ -8,16 +12,20 @@ class PrescriptionRecommender:
     def __init__(self):
         pass
 
-
-    def rank_protocols(self, scores, n=10):
+    def rank_protocols(self, scores: pd.DataFrame, n=5) -> pd.DataFrame:
         """ Rank protocols based on scores.
 
         Returns a DataFrame with top N protocols for each patient with explanations
         """
-        top_n_protocols = scores.groupby('PATIENT_ID').apply(lambda x: x.nlargest(n, 'Score')).reset_index(drop=True)
-        return top_n_protocols
+        protocols_ranked = (
+            scores.groupby('PATIENT_ID')
+            .apply(lambda x: x.nlargest(n, 'Score'))
+            .reset_index(drop=True)
+        )
+        return protocols_ranked
 
-    def recommend_protocols(self, ppf_matrix, contributions_matrix=None, top_n=1):
+    @pa.check_types
+    def recommend_protocols(self, scores: pd.DataFrame, n=5) -> DataFrame[PrescriptionSchema]:
         """
         Recommend protocols for each patient based on the PPF similarity matrix.
         - ppf_matrix: DataFrame of cosine similarities (patients x protocols).
@@ -29,43 +37,62 @@ class PrescriptionRecommender:
             "factors": [list of top contributing factors per protocol],
             "explanation": "text explanation of recommendation" }
         """
-        recommendations = {}
-        for patient_id in ppf_matrix.index:
 
-            # Get the top N protocols for this patient
-            top_protocols = ppf_matrix.loc[patient_id].nlargest(top_n)
-            proto_ids = list(top_protocols.index)
-            scores = list(top_protocols.values)
-            # If contributions are provided, identify top contributing factor for each protocol
-            factors = []
-            if contributions_matrix is not None:
-                # contributions_matrix is NumPy array: [patients x protocols x features]
-                pat_index = list(ppf_matrix.index).index(patient_id)
-                for proto_id in proto_ids:
-                    proto_index = list(ppf_matrix.columns).index(proto_id)
-                    # Get contributions for this patient-protocol pair across features
-                    contribs = contributions_matrix[pat_index, proto_index, :]
-                    # Find feature with maximum contribution
-                    max_idx = contribs.argmax()
-                    top_feature = ppf_matrix.columns[max_idx] if max_idx < contribs.shape[0] else None
-                    factors.append(top_feature)
-            else:
-                factors = [None] * len(proto_ids)
+        # Rank
+        rank_df = self.rank_protocols(scores, n)
+        # Schedule
+        recommendations = self.schedule(rank_df, days_per_week=7, prescriptions_per_day=5)
 
-            # Simple text explanation (can be elaborated)
-            if contributions_matrix is not None and factors[0]:
-                explanation = f"Recommended protocol {proto_ids[0]} for patient {patient_id} because of high alignment in '{factors[0]}' aspect."
-            else:
-                explanation = f"Protocol {proto_ids[0]} is the closest match for patient {patient_id}'s profile."
-            
-            recommendations[patient_id] = {
-                "protocols": proto_ids if top_n > 1 else proto_ids[0],
-                "scores": scores if top_n > 1 else scores[0],
-                "factors": factors,
-                "explanation": explanation
-            }
-        
         return recommendations
     
-    def schedule(self):
-        raise NotImplementedError
+    def schedule(self, df, days_per_week=7, prescriptions_per_day=5):
+        """
+        Generates a weekly schedule for each patient by distributing their top recommended protocols across the week.
+        Ensures that:
+        1. The same protocol is not scheduled twice in a single day.
+        2. The total number of prescriptions is exactly `days_per_week * prescriptions_per_day`.
+        
+        Args:
+        df (pd.DataFrame): Long format DataFrame with columns ['PATIENT_ID', 'PROTOCOL_ID'].
+        days_per_week (int): Number of days in the schedule (default: 7).
+        prescriptions_per_day (int): Number of protocols per day (default: 5).
+        
+        Returns:
+        pd.DataFrame: A DataFrame where each row corresponds to a (PATIENT_ID, PROTOCOL_ID) pair,
+                    and the 'DAYS' column contains a list of day indexes (1-based) for when the protocol should be played.
+        """
+        total_prescriptions = days_per_week * prescriptions_per_day
+        schedule_dict = {}
+
+        for patient_id, group in df.groupby("PATIENT_ID"):
+            protocols = group["PROTOCOL_ID"].tolist()
+
+            # Expand protocol list to ensure at least `total_prescriptions`
+            expanded_protocols = (protocols * ((total_prescriptions // len(protocols)) + 1))[:total_prescriptions]
+
+            # Shuffle protocols for distribution across days
+            np.random.shuffle(expanded_protocols)
+
+            # Assign protocols to days ensuring no duplicates in a single day
+            patient_schedule = {protocol: [] for protocol in protocols}
+            day_protocols = [[] for _ in range(days_per_week)]
+            
+            for i, protocol in enumerate(expanded_protocols):
+                day_idx = i % days_per_week
+                if protocol not in day_protocols[day_idx]:  # Ensure no duplicate protocol on the same day
+                    day_protocols[day_idx].append(protocol)
+                    patient_schedule[protocol].append(day_idx + 1)  # Use 1-based indexing for days
+
+            schedule_dict[patient_id] = patient_schedule
+
+        # Convert to long format DataFrame
+        structured_schedule = []
+        for patient_id, protocols in schedule_dict.items():
+            for protocol_id, days in protocols.items():
+                structured_schedule.append({"PATIENT_ID": patient_id, "PROTOCOL_ID": protocol_id, "DAYS": days})
+    
+        schedule_df = pd.DataFrame(structured_schedule)
+        df["DAYS"] = schedule_df.DAYS
+        
+        return df
+            

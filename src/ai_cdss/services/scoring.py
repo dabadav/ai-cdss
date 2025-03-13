@@ -1,8 +1,20 @@
 import numpy as np
 import pandas as pd
-from ai_cdss.models import DataBatch
 
 class ScoringComputer:
+    """
+    Combining patient data and protocol data
+    
+    Computation (independent) on 
+        session data
+        protocol data
+
+    Aggregating a score dependent on:
+        session data
+        timeseries data
+        ppf
+        contributions
+    """
     def __init__(self):
         self.ppf = None
         self.contributions = None
@@ -17,6 +29,7 @@ class ScoringComputer:
 
         ppf = pd.DataFrame(ppf, index=patient_data.index, columns=protocol_data.index)
         contributions = pd.DataFrame(contributions.tolist(), index=patient_data.index, columns=protocol_data.index)
+        
         self.ppf = ppf
         self.contributions = contributions
 
@@ -71,6 +84,8 @@ class ScoringComputer:
         contributions_stacked.columns = ['PATIENT_ID', 'PROTOCOL_ID', 'CONTRIBUTION']
         
         data_all = ppf_stacked.merge(data_all, left_on=['PATIENT_ID', 'PROTOCOL_ID'], right_on=['PATIENT_ID', 'PROTOCOL_ID'], how='left')
+        data_all = data_all.merge(contributions_stacked, left_on=['PATIENT_ID', 'PROTOCOL_ID'], right_on=['PATIENT_ID', 'PROTOCOL_ID'], how='left')
+
         # Fill Non Played Protocols
         data_all.fillna(value={"ADHERENCE_EWMA": 1, "PARAMETER_VALUE_EWMA": 0, "PERFORMANCE_VALUE_EWMA": 0}, inplace=True)
         data_all.sort_values(by=['PATIENT_ID', 'PROTOCOL_ID'], inplace=True)
@@ -82,7 +97,6 @@ class ScoringComputer:
             data_all['PPF'] * weights[2]
         )
 
-        data_all = data_all.merge(contributions_stacked, left_on=['PATIENT_ID', 'PROTOCOL_ID'], right_on=['PATIENT_ID', 'PROTOCOL_ID'], how='left')
         self.patient_protocol_score = data_all
 
         return data_all
