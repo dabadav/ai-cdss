@@ -4,20 +4,23 @@ from ai_cdss.services.scoring import ScoringComputer
 from ai_cdss.services.prescription import PrescriptionRecommender
 
 class PipelineBase:
-    """Base class for the rehabilitation recommendation pipeline."""
+    """Base class for the rehabilitation recommendation pipeline.
     
-    def __init__(self, patient_list, clinical_score_path, protocol_csv_path, mapping_dict, max_subscales):
+    Loads data
+    Computes Metrics
+    Schedules Protocol
+    Returns df
+    """
+    
+    def __init__(self, patient_list):
         """
         Initialize the pipeline with patient list and data sources.
         """
         self.patient_list = patient_list
-        self.clinical_score_path = clinical_score_path
-        self.protocol_csv_path = protocol_csv_path
-        self.max_subscales = max_subscales
-
+        
         # Instantiate pipeline components
         self.data_loader = DataLoader(patient_list)
-        self.data_processor = DataProcessor(mapping_dict)
+        # self.data_processor = DataProcessor(mapping_dict)
         self.scoring_computer = ScoringComputer()
         self.prescription_recommender = PrescriptionRecommender()
         
@@ -25,13 +28,14 @@ class PipelineBase:
         self.sessions = None
         self.sessions_expanded = None
         self.timeseries = None
+
         self.patient_profiles = None
         self.protocol_profiles = None
         
+        # Metrics
         self.ppf_matrix = None
         self.recommendations = None
         self.contributions = None
-
         self.scores = None
         self.prescriptions = None
 
@@ -63,7 +67,6 @@ class PipelineBase:
         self.timeseries = self.data_processor.process_timeseries_data(self.timeseries)
         self.patient_profiles = self.data_processor.process_patient_data(self.patient_profiles, self.max_subscales)
         self.protocol_profiles = self.data_processor.map_latent_to_clinical(self.protocol_profiles)
-        # self.sessions_expanded = self.data_processor.expand_session_batch(self.sessions)
 
     def compute_scores(self):
         """Compute Patient-Protocol Fit (PPF) and protocol similarity."""

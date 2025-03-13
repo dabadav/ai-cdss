@@ -1,13 +1,18 @@
 from abc import ABC, abstractmethod
+import importlib.resources
+from typing import Dict, List, Optional
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pandera as pa
-import json
-import functools
-from typing import Dict, List
 from pandera.typing import DataFrame
+import json
+import yaml
+
 from ai_cdss.models import SessionSchema, SessionProcessedSchema, PatientSchema, ProtocolMatrixSchema
 from recsys_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
+from ai_cdss import config
 
 # ---------------------------------------------------------------------
 # PARAMS
@@ -60,7 +65,6 @@ class DataLoader(BaseDataLoader):
     def load_protocol_data(self) -> DataFrame[ProtocolMatrixSchema]:
         return pd.read_csv("../../data/protocol_attributes.csv", index_col=0)
 
-
 #################################
 # ------ Clinical Scales ------ #
 #################################
@@ -78,7 +82,14 @@ class MultiKeyDict(object):
             return self._data[key]
         except KeyError:
             return self._data[self._keys[key]]
-
+    
+    def get(self, key, default=None):
+        """Alias for __getitem__ to allow mkd.get('key') syntax."""
+        try:
+            return self[key]
+        except KeyError:
+            return default
+    
     def __setitem__(self, key, val):
         try:
             self._data[self._keys[key]] = val
@@ -98,6 +109,10 @@ class MultiKeyDict(object):
     
     __str__ = __repr__ 
 
+    def items(self):
+        """Return a view of the primary keys and their values."""
+        return self._data.items()
+
     def add_keys(self, to_key, new_keys):
         if to_key not in self._data:
             to_key = self._keys[to_key]
@@ -111,21 +126,114 @@ class MultiKeyDict(object):
             result[key] = val
         return result
     
-    # --- Serialization Methods ---
+    # --- Serialization Methods --- 
     def to_json(self, filepath):
-        """Save MultiKeyDict to a JSON file."""
+        """Save MultiKeyDict to a JSON file in the new format."""
+        keys_dict = {}
+        for alias, primary_key in self._keys.items():
+            if primary_key in keys_dict:
+                keys_dict[primary_key].append(alias)
+            else:
+                keys_dict[primary_key] = [alias]
+        
         with open(filepath, "w", encoding="utf-8") as f:
-            json.dump({"data": self._data, "keys": self._keys}, f, indent=4)
+            json.dump({"data": self._data, "keys": keys_dict}, f, indent=4)
 
     @classmethod
     def from_json(cls, filepath):
-        """Load MultiKeyDict from a JSON file."""
+        """Load MultiKeyDict from a JSON file in the new format."""
         with open(filepath, "r", encoding="utf-8") as f:
             obj = json.load(f)
         instance = cls()
         instance._data = obj["data"]
-        instance._keys = obj["keys"]
+        instance._keys = {}
+
+        for primary_key, aliases in obj["keys"].items():
+            for alias in aliases:
+                instance._keys[alias] = primary_key
+        
         return instance
+
+    # --- YAML Serialization Methods ---
+    def to_yaml(self, filepath):
+        """Save MultiKeyDict to a YAML file in the new format."""
+        keys_dict = {}
+        for alias, primary_key in self._keys.items():
+            if primary_key in keys_dict:
+                keys_dict[primary_key].append(alias)
+            else:
+                keys_dict[primary_key] = [alias]
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            yaml.dump({"data": self._data, "keys": keys_dict}, f, default_flow_style=False)
+
+    @classmethod
+    def from_yaml(cls, filepath):
+        """Load MultiKeyDict from a YAML file in the new format."""
+        with open(filepath, "r", encoding="utf-8") as f:
+            obj = yaml.safe_load(f)
+        instance = cls()
+        instance._data = obj["data"]
+        instance._keys = {}
+
+        for primary_key, aliases in obj["keys"].items():
+            for alias in aliases:
+                instance._keys[alias] = primary_key
+        
+        return instance
+
+class PatientData:
+    """Container for patient data and associated metadata (max values)."""
+    def __init__(self, data: DataFrame, max_values: Dict[str, float]):
+        self.data = data
+        self.max_values = max_values
+
+    @property
+    def deficit_matrix(self) -> DataFrame:
+        """Compute the deficit matrix using the data and max values."""
+        return 1 - (self.data / pd.Series(self.max_values))
+
+def create_patient_schema(max_values: Dict[str, float]) -> pa.DataFrameModel:
+    """Dynamically create a Pandera schema based on max values."""
+    class PatientSchema(pa.DataFrameModel):
+        pass
+
+    # Add columns to the schema with range checks
+    for col_name, max_value in max_values.items():
+        setattr(
+            PatientSchema,
+            col_name,
+            pa.Column(
+                float,
+                checks=pa.Check.in_range(0, max_value),
+                nullable=False
+            )
+        )
+
+    return PatientSchema
+
+class PatientDataLoader:
+    """Load and validate patient data with associated max values."""
+    def __init__(self, max_values: Dict[str, float]):
+        self.max_values = max_values
+        self.PatientSchema = create_patient_schema(max_values)
+
+    @pa.check_types
+    def load_patient_data(self) -> DataFrame[self.PatientSchema]:
+        """Load and validate patient data."""
+        data = pd.read_csv("../../data/clinical_scores.csv", index_col=0)
+        return data
+
+    def get_patient_data(self) -> PatientData:
+        """Return a PatientData object with validated data and max values."""
+        data = self.load_patient_data()
+        return PatientData(data, self.max_values)
+
+#####################################
+# ------ Protocol Attributes ------ #
+#####################################
+
+class ProtocolData:
 
 
 #################################
@@ -150,16 +258,6 @@ class DataProcessor:
         self.patient_data = None
         self.protocol_data = None
         self.mapping_dict = mapping_dict
-
-    # def process_session_data(self, session_batch: DataFrame[SessionSchema]) -> DataFrame[SessionProcessedSchema]:
-    #     """
-    #     Clean and standardize the session DataFrame:
-    #     - Enforce expected data types for each column.
-    #     - Drop sessions with missing critical values.
-    #     - Convert date columns to datetime.date.
-    #     - Map weekday names to numeric codes (0=Monday, ..., 6=Sunday).
-    #     """
-    #     pass
 
     def process_timeseries_data(self, timeseries_df):
         """
@@ -194,108 +292,142 @@ class DataProcessor:
         
         return aggregated
 
-    def process_patient_data(self, patient_df: DataFrame[PatientSchema], max_subscales) -> DataFrame[PatientSchema]:
-        """Process the clinical scores to compute the deficits given maximum value per subscale
-        """
-        ### TODO: How to handle clinical subscales max scores?? as param
-        ### - Store a dict of the max values for all possible subscales envisioned giving flexibility to name
-        ### - Retrieve the max value from there given the subscales present in my subset
+def expand_session_batch(session_batch: pd.DataFrame):
+    """
+    Augment the session DataFrame with rows for expected sessions that were *not* performed.
+    For each prescription (identified by PRESCRIPTION_ID), generate sessions on the scheduled weekday 
+    that do not exist in the recorded sessions, marking them as NOT_PERFORMED with zero adherence.
+    """
+    session_cols = [
+        "SESSION_ID", "STARTING_HOUR", "STARTING_TIME_CATEGORY", "REAL_SESSION_DURATION",
+        "SESSION_DURATION", "TOTAL_SUCCESS", "TOTAL_ERRORS", "SCORE"
+    ]
 
-        deficit_matrix = 1 - (patient_df / pd.Series(max_subscales))
-        deficit_matrix.to_csv("deficit_matrix")
+    missing_sessions = []
+    # Group sessions by prescription and find expected dates not present
+    for _, group in session_batch.groupby("PRESCRIPTION_ID"):
+        
+        # Use the first row of each group to get prescription schedule info
+        first_row = group.iloc[0]
+        start = first_row.PRESCRIPTION_STARTING_DATE
+        end = first_row.PRESCRIPTION_ENDING_DATE
+        weekday = first_row.WEEKDAY_INDEX
+
+        ###### NA Issue 
+        if pd.isna(start) or pd.isna(end) or pd.isna(weekday):
+            continue  # skip if any critical info is missing
+
+        expected_dates = generate_expected_sessions(start, end, int(weekday))
+        performed_dates = set(group["SESSION_DATE"].dropna().unique())
+        
+        # Any expected date not in performed_dates is a missed session
+        for miss_date in expected_dates:
+
+            if miss_date not in performed_dates:
+
+                new_row = first_row.copy()
+                new_row["SESSION_DATE"] = miss_date
+                new_row["STATUS"] = "NOT_PERFORMED"
+                new_row["ADHERENCE"] = 0.0
+
+                # Set all session outcome-related columns to NaN (since session didn't occur)
+                for col in session_cols:
+                    new_row[col] = np.nan
+
+                missing_sessions.append(new_row)
+
+    if missing_sessions:
+        
+        df_missing = pd.DataFrame(missing_sessions)
+        sessions_df = pd.concat([session_batch, df_missing], ignore_index=True)
+        
+        # Sort by prescription and date for chronological order
+        sessions_df.sort_values(by=["PRESCRIPTION_ID", "PROTOCOL_ID", "SESSION_DATE"], inplace=True)
+        
+    return sessions_df
+
+def map_latent_to_clinical(protocol_attributes, mapping_dict, agg_func=np.mean):
+    """We need to collapse the protocol feature space into the clinical feature space.
+    """
+    df_clinical = pd.DataFrame(index=protocol_attributes.index)
+
+    # Collapse using agg_func the protocol latent attributes    
+    for clinical_scale, features in mapping_dict.items():
+        df_clinical[clinical_scale] = protocol_attributes[features].apply(agg_func, axis=1)
+
+    df_clinical.index = protocol_attributes["PROTOCOL_ID"]
+
+    return df_clinical
+
+def generate_expected_sessions(start_date, end_date, target_weekday):
+    """
+    Generate all expected session dates between start_date and end_date for the given target weekday.
+    If the prescription end date is in the future, use today as the end limit (assuming future sessions are not yet done).
+    """
+    expected_dates = []
+    today = pd.Timestamp.today()
+    # If the prescription is still ongoing, cap the end_date at today
+    if end_date is None:
+        return expected_dates  # no valid end date
+    if end_date > today:
+        end_date = today
+    # Find the first occurrence of the target weekday on or after start_date
+    if start_date.weekday() != target_weekday:
+        days_until_target = (target_weekday - start_date.weekday()) % 7
+        start_date = start_date + pd.Timedelta(days=days_until_target)
+    # Generate dates every 7 days (weekly) from the adjusted start_date up to end_date
+    current_date = start_date
+    while current_date <= end_date:
+        expected_dates.append(current_date)
+        current_date += pd.Timedelta(days=7)
+    return expected_dates
+
+# ------------------------------
+# ------ Clinical Scores
+
+class ClinicalProcessor:
+    def __init__(self, scale_yaml_path: Optional[str] = None):
+        """Initialize with an optional path to scale.yaml, defaulting to internal package resource."""
+        if scale_yaml_path:
+            self.scales_path = Path(scale_yaml_path)
+        else:
+            self.scales_path = importlib.resources.files(config) / "scales.yaml"
+
+        if not self.scales_path.exists():
+            raise FileNotFoundError(f"Scale YAML file not found at {self.scales_path}")
+
+        # logger.info(f"Loading subscale max values from: {self.scales_path}")
+        self.scales_dict = MultiKeyDict.from_yaml(self.scales_path)
+
+    def process(self, patient_df: pd.DataFrame) -> pd.DataFrame:
+        """Compute deficit matrix given patient clinical scores.
+
+        Args:
+            patient_df (pd.DataFrame): DataFrame where columns are subscale names.
+
+        Returns:
+            pd.DataFrame: A deficit matrix (values normalized between 0 and 1).
+        """
+        # Retrieve max values using MultiKeyDict
+        max_subscales = [self.scales_dict.get(scale, None) for scale in patient_df.columns]
+
+        # Check for missing values
+        if None in max_subscales:
+            missing_subscales = [scale for scale, max_val in zip(patient_df.columns, max_subscales) if max_val is None]
+            # logger.warning(f"Missing max values for subscales: {missing_subscales}")
+            raise ValueError(f"Missing max values for subscales: {missing_subscales}")
+
+        # Compute deficit matrix
+        deficit_matrix = 1 - (patient_df / pd.Series(max_subscales, index=patient_df.columns))
+
+        # Save (Optional: Remove in production if not needed)
+        # deficit_matrix.to_csv("deficit_matrix.csv")
+        # logger.info("Deficit matrix computed and saved to 'deficit_matrix.csv'")
+
         return deficit_matrix
 
-    def expand_session_batch(self, session_batch: pd.DataFrame):
-        """
-        Augment the session DataFrame with rows for expected sessions that were *not* performed.
-        For each prescription (identified by PRESCRIPTION_ID), generate sessions on the scheduled weekday 
-        that do not exist in the recorded sessions, marking them as NOT_PERFORMED with zero adherence.
-        """
-        session_cols = [
-            "SESSION_ID", "STARTING_HOUR", "STARTING_TIME_CATEGORY", "REAL_SESSION_DURATION",
-            "SESSION_DURATION", "TOTAL_SUCCESS", "TOTAL_ERRORS", "SCORE"
-        ]
-
-        missing_sessions = []
-        # Group sessions by prescription and find expected dates not present
-        for _, group in session_batch.groupby("PRESCRIPTION_ID"):
-            
-            # Use the first row of each group to get prescription schedule info
-            first_row = group.iloc[0]
-            start = first_row.PRESCRIPTION_STARTING_DATE
-            end = first_row.PRESCRIPTION_ENDING_DATE
-            weekday = first_row.WEEKDAY_INDEX
-
-            ###### NA Issue 
-            if pd.isna(start) or pd.isna(end) or pd.isna(weekday):
-                continue  # skip if any critical info is missing
-
-            expected_dates = self.generate_expected_sessions(start, end, int(weekday))
-            performed_dates = set(group["SESSION_DATE"].dropna().unique())
-            
-            # Any expected date not in performed_dates is a missed session
-            for miss_date in expected_dates:
-
-                if miss_date not in performed_dates:
-
-                    new_row = first_row.copy()
-                    new_row["SESSION_DATE"] = miss_date
-                    new_row["STATUS"] = "NOT_PERFORMED"
-                    new_row["ADHERENCE"] = 0.0
-
-                    # Set all session outcome-related columns to NaN (since session didn't occur)
-                    for col in session_cols:
-                        new_row[col] = np.nan
-
-                    missing_sessions.append(new_row)
-
-        if missing_sessions:
-            
-            df_missing = pd.DataFrame(missing_sessions)
-            sessions_df = pd.concat([session_batch, df_missing], ignore_index=True)
-            
-            # Sort by prescription and date for chronological order
-            sessions_df.sort_values(by=["PRESCRIPTION_ID", "PROTOCOL_ID", "SESSION_DATE"], inplace=True)
-            
-        return sessions_df
-
-    def map_latent_to_clinical(self, protocol_attributes, agg_func=np.mean):
-        """We need to collapse the protocol feature space into the clinical feature space.
-        """
-        df_clinical = pd.DataFrame(index=protocol_attributes.index)
-
-        # Collapse using agg_func the protocol latent attributes    
-        for clinical_scale, features in self.mapping_dict.items():
-            df_clinical[clinical_scale] = protocol_attributes[features].apply(agg_func, axis=1)
-
-        df_clinical.index = protocol_attributes["PROTOCOL_ID"]
-        self.protocol_data = df_clinical
-
-        return df_clinical
-    
-    @staticmethod
-    def generate_expected_sessions(start_date, end_date, target_weekday):
-        """
-        Generate all expected session dates between start_date and end_date for the given target weekday.
-        If the prescription end date is in the future, use today as the end limit (assuming future sessions are not yet done).
-        """
-        expected_dates = []
-        today = pd.Timestamp.today()
-        # If the prescription is still ongoing, cap the end_date at today
-        if end_date is None:
-            return expected_dates  # no valid end date
-        if end_date > today:
-            end_date = today
-        # Find the first occurrence of the target weekday on or after start_date
-        if start_date.weekday() != target_weekday:
-            days_until_target = (target_weekday - start_date.weekday()) % 7
-            start_date = start_date + pd.Timedelta(days=days_until_target)
-        # Generate dates every 7 days (weekly) from the adjusted start_date up to end_date
-        current_date = start_date
-        while current_date <= end_date:
-            expected_dates.append(current_date)
-            current_date += pd.Timedelta(days=7)
-        return expected_dates
+# ------------------------------
+# ------ Session Data
 
 class SessionProcessor:
     def __init__(
@@ -340,73 +472,9 @@ class SessionProcessor:
               .pipe(self.map_weekdays, self.weekday_col)
         )
 
-def enforce_dtypes(df: pd.DataFrame, dtypes: Dict[str, str]) -> pd.DataFrame:
-    """Enforce data types explicitly, raise if incompatible."""
-    return df.astype(dtypes, errors='raise')
-
-def drop_missing_critical(df: pd.DataFrame, critical_cols: list) -> pd.DataFrame:
-    """Drop rows missing critical columns."""
-    return df.dropna(subset=critical_cols)
-
-def convert_dates_to_date(df: pd.DataFrame, date_cols: list) -> pd.DataFrame:
-    """Convert datetime columns to date."""
-    return df.assign(**{
-        col: pd.to_datetime(df[col], errors='coerce').dt.date for col in date_cols
-    })
-
-def process_session_data(
-    self, 
-    session_batch: pd.DataFrame
-) -> pd.DataFrame:
-    expected_dtypes = {
-        "PATIENT_ID": "Int64",
-        "HOSPITAL_ID": "Int64",
-        "PARETIC_SIDE": "string",
-        "UPPER_EXTREMITY_TO_TRAIN": "string",
-        "HAND_RAISING_CAPACITY": "string",
-        "COGNITIVE_FUNCTION_LEVEL": "string",
-        "HAS_HEMINEGLIGENCE": "Int64",
-        "GENDER": "string",
-        "SKIN_COLOR": "string",
-        "AGE": "Int64",
-        "VIDEOGAME_EXP": "Int64",
-        "COMPUTER_EXP": "Int64",
-        "COMMENTS": "string",
-        "PTN_HEIGHT_CM": "Int64",
-        "ARM_SIZE_CM": "Int64",
-        "PRESCRIPTION_ID": "Int64",
-        "SESSION_ID": "Int64",
-        "PROTOCOL_ID": "Int64",
-        "PRESCRIPTION_STARTING_DATE": "datetime64[ns]",
-        "PRESCRIPTION_ENDING_DATE": "datetime64[ns]",
-        "SESSION_DATE": "datetime64[ns]",
-        "STARTING_HOUR": "Int64",
-        "STARTING_TIME_CATEGORY": "string",
-        "STATUS": "string",
-        "PROTOCOL_TYPE": "string",
-        "AR_MODE": "string",
-        "WEEKDAY": "string",
-        "REAL_SESSION_DURATION": "Int64",
-        "PRESCRIBED_SESSION_DURATION": "Int64",
-        "SESSION_DURATION": "Int64",
-        "ADHERENCE": "float64",
-        "TOTAL_SUCCESS": "Int64",
-        "TOTAL_ERRORS": "Int64",
-        "SCORE": "float64"
-    }
-
-    critical_cols = ["PRESCRIPTION_ID", "SESSION_DURATION"]
-    date_cols = ["SESSION_DATE", "PRESCRIPTION_STARTING_DATE", "PRESCRIPTION_ENDING_DATE"]
-
-    return (
-        session_batch
-        .pipe(enforce_dtypes, expected_dtypes)
-        .pipe(drop_missing_critical, critical_cols)
-        .pipe(convert_dates_to_date, date_cols)
-        .pipe(map_weekdays, "WEEKDAY")
-    )
-
 # ---------------------------------------------------------------------
 # RETURNS
 # -------
-
+# patient_df
+# session_df
+# protocol_df

@@ -149,3 +149,30 @@ class ProtocolMatrixSchema(pa.DataFrameModel):
     daily_living_activity: float
     symbolic_understanding: float
     semantic_processing: float
+
+# ---------------------------------------------------------------------
+# Scoring module output
+
+class ScoringSchema(pa.DataFrameModel):
+    """Pandera schema for cdss patient protocol scoring validation."""
+    
+    # Identifiers
+    patient_id: int
+    protocol_id: int
+
+    # Stats
+    usage: int
+
+    # Metrics
+    adherence: float
+    delta_dms: float
+    ppf_score: float
+
+    total_score: float
+
+    # Explainability
+    contributions: List[float]
+
+    # Schedule
+    days: List[int] = pa.Field(ge=0, le=6, description="Weekday Index (0=Monday, 6=Sunday)")
+

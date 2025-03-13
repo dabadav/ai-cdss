@@ -1,6 +1,13 @@
 import numpy as np
 import pandas as pd
 
+# ---------------------------------------------------------------------
+# PARAMS
+# ------
+# patient_df
+# session_df
+# protocol_df
+
 class ScoringComputer:
     """
     Combining patient data and protocol data
@@ -123,3 +130,21 @@ class ScoringComputer:
         contributions = A_norm[:, np.newaxis, :] * B_norm[np.newaxis, :, :]
 
         return contributions
+
+
+class Scoring:
+
+    def __init__(self):
+        
+        self.scoring_df = None
+
+## Population
+### PPF
+### Adherence
+### DeltaDM
+        
+
+# ---------------------------------------------------------------------
+# RETURNS
+# ------
+# scoring_df: DataFrame[ScoringSchema]
