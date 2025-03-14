@@ -1,5 +1,6 @@
 # src/pipeline.py
-from ai_cdss.services.data import DataProcessor, DataLoader
+from ai_cdss.services.data import DataLoader
+from ai_cdss.services.processing import ProtocolProcessor, ClinicalProcessor, TimeseriesProcessor
 from ai_cdss.services.scoring import ScoringComputer
 from ai_cdss.services.prescription import PrescriptionRecommender
 
@@ -20,31 +21,20 @@ class PipelineBase:
         
         # Instantiate pipeline components
         self.data_loader = DataLoader(patient_list)
-        # self.data_processor = DataProcessor(mapping_dict)
         self.scoring_computer = ScoringComputer()
         self.prescription_recommender = PrescriptionRecommender()
         
-        # Initialize internal data containers
         self.sessions = None
-        self.sessions_expanded = None
         self.timeseries = None
-
-        self.patient_profiles = None
-        self.protocol_profiles = None
-        
-        # Metrics
-        self.ppf_matrix = None
-        self.recommendations = None
-        self.contributions = None
-        self.scores = None
-        self.prescriptions = None
+        self.patient = None
+        self.protocol = None
 
     def run(self):
         """
         Execute the full pipeline sequentially.
         """
-        print("Starting data extraction...")
-        self.extract_data()
+        print("Starting data loading...")
+        self.loading_data()
         print("Processing data...")
         self.process_data()
         print("Computing similarity...")
@@ -58,16 +48,17 @@ class PipelineBase:
         """Extract session and time-series data for patients. Populate internal data structures."""
         self.sessions = self.data_loader.load_session_data()
         self.timeseries = self.data_loader.load_timeseries_data()
-        self.patient_profiles = self.data_loader.load_patient_data()
-        self.protocol_profiles = self.data_loader.load_protocol_data()
+        self.patient = self.data_loader.load_patient_data()
+        self.protocol = self.data_loader.load_protocol_data()
 
     def process_data(self):
         """Process session and time-series data. Clean and validate data"""
-        self.sessions = self.data_processor.process_session_data(self.sessions)
-        self.timeseries = self.data_processor.process_timeseries_data(self.timeseries)
-        self.patient_profiles = self.data_processor.process_patient_data(self.patient_profiles, self.max_subscales)
-        self.protocol_profiles = self.data_processor.map_latent_to_clinical(self.protocol_profiles)
+        patient_deficiency = ClinicalProcessor().process(self.patient)
+        protocol_mapped    = ProtocolProcessor().process(self.protocol)
+        timeseries_processed = TimeseriesProcessor().process(self.timeseries)
 
+        return patient_deficiency, protocol_mapped, timeseries_processed
+    
     def compute_scores(self):
         """Compute Patient-Protocol Fit (PPF) and protocol similarity."""
         self.ppf_matrix, self.contributions = self.scoring_computer.compute_ppf(self.patient_profiles, self.protocol_profiles)

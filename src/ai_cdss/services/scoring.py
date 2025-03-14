@@ -4,7 +4,7 @@ import pandas as pd
 # ---------------------------------------------------------------------
 # PARAMS
 # ------
-# patient_df
+# patient_deficit_df
 # session_df
 # protocol_df
 
@@ -131,19 +131,81 @@ class ScoringComputer:
 
         return contributions
 
+# ---------------------------------------------------------------------
+# PPF
 
-class Scoring:
+def feature_contributions(df_A, df_B):
+    # Convert to numpy
+    A = df_A.to_numpy()
+    B = df_B.to_numpy()
 
-    def __init__(self):
-        
-        self.scoring_df = None
+    # Compute row-wise norms
+    A_norms = np.linalg.norm(A, axis=1, keepdims=True)
+    B_norms = np.linalg.norm(B, axis=1, keepdims=True)
+    
+    # Replace zero norms with a small value to avoid NaN (division by zero)
+    A_norms[A_norms == 0] = 1e-10
+    B_norms[B_norms == 0] = 1e-10
+
+    # Normalize each row to unit vectors
+    A_norm = A / A_norms
+    B_norm = B / B_norms
+
+    # Compute feature contributions
+    contributions = A_norm[:, np.newaxis, :] * B_norm[np.newaxis, :, :]
+
+    return contributions
+
+def compute_ppf(patient_data, protocol_data):
+    """ Compute the patient-protocol feature matrix (PPF) and feature contributions.
+    """
+    contributions = feature_contributions(patient_data, protocol_data)
+    ppf = np.sum(contributions, axis=2)
+    ppf = pd.DataFrame(ppf, index=patient_data.index, columns=protocol_data.index)
+    contributions = pd.DataFrame(contributions.tolist(), index=patient_data.index, columns=protocol_data.index)
+    
+    return ppf, contributions
+
+# ADD
+#     Contributions      , PPF
+# --> Series[List[float]], Series[float]
+
+# ---------------------------------------------------------------------
+# Adherence
+
+def compute_adherence(session_batch, alpha=0.8):
+    """ Compute adherence scores.
+    """
+    session_batch['ADHERENCE_EWMA'] = (
+        session_batch.groupby(['PATIENT_ID', 'PROTOCOL_ID'])['ADHERENCE']
+        .transform(lambda x: x.ewm(alpha=alpha, adjust=True).mean())
+    )
+    return session_batch
 
 ## Population
 ### PPF
 ### Adherence
 ### DeltaDM
         
+def compute_protocol_similarity(protocol_data):
+    """ Compute protocol similarity.
+    """
+    import gower
 
+    protocol_attributes = protocol_data.copy()
+    protocol_ids = protocol_attributes.PROTOCOL_ID
+    protocol_attributes.drop(columns="PROTOCOL_ID", inplace=True)
+
+    hot_encoded_cols = protocol_attributes.columns.str.startswith("BODY_PART")
+    weights = np.ones(len(protocol_attributes.columns))
+    weights[hot_encoded_cols] = weights[hot_encoded_cols] / hot_encoded_cols.sum()
+    protocol_attributes = protocol_attributes.astype(float)
+
+    gower_sim_matrix = gower.gower_matrix(protocol_attributes, weight=weights)
+    gower_sim_matrix = pd.DataFrame(1- gower_sim_matrix, index=protocol_ids, columns=protocol_ids)
+
+    return gower_sim_matrix
+    
 # ---------------------------------------------------------------------
 # RETURNS
 # ------

@@ -60,3 +60,9 @@ data:
 
   ACT_QOM:
     - COORDINATION  # Quality of Movement related to balance & coordination.
+keys:
+  BARTHEL:
+  - Barthel Index
+  - BI
+  VAS:
+  - Visual Analog Scale
