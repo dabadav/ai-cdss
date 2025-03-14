@@ -221,7 +221,6 @@ class MultiKeyDict(object):
         
         return instance
 
-
 class BaseDataProcessor(ABC):
     """Abstract class for different processing strategies."""
 
@@ -389,6 +388,15 @@ class SessionProcessor(BaseDataProcessor):
 
 # ------------------------------
 # ------ Utils
+
+def compute_scoring(scoring, weights=[1,1,1]):
+    scoring_df = scoring.copy()
+    scoring_df['SCORE'] = (
+        scoring_df['ADHERENCE_EWMA'] * weights[0] +
+        scoring_df['PARAMETER_VALUE_EWMA'] * weights[1] +
+        scoring_df['PPF'] * weights[2]
+    )
+    return scoring_df
 
 def compute_adherence(session, alpha=0.8):
     """ Compute adherence scores.

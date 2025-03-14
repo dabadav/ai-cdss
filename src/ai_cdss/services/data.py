@@ -18,6 +18,7 @@ from ai_cdss import config
 # PARAMS
 # ------
 # patient_list: List
+#
 
 #################################
 # ------ RGS Data Loader ------ #
