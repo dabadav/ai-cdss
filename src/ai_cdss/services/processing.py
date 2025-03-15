@@ -243,41 +243,39 @@ class TimeseriesProcessor(BaseDataProcessor):
         self.protocol_mapped = None
 
     def process(self, timeseries):
-        """
-        Process raw time-series data:
-        - Ensure numeric types for parameter and performance values.
-        - Aggregate entries with the same timestamp (seconds from start) within each session.
-        - Compute exponential moving averages (EWMA) of parameter and performance values to smooth fluctuations.
-        """
-        
-        timeseries_df = timeseries.copy()
-        
-        # Cast parameter and performance values to float
-        timeseries_df["PARAMETER_VALUE"] = timeseries_df["PARAMETER_VALUE"].astype(float)
-        timeseries_df["PERFORMANCE_VALUE"] = timeseries_df["PERFORMANCE_VALUE"].astype(float)
-        
-        # Aggregate by session and time point (unique timestamp within a session), averaging multiple entries if any
-        aggregated = timeseries_df.groupby(
-            ["PATIENT_ID", "SESSION_ID", "PROTOCOL_ID", "GAME_MODE", "SECONDS_FROM_START"]
-        ).agg({
-            "PARAMETER_KEY": lambda x: list(set(x)),       # unique parameters at this time
-            "PARAMETER_VALUE": "mean",                     # average parameter value
-            "PERFORMANCE_KEY": "first",                    # assume same performance key per time, take first
-            "PERFORMANCE_VALUE": "mean"                    # average performance value (usually only one)
-        }).reset_index()
-        
-        # Compute Exponential Weighted Moving Average (EWMA) for values within each session time-series
-        # This smooths out the instantaneous fluctuations in DMs and PEs.
-        aggregated.sort_values(by=["PATIENT_ID", "SESSION_ID", "SECONDS_FROM_START"], inplace=True)
+        """Pipeline for processing timeseries data."""
+        return (
+            timeseries.copy()
+            .pipe(self.aggregate_timeseries)
+            .sort_values(by=["PATIENT_ID", "SESSION_ID", "SECONDS_FROM_START"])
+            .pipe(self.compute_ewma, value_col="DM_VALUE", group_cols=["PATIENT_ID", "SESSION_ID"])
+            .pipe(self.compute_ewma, value_col="PE_VALUE", group_cols=["PATIENT_ID", "SESSION_ID"])
+            .groupby(["PATIENT_ID", "PROTOCOL_ID"])["DM_VALUE_EWMA"]
+            .last()
+            .reset_index()
+        )
+    
+    @staticmethod
+    def compute_ewma(df, value_col, group_cols, alpha=0.5):
+        """Compute Exponential Weighted Moving Average (EWMA) for a given column within each session time-series."""
+        return df.assign(
+            **{f"{value_col}_EWMA": df.groupby(group_cols)[value_col].transform(lambda x: x.ewm(alpha=alpha, adjust=False).mean())}
+        )
 
-        aggregated["PARAMETER_VALUE_EWMA"] = aggregated.groupby(["PATIENT_ID", "SESSION_ID"])["PARAMETER_VALUE"]\
-                                                    .transform(lambda x: x.ewm(alpha=0.5, adjust=False).mean())
-        aggregated["PERFORMANCE_VALUE_EWMA"] = aggregated.groupby(["PATIENT_ID", "SESSION_ID"])["PERFORMANCE_VALUE"]\
-                                                    .transform(lambda x: x.ewm(alpha=0.5, adjust=False).mean())
-        
-        # Last value
-        aggregated = aggregated.groupby(["PATIENT_ID", "PROTOCOL_ID"])["PARAMETER_VALUE_EWMA"].last().reset_index()
-        return aggregated
+    @staticmethod
+    def aggregate_timeseries(timeseries):
+        """Aggregate timeseries data by session and time point."""
+        return (
+            timeseries
+            .groupby(["PATIENT_ID", "SESSION_ID", "PROTOCOL_ID", "GAME_MODE", "SECONDS_FROM_START"])
+            .agg({
+                "DM_KEY": lambda x: list(set(x)),  # Unique parameters at this time
+                "DM_VALUE": "mean",               # Average parameter value
+                "PE_KEY": "first",                # Assume same performance key per time, take first
+                "PE_VALUE": "mean"                # Average performance value (usually only one)
+            })
+            .reset_index()
+        )
 
 # ------------------------------
 # ------ Clinical Scores
@@ -285,11 +283,11 @@ class TimeseriesProcessor(BaseDataProcessor):
 class ClinicalProcessor(BaseDataProcessor):
     def __init__(self, scale_yaml_path: Optional[str] = None):
         """Initialize with an optional path to scale.yaml, defaulting to internal package resource."""
+        # Retrieves max values for clinical subscales from config/scales.yaml
         if scale_yaml_path:
             self.scales_path = Path(scale_yaml_path)
         else:
             self.scales_path = importlib.resources.files(config) / "scales.yaml"
-
         if not self.scales_path.exists():
             raise FileNotFoundError(f"Scale YAML file not found at {self.scales_path}")
 
@@ -305,13 +303,13 @@ class ClinicalProcessor(BaseDataProcessor):
         Returns:
             pd.DataFrame: A deficit matrix (values normalized between 0 and 1).
         """
+        
         # Retrieve max values using MultiKeyDict
         max_subscales = [self.scales_dict.get(scale, None) for scale in patient_df.columns]
 
         # Check for missing values
         if None in max_subscales:
             missing_subscales = [scale for scale, max_val in zip(patient_df.columns, max_subscales) if max_val is None]
-            # logger.warning(f"Missing max values for subscales: {missing_subscales}")
             raise ValueError(f"Missing max values for subscales: {missing_subscales}")
 
         # Compute deficit matrix
@@ -319,7 +317,6 @@ class ClinicalProcessor(BaseDataProcessor):
 
         # Save (Optional: Remove in production if not needed)
         # deficit_matrix.to_csv("deficit_matrix.csv")
-        # logger.info("Deficit matrix computed and saved to 'deficit_matrix.csv'")
 
         return deficit_matrix
 
@@ -393,7 +390,7 @@ def compute_scoring(scoring, weights=[1,1,1]):
     scoring_df = scoring.copy()
     scoring_df['SCORE'] = (
         scoring_df['ADHERENCE_EWMA'] * weights[0] +
-        scoring_df['PARAMETER_VALUE_EWMA'] * weights[1] +
+        scoring_df['DM_VALUE_EWMA'] * weights[1] +
         scoring_df['PPF'] * weights[2]
     )
     return scoring_df
@@ -481,7 +478,6 @@ def compute_usage(session: pd.DataFrame, index: pd.MultiIndex) -> pd.DataFrame:
         .reset_index()
     )
 
-# For timeseries DM PERFORMANCE
 def extract_last_value(df: pd.DataFrame, group_cols: list, value_col: str, new_col_name: str = None) -> pd.DataFrame:
     """
     Groups a DataFrame by specified columns and extracts the last value for a given column.
@@ -511,7 +507,6 @@ extract_last = lambda df, value_col, new_col: (
     .rename(columns={value_col: new_col})
 )
 
-# JOIN
 def merge_data(left, right):
     return pd.merge(left, right, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
 
@@ -594,7 +589,7 @@ def schedule(df, days_per_week=7, prescriptions_per_day=5):
 below_mean = lambda x: x < x.mean()
 
 interchange_mask = lambda df: (
-    df.groupby('PATIENT_ID')['SCORE']
+    df.groupby('PATIENT_ID')['NEW_SCORE']
     .transform(below_mean)
 )
 

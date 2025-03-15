@@ -1,18 +1,11 @@
 from abc import ABC, abstractmethod
-import importlib.resources
-from typing import Dict, List, Optional
-from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pandera as pa
 from pandera.typing import DataFrame
-import json
-import yaml
 
 from ai_cdss.models import SessionSchema, PatientSchema, ProtocolMatrixSchema
-from recsys_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
-from ai_cdss import config
+from rgs_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
 
 # ---------------------------------------------------------------------
 # PARAMS
@@ -62,8 +55,12 @@ class DataLoader(BaseDataLoader):
         return dms_app
 
     def load_patient_data(self) -> DataFrame[PatientSchema]:
-        return pd.read_csv("../../data/clinical_scores.csv", index_col=0)
+        """Loads and filters patient data by patient_list."""
+        df = pd.read_csv("../../data/clinical_scores.csv", index_col=0)
+        df = df[df.index.isin(self.patient_list)]
 
+        return df
+    
     def load_protocol_data(self) -> DataFrame[ProtocolMatrixSchema]:
         return pd.read_csv("../../data/protocol_attributes.csv", index_col=0)
 
