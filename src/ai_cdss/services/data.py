@@ -54,13 +54,13 @@ class DataLoader(BaseDataLoader):
         dms_app = fetch_timeseries_data(self.patient_list, rgs_mode="app")
         return dms_app
 
-    def load_patient_data(self) -> DataFrame[PatientSchema]:
+    def load_patient_data(self, path="../../data/clinical_scores.csv") -> DataFrame[PatientSchema]:
         """Loads and filters patient data by patient_list."""
-        df = pd.read_csv("../../data/clinical_scores.csv", index_col=0)
+        df = pd.read_csv(path, index_col=0)
         df = df[df.index.isin(self.patient_list)]
 
         return df
     
-    def load_protocol_data(self) -> DataFrame[ProtocolMatrixSchema]:
-        return pd.read_csv("../../data/protocol_attributes.csv", index_col=0)
+    def load_protocol_data(self, path="../../data/protocol_attributes.csv") -> DataFrame[ProtocolMatrixSchema]:
+        return pd.read_csv(path, index_col=0)
 

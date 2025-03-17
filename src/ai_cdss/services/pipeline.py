@@ -1,8 +1,11 @@
 # src/pipeline.py
 from ai_cdss.services.data import DataLoader
-from ai_cdss.services.processing import ProtocolProcessor, ClinicalProcessor, TimeseriesProcessor, SessionProcessor
-from ai_cdss.services.processing import create_multiindex_df, compute_protocol_similarity, compute_usage, merge_data, compute_ppf, compute_scoring, schedule, rank_top_n, interchange_mask, substitute_protocol, multiindex
-from functools import reduce
+from rgs_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
+from ai_cdss.services.processing import collapse_by_session, collapse_by_protocol
+from ai_cdss.services.processing import compute_usage, compute_scoring, schedule, rank_top_n, interchange_mask, substitute_protocol
+
+import pandas as pd
+from pathlib import Path
 
 class CDSS:
     """Base class for the rehabilitation recommendation pipeline.
@@ -18,7 +21,7 @@ class CDSS:
         Initialize the pipeline with patient list and data sources.
 
         """
-        
+
         # Parameters
         self.patient_list = patient_list
         self.n = n
@@ -29,94 +32,95 @@ class CDSS:
         # Data sources
         self.session = None
         self.timeseries = None
-        self.patient = None
-        self.protocol = None
-
-        # Internal data
-        self.protocol_similarity = None
-        self.protocol_usage = None
 
         # Data output
         self.scoring = None
         self.prescriptions = None
 
-    def run(self):
+    def recommend(self):
         """
         Execute the full pipeline sequentially.
         """
         print("Starting data loading...")
-        self.load_data()
+        self._load()
+
         print("Processing data...")
-        self._init_protocol_similarity()
-        self._init_protocol_usage()
-        self._init_scoring()
-        self._init_prescriptions()
+        self._score()
+
+        print("Generate prescriptions...")
+        self._prescribe()
 
         self.prescriptions.to_csv("recommendations.csv")
         print("Pipeline completed successfully!")
         return self.prescriptions
 
-    def _init_scoring(self):
-        patient_protocol_table = create_multiindex_df(self.patient.index, self.protocol.PROTOCOL_ID)
-        session_processed, timeseries_processed, patient_deficiency, protocol_mapped = self.process_data()
+    def _load(self):
+        """Extract session and time-series data for patients. Update the state of the class."""
         
-        ppf, contrib = compute_ppf(patient_deficiency, protocol_mapped)
+        # Fetch data from db, both session level data, and timeseries of dm and pe
+        self.session = fetch_rgs_data(self.patient_list, rgs_mode="app")
+        self.timeseries = fetch_timeseries_data(self.patient_list, rgs_mode="app")
 
-        dfs = [session_processed, timeseries_processed, ppf, contrib, self.protocol_usage]
-        scoring = reduce(merge_data, [patient_protocol_table] + dfs)
+    def _score(self):
+        """Process session and time-series data. Clean and validate data"""
+
+        # Collapse dms of same timepoints and collapse dm, pe of same session by last value of ewma      
+        timeseries_data = collapse_by_session(self.timeseries)
+
+        # Compute number of sessions per protocol
+        session_data = compute_usage(self.session)
+
+        # Collapse adherence, dm of same protocol by last value of ewma
+        rgs_data = collapse_by_protocol(session_data.merge(timeseries_data[["SESSION_ID", "DM_VALUE", "PE_VALUE"]], on="SESSION_ID"))
         
-        self.scoring = compute_scoring(scoring, weights=[1,1,1])
+        # Load last ppf data from ai_cdss directory
+        internal_dir = Path.home() / ".ai_cdss" / "output"
+        ppf_data = pd.read_csv(internal_dir / "ppf.csv")
+        ppf_data = ppf_data[ppf_data.PATIENT_ID.isin(self.patient_list)]
 
-    def _init_protocol_similarity(self):
-        self.protocol_similarity = compute_protocol_similarity(self.protocol)
+        # Merge all data in scoring df with all patient, protocol pairs
+        rgs_data = ppf_data.merge(rgs_data, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")[["PATIENT_ID", "PROTOCOL_ID", "USAGE", "PPF", "CONTRIB", "ADHERENCE_EWMA", "DM_VALUE_EWMA"]]
+        
+        # Compute the linear combination of factors
+        rgs_data = compute_scoring(rgs_data, weights=[1,1,1])
+        
+        # Initialize non-performed protocols adh, dm, pe
+        rgs_data.fillna(0, inplace=True)
 
-    def _init_protocol_usage(self):
-        patient_protocol_index = multiindex(self.patient.index, self.protocol.PROTOCOL_ID)
-        self.protocol_usage = compute_usage(self.session, patient_protocol_index)
+        # Update class state
+        self.scoring = rgs_data
 
-    def _init_prescriptions(self):
+    def _prescribe(self):
+
+        # Get top n protocols per patient by score
         scoring_ranked = rank_top_n(self.scoring, self.n)
+
+        # Apply scheduling
         self.prescriptions = schedule(scoring_ranked)
 
     def update_prescriptions(self, last_week_prescriptions, current_scoring):
-        prescriptions_df = last_week_prescriptions.copy()
 
-        # Update last_week with new score ans usage from current_scoring
+        # Load protocol similarity from ai_cdss last file
+        internal_dir = Path.home() / ".ai_cdss" / "output"
+        protocol_similarity = pd.read_csv(internal_dir / "protocol_fcm.csv", index_col=0)
+        protocol_similarity.columns = protocol_similarity.columns.astype(int)
+
+        # Last prescriptions
+        prescriptions_df = last_week_prescriptions.copy()
+        
+        # Update last_week prescriptions with new score ans usage from current_scoring
         current_scoring = current_scoring[["PATIENT_ID", "PROTOCOL_ID", "SCORE", "USAGE"]].rename(columns={"SCORE": "NEW_SCORE", "USAGE": "NEW_USAGE"})
-        
-        # Merge last week's prescriptions with the current scoring updates
         prescriptions_df = prescriptions_df.merge(current_scoring, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
-        
+
         # Apply mask to last week prescriptions based on current_scoring
         prescriptions_df["INTERCHANGE"] = interchange_mask(prescriptions_df)
-
+        
+        # For all protocols to interchange find a substitue based on fcm matrix
         prescriptions_df["NEW_PROTOCOL_ID"] = prescriptions_df.apply(
             substitute_protocol,
             axis=1,
-            args=(self.protocol_similarity, self.protocol_usage)
+            args=(protocol_similarity, current_scoring)
         )
 
+        # Update prescriptions
         self.prescriptions = prescriptions_df
-
-    def load_data(self):
-        """Extract session and time-series data for patients. Populate internal data structures."""
-        self.session = self.data_loader.load_session_data()
-        self.timeseries = self.data_loader.load_timeseries_data()
-        self.patient = self.data_loader.load_patient_data()
-        self.protocol = self.data_loader.load_protocol_data()
-
-    def process_data(self):
-        """Process session and time-series data. Clean and validate data"""
-        session_processed = SessionProcessor().process(self.session)
-        timeseries_processed = TimeseriesProcessor().process(self.timeseries)
-        patient_deficiency = ClinicalProcessor().process(self.patient)
-        protocol_mapped    = ProtocolProcessor().process(self.protocol)
-
-        return session_processed, timeseries_processed, patient_deficiency, protocol_mapped
-    
-    def display_recommendations(self):
-        """Display recommendations in a readable format."""
-        for patient_id, rec in self.recommendations.items():
-            print(f"Patient {patient_id}: Recommended Protocol {rec['protocols']} (Score: {rec['scores']:.3f})")
-            print(f" - Explanation: {rec['explanation']}")
-

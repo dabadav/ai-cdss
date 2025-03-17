@@ -1,4 +1,4 @@
-from ai_cdss.services.pipeline import PipelineBase
+from ai_cdss.services.pipeline import CDSS
 
 
 def main():
@@ -8,10 +8,12 @@ def main():
         2955, 2956, 2957, 2958, 2959, 2960, 2961, 2962, 2963, 3081, 3229, 3318, 3432
     ]
 
-    pipeline = PipelineBase(
-        PATIENT_LIST
+    pipeline = CDSS(
+        PATIENT_LIST,
+        n=5
     )
-    pipeline.run()
+    
+    pipeline.recommend()
 
 if __name__ == "__main__":
     main()

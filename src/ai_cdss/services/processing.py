@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import importlib.resources
-from typing import Dict, List, Optional, Iterable
+from typing import Optional
 from pathlib import Path
 
 import numpy as np
@@ -248,7 +248,7 @@ class TimeseriesProcessor(BaseDataProcessor):
             timeseries.copy()
             .pipe(self.aggregate_timeseries)
             .sort_values(by=["PATIENT_ID", "SESSION_ID", "SECONDS_FROM_START"])
-            .pipe(self.compute_ewma, value_col="DM_VALUE", group_cols=["PATIENT_ID", "SESSION_ID"])
+            .pipe(self.compute_ewma, value_col="DM_VALUE", group_cols=["PATIENT_ID", "SESSION_ID"]) # Get last with filter
             .pipe(self.compute_ewma, value_col="PE_VALUE", group_cols=["PATIENT_ID", "SESSION_ID"])
             .groupby(["PATIENT_ID", "PROTOCOL_ID"])["DM_VALUE_EWMA"]
             .last()
@@ -269,7 +269,7 @@ class TimeseriesProcessor(BaseDataProcessor):
             timeseries
             .groupby(["PATIENT_ID", "SESSION_ID", "PROTOCOL_ID", "GAME_MODE", "SECONDS_FROM_START"])
             .agg({
-                "DM_KEY": lambda x: list(set(x)),  # Unique parameters at this time
+                "DM_KEY": lambda x: list(set(x)), # Unique parameters at this time
                 "DM_VALUE": "mean",               # Average parameter value
                 "PE_KEY": "first",                # Assume same performance key per time, take first
                 "PE_VALUE": "mean"                # Average performance value (usually only one)
@@ -386,24 +386,92 @@ class SessionProcessor(BaseDataProcessor):
 # ------------------------------
 # ------ Utils
 
-def compute_scoring(scoring, weights=[1,1,1]):
-    scoring_df = scoring.copy()
-    scoring_df['SCORE'] = (
-        scoring_df['ADHERENCE_EWMA'] * weights[0] +
-        scoring_df['DM_VALUE_EWMA'] * weights[1] +
-        scoring_df['PPF'] * weights[2]
-    )
-    return scoring_df
+# ---------------------------------------------------------------
 
-def compute_adherence(session, alpha=0.8):
-    """ Compute adherence scores.
-    """
-    session['ADHERENCE_EWMA'] = (
-        session
-        .groupby(['PATIENT_ID', 'PROTOCOL_ID'])['ADHERENCE']
-        .transform(lambda x: x.ewm(alpha=alpha, adjust=True).mean())
+def collapse_by_time(timeseries):
+    """Aggregate timepoints with multiple dms using the mean of dms."""
+    return (
+        timeseries
+        .groupby(["PATIENT_ID", "SESSION_ID", "PROTOCOL_ID", "GAME_MODE", "SECONDS_FROM_START"])
+        .agg({
+            "DM_KEY": lambda x: list(set(x)), # Unique parameters at this time
+            "DM_VALUE": "mean",               # Average parameter value
+            "PE_KEY": "first",                # Assume same performance key per time, take first
+            "PE_VALUE": "mean"                # Average performance value (usually only one)
+        })
+        .reset_index()
     )
+
+def collapse_by_session(timeseries):
+    """Aggregate sessions with multiple timepoints using last value of dm, pe ewma"""
+    return (
+        compute_ewma(
+            collapse_by_time(timeseries), 
+            value_cols=["DM_VALUE", "PE_VALUE"], 
+            group_cols=["PATIENT_ID","SESSION_ID"],
+            inplace=True
+        )
+        .groupby(["PATIENT_ID", "SESSION_ID"])
+        .last()
+        .reset_index()
+    )
+
+def collapse_by_protocol(data):
+    """Aggregate protocol with multiple sessions using last value of adherence, dm, pe ewma"""
+    return (
+        compute_ewma(
+            data,
+            value_cols=["ADHERENCE", "DM_VALUE", "PE_VALUE"],
+            group_cols=["PATIENT_ID", "PROTOCOL_ID"],
+            inplace=False
+        )
+        .groupby(["PATIENT_ID", "PROTOCOL_ID"])
+        .last()
+        .reset_index()
+    )
+
+def compute_usage(session: pd.DataFrame) -> pd.DataFrame:
+    """
+    Compute the number of sessions per (PATIENT_ID, PROTOCOL_ID).
+    
+    Parameters:
+    - session (pd.DataFrame): DataFrame containing session data with "SESSION_ID".
+    
+    Returns:
+    - pd.DataFrame: DataFrame with "USAGE" column.
+    """
+    session["USAGE"] = session.groupby(["PATIENT_ID", "PROTOCOL_ID"])["SESSION_ID"].transform("count")
     return session
+
+def compute_ewma(df, value_cols, group_cols, alpha=0.5, inplace=False):
+    """Compute EWMA for multiple columns within each group."""
+    df = df.copy()
+    for col in value_cols:  # Iterate over each value column
+        if inplace:
+            ewma_col = col
+        else:
+            ewma_col = f"{col}_EWMA"
+        # Compute EWMA per group and assign to new column
+        df[ewma_col] = (
+            df
+            .groupby(group_cols)[col]
+            .transform(lambda x: x.ewm(alpha=alpha, adjust=False).mean()) # Apply mean ewma
+        )
+    return df
+
+def aggregate_timeseries(timeseries):
+    """Aggregate timeseries data by session and time point."""
+    return (
+        timeseries
+        .groupby(["PATIENT_ID", "SESSION_ID", "PROTOCOL_ID", "GAME_MODE", "SECONDS_FROM_START"])
+        .agg({
+            "DM_KEY": lambda x: list(set(x)), # Unique parameters at this time
+            "DM_VALUE": "mean",               # Average parameter value
+            "PE_KEY": "first",                # Assume same performance key per time, take first
+            "PE_VALUE": "mean"                # Average performance value (usually only one)
+        })
+        .reset_index()
+    )
 
 def feature_contributions(df_A, df_B):
     # Convert to numpy
@@ -443,69 +511,24 @@ def compute_ppf(patient_deficiency, protocol_mapped):
 
     return ppf_long, contrib_long
 
-def create_multiindex_df(
-    patient_ids: Iterable,
-    protocol_ids: Iterable,
-    index_names: List[str] = ["PATIENT_ID", "PROTOCOL_ID"]
-) -> pd.DataFrame:
-    return (
-        pd.MultiIndex.from_product(
-            [patient_ids, protocol_ids],
-            names=index_names
-        )
-        .to_frame(index=False)
-        .reset_index(drop=True)
+def compute_scoring(scoring, weights=[1,1,1]):
+    scoring_df = scoring.copy()
+    scoring_df['SCORE'] = (
+        scoring_df['ADHERENCE_EWMA'] * weights[0] +
+        scoring_df['DM_VALUE_EWMA'] * weights[1] +
+        scoring_df['PPF'] * weights[2]
     )
+    return scoring_df
 
-multiindex = lambda id_a, id_b: pd.MultiIndex.from_product([id_a, id_b], names=["PATIENT_ID", "PROTOCOL_ID"])
-
-def compute_usage(session: pd.DataFrame, index: pd.MultiIndex) -> pd.DataFrame:
+def compute_adherence(session, alpha=0.8):
+    """ Compute adherence scores.
     """
-    Compute the number of sessions per (PATIENT_ID, PROTOCOL_ID).
-    
-    Parameters:
-    - session (pd.DataFrame): DataFrame containing session data with "SESSION_ID".
-    - index (pd.MultiIndex): MultiIndex to ensure all patient-protocol combinations exist.
-    
-    Returns:
-    - pd.DataFrame: DataFrame with "USAGE" column.
-    """
-    return (
+    session['ADHERENCE_EWMA'] = (
         session
-        .groupby(["PATIENT_ID", "PROTOCOL_ID"])["SESSION_ID"]
-        .agg(USAGE="count")
-        .reindex(index, fill_value=0)
-        .reset_index()
+        .groupby(['PATIENT_ID', 'PROTOCOL_ID'])['ADHERENCE']
+        .transform(lambda x: x.ewm(alpha=alpha, adjust=True).mean())
     )
-
-def extract_last_value(df: pd.DataFrame, group_cols: list, value_col: str, new_col_name: str = None) -> pd.DataFrame:
-    """
-    Groups a DataFrame by specified columns and extracts the last value for a given column.
-    
-    Parameters:
-    - df (pd.DataFrame): The input DataFrame.
-    - group_cols (list): The columns to group by (e.g., ["PATIENT_ID", "PROTOCOL_ID"]).
-    - value_col (str): The column to extract the last value from.
-    - new_col_name (str, optional): The name of the output column. If None, keeps the original name.
-    
-    Returns:
-    - pd.DataFrame: A DataFrame with group_cols + the last value of value_col.
-    """
-    new_col_name = new_col_name or value_col  # Use custom name if provided
-    return (
-        df
-        .groupby(group_cols)[value_col]
-        .last()
-        .reset_index()
-        .rename(columns={value_col: new_col_name})
-    )
-
-extract_last = lambda df, value_col, new_col: (
-    df.groupby(["PATIENT_ID", "PROTOCOL_ID"])[value_col]
-    .last()
-    .reset_index()
-    .rename(columns={value_col: new_col})
-)
+    return session
 
 def merge_data(left, right):
     return pd.merge(left, right, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
@@ -613,23 +636,17 @@ def compute_protocol_similarity(protocol_mapped):
 
     return gower_sim_matrix
 
-def matrix_to_xy(df, columns=None, reset_index=False):
-    bool_index = np.triu(np.ones(df.shape)).astype(bool)
-    xy = (
-        df.where(bool_index).stack().reset_index()
-        if reset_index
-        else df.where(bool_index).stack()
-    )
-    if reset_index:
-        xy.columns = columns or ["row", "col", "val"]
-    return xy
+def get_usage(session, patient_id):
+    patient_sessions = session[session.PATIENT_ID == patient_id]
+    patient_sessions.index = patient_sessions.PROTOCOL_ID
+    return patient_sessions.NEW_USAGE
 
-def find_substitute(patient, protocol, protocol_sim, usage):
+def find_substitute(patient, protocol, protocol_sim, scoring):
     # Exclude the current protocol
-    protocols = protocol_sim.columns.drop(protocol)
+    protocols = protocol_sim.columns.astype(type(protocol)).drop(protocol)
     
     # Get usage and similarity data for other protocols
-    protocol_usage = get_usage(usage, patient)
+    protocol_usage = get_usage(scoring, patient)
     usage = protocol_usage[protocols]
     sim = protocol_sim.loc[protocol, protocols]
     
@@ -645,18 +662,13 @@ def find_substitute(patient, protocol, protocol_sim, usage):
     # Return the first candidate (or handle ties)
     return final_candidates[0] if not final_candidates.empty else None
 
-def get_usage(session, patient_id):
-    patient_sessions = session[session.PATIENT_ID == patient_id]
-    patient_sessions.index = patient_sessions.PROTOCOL_ID
-    return patient_sessions.USAGE
-
-def substitute_protocol(row, protocol_sim, usage_df):
+def substitute_protocol(row, protocol_sim, scoring):
     if row["INTERCHANGE"]:
         return find_substitute(
             row["PATIENT_ID"],
             row["PROTOCOL_ID"], 
             protocol_sim, 
-            usage_df
+            scoring
         )
     return row["PROTOCOL_ID"]
 
