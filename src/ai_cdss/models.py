@@ -1,12 +1,17 @@
 import pandera as pa
 from typing import List
-from pandera.typing import Series
-from datetime import date, datetime
+from pandera.typing import Series, DataFrame
+from pandera.dtypes import Int64
+import pandas as pd
 from functools import partial
 
 NullableField = partial(pa.Field, nullable=True)
 
+# ---------------------------------------------------------------------
+# RGS Data Input
+
 class SessionSchema(pa.DataFrameModel):
+    # Patient profile
     patient_id: int = NullableField(alias='PATIENT_ID')
     hospital_id: int = NullableField(alias='HOSPITAL_ID')
     paretic_side: str = NullableField(alias='PARETIC_SIDE')
@@ -23,18 +28,28 @@ class SessionSchema(pa.DataFrameModel):
     ptn_height_cm: int = NullableField(alias='PTN_HEIGHT_CM', ge=100, le=250)
     arm_size_cm: int = NullableField(alias='ARM_SIZE_CM', ge=20, le=60)
 
+    # Identifiers
     prescription_id: int = NullableField(alias='PRESCRIPTION_ID')
     session_id: int = NullableField(alias='SESSION_ID')
     protocol_id: int = NullableField(alias='PROTOCOL_ID')
+
+    # Prescription
     prescription_starting_date: pa.DateTime = NullableField(alias='PRESCRIPTION_STARTING_DATE')
     prescription_ending_date: pa.DateTime = NullableField(alias='PRESCRIPTION_ENDING_DATE')
+    
+    # Session
     session_date: pa.DateTime = NullableField(alias='SESSION_DATE')
     starting_hour: int = NullableField(alias='STARTING_HOUR', ge=0, le=23)
     starting_time_category: str = NullableField(alias='STARTING_TIME_CATEGORY', isin=["MORNING", "AFTERNOON", "EVENING", "NIGHT"])
     weekday: int = NullableField(alias='WEEKDAY_INDEX', ge=0, le=6, description="Weekday Index (0=Monday, 6=Sunday)")
+    
     status: str = NullableField(alias='STATUS', isin=["CLOSED", "ABORTED", "ONGOING"])
+    
+    # Protocol
     protocol_type: str = NullableField(alias='PROTOCOL_TYPE')
     ar_mode: str = NullableField(alias='AR_MODE')
+    
+    # Metrics
     real_session_duration: int = NullableField(alias='REAL_SESSION_DURATION', ge=0)
     prescribed_session_duration: int = NullableField(alias='PRESCRIBED_SESSION_DURATION', ge=0)
     session_duration: int = NullableField(alias='SESSION_DURATION', ge=0)
@@ -48,131 +63,66 @@ class SessionSchema(pa.DataFrameModel):
         coerce = False
         strict = False
 
-class SessionProcessedSchema(SessionSchema):
-    PATIENT_ID: int = pa.Field(alias='patient_id', nullable=False)
-    HOSPITAL_ID: int = pa.Field(alias='hospital_id', nullable=False)
-    PRESCRIPTION_ID: int = pa.Field(alias='prescription_id', nullable=False)
-    SESSION_ID: int = pa.Field(alias='session_id', nullable=False)
-    HOSPITAL_ID: int = pa.Field(alias='hospital_id', nullable=False)
-    PRESCRIPTION_STARTING_DATE: date = pa.Field(alias='prescription_starting_date', nullable=False)
-    PRESCRIPTION_ENDING_DATE: date = pa.Field(alias='prescription_ending_date', nullable=False)
-    SESSION_DATE: date = pa.Field(alias='session_date', nullable=False)
-    STARTING_HOUR: int = pa.Field(alias='starting_hour', nullable=False, ge=0, le=23)
-    STARTING_TIME: str = pa.Field(alias='starting_hour', nullable=False)
-    PARETIC_SIDE: str = pa.Field(alias='paretic_side', nullable=False)
-    WEEKDAY: str = pa.Field(alias='weekday', nullable=False, isin=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
-    STATUS: str = pa.Field(alias='status', nullable=False, isin=["CLOSED", "ABORTED", "ONGOING"])
-    PROTOCOL_TYPE: str = pa.Field(alias='protocol_type', nullable=False)
-    AR_MODE: str = pa.Field(alias='ar_mode', nullable=False)
-    STARTING_HOUR: int = pa.Field(alias='starting_hour', nullable=False, ge=0, le=23)
-    REAL_STARTING_HOUR: int = pa.Field(alias='real_starting_hour', nullable=False, ge=0, le=23)
-    PROTOCOL_TYPE: str = pa.Field(alias='protocol_type', nullable=False)
-    SESSION_DURATION_MINUTES: int = pa.Field(alias='session_duration', nullable=False, ge=0)
-    ADHERENCE: float = pa.Field(alias='adherence', nullable=True, ge=0, le=1)
-    TOTAL_SUCCESS: int = pa.Field(alias='total_success', nullable=False, ge=0)
-    TOTAL_ERRORS: int = pa.Field(alias='total_errors', nullable=False, ge=0)
+class TimeseriesSchema(pa.DataFrameModel):
+    # Identifiers
+    patient_id: int = pa.Field(alias="PATIENT_ID", gt=0)
+    session_id: int = pa.Field(alias="SESSION_ID", gt=0)
+    protocol_id: int = pa.Field(alias="PROTOCOL_ID", gt=0)
+    
+    # Protocol
+    game_mode: str = pa.Field(alias="GAME_MODE")
+    
+    # Time
+    timepoint: int = pa.Field(alias="SECONDS_FROM_START")
+    
+    # Metrics
+    dm_key: str = pa.Field(alias="DM_KEY")
+    dm_value: float = pa.Field(alias="DM_VALUE")
+    pe_key: str = pa.Field(alias="PE_KEY")
+    pe_value: float = pa.Field(alias="PE_VALUE")
 
-    class Config:
-        name = "SessionProcessedSchema"
-        strict = False # allow additional columns
+class BatchSchema(SessionSchema):
+    # Protocol
+    game_mode: str = pa.Field(alias="GAME_MODE")
+    
+    # Time
+    timepoint: int = pa.Field(alias="SECONDS_FROM_START")
+    
+    # Metrics
+    dm_key: object = pa.Field(alias="DM_KEY")
+    dm_value: float = pa.Field(alias="DM_VALUE")
+    pe_key: str = pa.Field(alias="PE_KEY")
+    pe_value: float = pa.Field(alias="PE_VALUE")
 
-class PrescriptionSchema(pa.DataFrameModel):
+class PPFSchema(pa.DataFrameModel):
+
+    patient_id: int = pa.Field(alias="PATIENT_ID")
+    protocol_id: int = pa.Field(alias="PROTOCOL_ID")
+
+    ppf: float = pa.Field(alias="PPF")
+    contrib: object = pa.Field(alias="CONTRIB")
+
+# ---------------------------------------------------------------------
+# Recommender Output
+
+class ScoringSchema(pa.DataFrameModel):
     """
     Prescription output validation schema.
     """
-    patient_id: int = pa.Field(gt=0, description="Must be a positive integer.")
-    protocol_id: int = pa.Field(gt=0, description="Must be a positive integer.")
-    ppf: float = pa.Field(ge=0, le=1, description="Must be a probability (0-1).")
-    adherence: float = pa.Field(ge=0, le=1, description="Must be a probability (0-1).")
-    dm: float = pa.Field(ge=0, description="Must be non-negative.")
-    contribution: Series[list] = pa.Field(nullable=False, coerce=True)
-    score: float = pa.Field(ge=0, description="Score must be a positive float.")
-    days: Series[List[int]] = pa.Field(nullable=False, coerce=True)
-
-    # Custom validation checks
-    @pa.check("contribution")
-    def check_contribution_sum(cls, contribution: Series[List[float]]) -> Series[bool]:
-        return contribution.apply(
-            lambda lst: isinstance(lst, list) and 
-            all(isinstance(x, (int, float)) for x in lst) and 
-            abs(sum(lst) - 1.0) < 1e-6
-        )
-
-    @pa.check("schedule_days")
-    def check_no_repeated_days(cls, days: Series[List[int]]) -> Series[bool]:
-        return days.apply(lambda lst: len(lst) == len(set(lst)))
-
-class PatientSchema(pa.DataFrameModel):
-    """Pandera schema for patient clinical scores validation."""
-    
-    patient_id: Series[int]
-    barthel: Series[int]
-    ash_proximal: Series[int]
-    ma_distal: Series[int]
-    fatigue: Series[int]  # Can be float if needed
-    vas: float
-    fm_a: Series[int]
-    fm_b: Series[int]
-    fm_c: Series[int]
-    fm_d: Series[int]
-    fm_total: Series[int]
-    act_au: float  # Can contain float values
-    act_qom: float  # Can contain float values
+    patient_id: int = pa.Field(alias="PATIENT_ID", gt=0, description="Must be a positive integer.")
+    protocol_id: int = pa.Field(alias="PROTOCOL_ID", gt=0, description="Must be a positive integer.")
+    ppf: float = pa.Field(alias="PPF", ge=0, le=1, description="Must be a probability (0-1).")
+    adherence: float = pa.Field(alias="ADHERENCE", ge=0, le=1, description="Must be a probability (0-1).")
+    dm: float = pa.Field(alias="DM_VALUE", ge=0, description="Must be non-negative.")
+    contrib: List[float] = pa.Field(alias="CONTRIB", nullable=False, coerce=True)
+    score: float = pa.Field(alias="SCORE", ge=0, description="Score must be a positive float.")
 
     class Config:
-        coerce = True  # Auto-cast types to expected types
+        coerce = True
 
-class ProtocolMatrixSchema(pa.DataFrameModel):
-    protocol_name: str
-    protocol_id: Series[int]
-    difficulty_cognitive: float
-    difficulty_motor: float
-    body_part_finger: float
-    body_part_wrist: float
-    body_part_arm: float
-    body_part_shoulder: float
-    body_part_trunk: float
-    reaching: float
-    grasping: float
-    pinching: float
-    pronation_supination: float
-    range_of_motion_h: float
-    range_of_motion_v: float
-    processing_speed: float
-    attention: float
-    visual_language: float
-    visualspatial_processing_awareness_neglect: float
-    coordination: float
-    memory_wm: float
-    memory_semantic: float
-    math: float
-    daily_living_activity: float
-    symbolic_understanding: float
-    semantic_processing: float
+class PrescriptionSchema(ScoringSchema):
+    days: List[int] = pa.Field(nullable=False, coerce=True)
 
-# ---------------------------------------------------------------------
-# Scoring module output
-
-class ScoringSchema(pa.DataFrameModel):
-    """Pandera schema for cdss patient protocol scoring validation."""
-    
-    # Identifiers
-    patient_id: int
-    protocol_id: int
-
-    # Stats
-    usage: int
-
-    # Metrics
-    adherence: float
-    delta_dms: float
-    ppf_score: float
-
-    total_score: float
-
-    # Explainability
-    contributions: List[float]
-
-    # Schedule
-    days: List[int] = pa.Field(ge=0, le=6, description="Weekday Index (0=Monday, 6=Sunday)")
-
+    @pa.check(days)
+    def check_no_repeated_days(cls, days: Series[List[int]]) -> Series[bool]:
+        return days.apply(lambda lst: len(lst) == len(set(lst)))

@@ -1,7 +1,7 @@
 # tests/test_pipeline.py
 import pytest
 import pandas as pd
-from ai_cdss.services.pipeline import CDSS
+from ai_cdss.cdss import CDSS
 
 def test_pipeline_recommend():
     """Test that pipeline.recommend() returns a DataFrame with the correct number of rows."""
