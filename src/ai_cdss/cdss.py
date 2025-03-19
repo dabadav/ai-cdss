@@ -7,8 +7,27 @@ from pandera.typing import DataFrame
 from ai_cdss.models import ScoringSchema
 
 class CDSS:
-    """Clinical Decision Support System Class"""
+    """
+    Clinical Decision Support System (CDSS) Class.
+
+    This system provides personalized recommendations for patients based on scoring data.
+    It allows protocol recommendations, scheduling, and prescription adjustments.
+    """
     def __init__(self, scoring: DataFrame[ScoringSchema], n: int = 12, days: int = 7, protocols_per_day: int = 5):
+        """
+        Initialize the Clinical Decision Support System.
+
+        Parameters
+        ----------
+        scoring : DataFrame
+            A DataFrame containing patient protocol scores.
+        n : int, optional
+            Number of top protocols to recommend, by default 12.
+        days : int, optional
+            Number of days for scheduling, by default 7.
+        protocols_per_day : int, optional
+            Maximum number of protocols per day, by default 5.
+        """
         self.scoring = scoring
         self.n = n
         self.days = days
@@ -18,12 +37,17 @@ class CDSS:
         """
         Recommend prescriptions for a patient.
 
-        Args:
-            patient_id (int): The ID of the patient.
-            protocol_similarity: A DataFrame containing protocol similarity scores.
+        Parameters
+        ----------
+        patient_id : int
+            The ID of the patient.
+        protocol_similarity : DataFrame
+            A DataFrame containing protocol similarity scores.
 
-        Returns:
-            Dict[str, str]: A dictionary mapping original protocol IDs to recommended protocol IDs.
+        Returns
+        -------
+        DataFrame
+            A DataFrame mapping recommended protocol IDs to their scheduling details.
         """
         recommendations = {}
 
@@ -69,15 +93,17 @@ class CDSS:
 
     def schedule_protocols(self, protocols: List[int]):
         """
-        Distribute protocols across days, ensuring no day exceeds the allowed number of protocols.
+        Distribute protocols across days while ensuring constraints.
 
-        Args:
-            protocols (List[str]): The list of protocols to distribute.
-            days (int): The number of days to distribute the protocols.
-            protocols_per_day (int): The maximum number of protocols per day.
+        Parameters
+        ----------
+        protocols : list of int
+            List of protocol IDs to distribute.
 
-        Returns:
-            Dict[int, List[str]]: A dictionary mapping days to the list of protocols scheduled for that day.
+        Returns
+        -------
+        dict
+            A dictionary mapping days to scheduled protocols.
         """
 
         schedule = {day: [] for day in range(1, self.days + 1)}  # Days are 1-indexed
@@ -97,18 +123,42 @@ class CDSS:
 
     def decide_prescription_swap(self, patient_id: int) -> List[int]:
         """
-        Decide whether to swap a prescription based on its score and marginal value.
+        Determine which prescriptions to swap based on their score.
 
-        Args:
-            prescription (Dict): A dictionary containing prescription details.
+        Parameters
+        ----------
+        patient_id : int
+            The ID of the patient.
 
-        Returns:
-            Optional[str]: The ID of the substitute protocol if a swap is needed, or None if no swap is needed.
+        Returns
+        -------
+        list of int
+            List of protocol IDs to be swapped.
         """
         prescriptions = self.get_prescriptions(patient_id)
         return prescriptions[prescriptions['SCORE'].transform(lambda x: x < x.mean())].PROTOCOL_ID.to_list()
 
     def get_substitute(self, patient_id: int, protocol_id: int, protocol_similarity, protocol_excluded: List[int] = None):
+        """
+        Find a suitable substitute for a given protocol.
+
+        Parameters
+        ----------
+        patient_id : int
+            The ID of the patient.
+        protocol_id : int
+            The protocol to be substituted.
+        protocol_similarity : DataFrame
+            A DataFrame containing protocol similarity scores.
+        protocol_excluded : list of int, optional
+            List of protocols to exclude from consideration, by default None.
+
+        Returns
+        -------
+        int
+            The ID of the substitute protocol, or None if no suitable substitute is found.
+        """
+        
         # Get protocol usage for the given patient and protocol
         usage = (
             self.scoring[self.scoring["PATIENT_ID"] == patient_id]
@@ -151,14 +201,17 @@ class CDSS:
 
     def get_top_protocols(self, patient_id: int) -> List[int]:
         """
-        Select the top N protocols for a patient based on their scores.
+        Select the top N protocols for a patient based on scores.
 
-        Args:
-            patient_id (int): The ID of the patient.
-            top_n (int): The number of top protocols to select. Default is 12.
+        Parameters
+        ----------
+        patient_id : int
+            The ID of the patient.
 
-        Returns:
-            List[str]: A list of top protocol IDs.
+        Returns
+        -------
+        list of int
+            A list of top protocol IDs.
         """
         patient_data = self.scoring[self.scoring["PATIENT_ID"] == patient_id]
         top_protocols = patient_data.nlargest(self.n, "SCORE")["PROTOCOL_ID"].tolist()
@@ -168,12 +221,15 @@ class CDSS:
         """
         Retrieve the current prescriptions for a patient.
 
-        Args:
-            patient_id (int): The ID of the patient.
+        Parameters
+        ----------
+        patient_id : int
+            The ID of the patient.
 
-        Returns:
-            List[Dict]: A list of prescriptions, where each prescription is a dictionary
-                        containing protocol details.
+        Returns
+        -------
+        DataFrame
+            A DataFrame containing prescription details.
         """
         patient_data = self.scoring[self.scoring["PATIENT_ID"] == patient_id]
         prescriptions = patient_data[patient_data["DAYS"].apply(lambda x: isinstance(x, list) and len(x) > 0)]
@@ -181,6 +237,22 @@ class CDSS:
         return prescriptions
 
     def get_scores(self, patient_id: int, protocol_id: int):
+        """
+        Retrieve scores for a given patient and protocol.
+
+        Parameters
+        ----------
+        patient_id : int
+            The ID of the patient.
+        protocol_id : int
+            The ID of the protocol.
+
+        Returns
+        -------
+        dict
+            A dictionary containing score details for the specified patient and protocol.
+        """
+        
         # Filter scoring DataFrame for the given patient and protocol
         return self.scoring[
             (self.scoring["PATIENT_ID"] == patient_id) & (self.scoring["PROTOCOL_ID"] == protocol_id)

@@ -1,17 +1,16 @@
-.. RGS-CDSS documentation master file, created by
-   sphinx-quickstart on Sat Mar 15 21:19:06 2025.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+:html_theme.sidebar_secondary.remove:
 
-RGS-CDSS documentation
-======================
+.. title:: CDSS
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+CDSS
+====
 
+.. LOGO
+
+.. frontpage gallery is added by a conditional in _templates/layout.html
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :hidden:
 
+   Docs <guide/index>
+   API <api/index>

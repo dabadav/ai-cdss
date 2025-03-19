@@ -3,59 +3,118 @@
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-# -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+# -- Path setup --------------------------------------------------------------
+import os
+import sys
+from pathlib import Path
 
-project = 'RGS-CDSS'
+import ai_cdss
+
+sys.path.append(str(Path(".").resolve()))
+
+# -- Project information -----------------------------------------------------
+
+project = 'Clinical Decision Support System (CDSS)'
 copyright = '2025, Eodyne Systems'
 author = 'Eodyne Systems'
-release = '0.1.0'
 
 # -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
+    "myst_parser",  # Enables Markdown support
+    "sphinx_design",
     "sphinx.ext.autodoc",         # Extracts docstrings from code
-    "sphinx.ext.napoleon",        # Supports Google-style & NumPy-style docstrings
     "sphinx.ext.autosummary",     # Generates API documentation
+    "sphinx.ext.napoleon",        # Supports Google-style & NumPy-style docstrings
     "sphinx.ext.viewcode",        # Adds links to source code
     "sphinx_autodoc_typehints",   # Shows type hints in documentation
     "sphinx.ext.graphviz",        # Enables Graphviz diagrams
     "sphinx.ext.inheritance_diagram",  # Class hierarchy visualization
+    "sphinxcontrib.sphinx_pandera",  # Render pandera schemas
 ]
 
+templates_path = ['_templates']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+
+# -- Options for HTML output -------------------------------------------------
+
+html_theme = 'pydata_sphinx_theme'
+html_static_path = ['_static']
+htmlhelp_basename = 'CDSSDoc'
+
+# -- PyData heme Configuration -----------------------------------------------
+
+html_title = "CDSS"  # You can modify this as well
+html_show_sourcelink = False
+
+html_theme_options = {
+    "navbar_align": "left",
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/dabadav/ai-cdss",
+            "icon": "fab fa-github-square",
+        },
+    ],
+    "navbar_end": [
+        "theme-switcher",
+        "navbar-icon-links",
+    ],
+    "navbar_align": "left",
+    "use_edit_page_button": False,
+    "navigation_with_keys": False,
+    "navigation_depth": 3,
+    "collapse_navigation": False,  # Keep expanded navigation
+    "show_toc_level": 0,
+    "show_nav_level": 2,
+    "show_prev_next": False,        # Hides the previous/next buttons
+    "footer_start": ["copyright"],
+    "footer_end": []
+}
+
+# Custom navbar texts and additional tabs
+html_context = {
+    "navbar_title": "CDSS",
+    # Add these lines for the edit page button
+    "github_user": "dabadav",  # Your GitHub username
+    "github_repo": "ai-cdss",  # Your repository name
+    "github_version": "main",  # The branch name (e.g., main, master)
+    "doc_path": "doc",        # The path to your documentation in the repository
+}
+
 # -- Napoleon Settings (For Google/NumPy Docstrings) ------------------------
-napoleon_google_docstring = True
+
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False  # Don't document __init__ separately
 napoleon_use_param = True
 napoleon_use_rtype = True
 
 # -- Autodoc Settings (Controls Function/Class Documentation) ----------------
-autodoc_default_options = {
-    "members": True,           # Include all documented members
-    "undoc-members": False,    # Exclude undocumented members
-    "private-members": False,  # Exclude private methods (_method_name)
-    "special-members": "__init__",  # Include __init__ method
-    "show-inheritance": True,  # Show class inheritance
-}
+
 autosummary_generate = True  # Automatically create stub pages for modules
+autodoc_default_options = {"inherited-members": None}
+autodoc_inherit_docstrings = False
+
+# autodoc_default_options = {
+#     "members": True,           # Include all documented members
+#     "undoc-members": False,    # Exclude undocumented members
+#     "private-members": False,  # Exclude private methods (_method_name)
+#     "special-members": "__init__",  # Include __init__ method
+#     "show-inheritance": True,  # Show class inheritance
+# }
 
 # -- Type Hint Settings ------------------------------------------------------
+
 autodoc_typehints = "description"  # Show type hints inline with parameter descriptions
 
-# -- HTML Output Configuration -----------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-html_theme = "sphinx_rtd_theme"  # ReadTheDocs theme (pip install sphinx-rtd-theme)
-html_static_path = ["_static"]
-templates_path = ['_templates']
-
-# -- Exclude Patterns (Ignore Certain Files) ---------------------------------
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
-
 # -- Graphviz Diagrams ------------------------------------------------------
+
 graphviz_output_format = "svg"
 
 # -- Extensions for Better Documentation -------------------------------------
-source_suffix = ".rst"
+
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.md': 'markdown',
+}
 master_doc = "index"

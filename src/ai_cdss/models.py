@@ -8,6 +8,8 @@ NullableField = partial(pa.Field, nullable=True)
 # RGS Data Input
 
 class SessionSchema(pa.DataFrameModel):
+    """Handles session schema."""
+    
     # Patient profile
     patient_id: int = NullableField(alias='PATIENT_ID')
     hospital_id: int = NullableField(alias='HOSPITAL_ID')
@@ -56,10 +58,6 @@ class SessionSchema(pa.DataFrameModel):
     total_errors: int = NullableField(alias='TOTAL_ERRORS', ge=0)
     score: int = NullableField(alias='SCORE', ge=0)
 
-    class Config:
-        coerce = False
-        strict = False
-
 class TimeseriesSchema(pa.DataFrameModel):
     # Identifiers
     patient_id: int = pa.Field(alias="PATIENT_ID", gt=0)
@@ -99,6 +97,10 @@ class ScoringSchema(pa.DataFrameModel):
     """
     Prescription output validation schema.
     """
+
+    class Config:
+        coerce = True
+    
     patient_id: int = pa.Field(alias="PATIENT_ID", gt=0, description="Must be a positive integer.")
     protocol_id: int = pa.Field(alias="PROTOCOL_ID", gt=0, description="Must be a positive integer.")
     ppf: float = pa.Field(alias="PPF", ge=0, le=1, description="Must be a probability (0-1).")
@@ -106,6 +108,3 @@ class ScoringSchema(pa.DataFrameModel):
     dm: float = pa.Field(alias="DM_VALUE", ge=0, description="Must be non-negative.")
     contrib: List[float] = pa.Field(alias="CONTRIB", nullable=False, coerce=True)
     score: float = pa.Field(alias="SCORE", ge=0, description="Score must be a positive float.")
-
-    class Config:
-        coerce = True

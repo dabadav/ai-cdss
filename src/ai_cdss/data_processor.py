@@ -12,8 +12,43 @@ logger = logging.getLogger(__name__)
 
 class DataProcessor:
     """
-    Processing batch patient session data, including time-series and session data,
-    and computing final scoring based on predefined weights.
+    A class for processing patient session data, applying Exponential Weighted 
+    Moving Average (EWMA) and computing a final weighted score.
+
+    The final score is computed as:
+
+    .. math::
+
+        S = \alpha \cdot A + \beta \cdot DM + \gamma \cdot PPF
+
+    where:
+        - :math:`A` is Adherence
+        - :math:`DM` is the Difficulty Modulator
+        - :math:`PPF` is the Patient Prescription Factor
+
+    Attributes
+    ----------
+    weights : List[float]
+        List of weights :math:`[\alpha, \beta, \gamma]` for computing the final score.
+    alpha : float
+        The smoothing factor for EWMA, controlling how much past values influence the trend.
+
+    Methods
+    -------
+    process_data(session_data, timeseries_data, ppf_data)
+        Processes session and timeseries data, computes adherence and DM EWMA, and
+        calculates final scoring.
+        
+    compute_ewma(df, value_col, group_cols)
+        Computes Exponential Weighted Moving Average (EWMA):
+
+        .. math::
+
+            EWMA_t = \alpha \cdot X_t + (1 - \alpha) \cdot EWMA_{t-1}
+
+    compute_score(scoring)
+        Computes the final scoring function.
+
     """
 
     def __init__(self, weights: List[float] = [1,1,1], alpha: float = 0.5):

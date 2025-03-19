@@ -21,8 +21,6 @@ class DataLoader:
 
     Parameters
     ----------
-    patient_list : list of int
-        List of patient IDs to load data for.
     rgs_mode : str, optional
         Mode for fetching RGS data. Default is "plus".
     """
@@ -78,7 +76,7 @@ class DataLoader:
     @pa.check_types
     def load_ppf_data(self, patient_list: List[int]) -> DataFrame[PPFSchema]:
         """
-        Load PPF (precomputed performance factors) from internal data.
+        Load PPF (precomputed patient-protocol fit) from internal data.
 
         Returns
         -------
