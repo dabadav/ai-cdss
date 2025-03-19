@@ -1,8 +1,8 @@
 import pandera as pa
 from typing import List
 from pandera.typing import Series, DataFrame
-from pandera.dtypes import Int64
 import pandas as pd
+import numpy as np
 from functools import partial
 
 NullableField = partial(pa.Field, nullable=True)
@@ -101,6 +101,12 @@ class PPFSchema(pa.DataFrameModel):
 
     ppf: float = pa.Field(alias="PPF")
     contrib: object = pa.Field(alias="CONTRIB")
+
+class PCMSchema(pa.DataFrameModel):
+
+    protocol_a: int = pa.Field(alias="PROTOCOL_A")
+    protocol_b: int = pa.Field(alias="PROTOCOL_B")
+    similarity: float = pa.Field(alias="SIMILARITY")
 
 # ---------------------------------------------------------------------
 # Recommender Output

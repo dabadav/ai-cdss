@@ -23,15 +23,10 @@ def main():
     ppf_contrib.to_parquet(output_path)
 
     protocol_similarity = compute_protocol_similarity(protocol)
-    protocol_similarity.to_csv(output_dir / "protocol_fcm.csv")
+    protocol_similarity.to_csv(output_dir / "protocol_similarity.csv")
 
     print(f"Results saved to: {output_path.absolute()}")
 
 if __name__ == "__main__":
 
-    PATIENT_LIST = [
-        775,  787,  788, 1123, 1169, 1170, 1171, 1172, 1173, 1983, 2110, 2195,
-        2955, 2956, 2957, 2958, 2959, 2960, 2961, 2962, 2963, 3081, 3229, 3318, 3432
-    ]
-
-    main(PATIENT_LIST)
+    main()

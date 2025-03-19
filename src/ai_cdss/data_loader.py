@@ -2,10 +2,10 @@ import pandas as pd
 import pandera as pa
 from pandera.errors import SchemaError
 from pandera.typing import DataFrame
-from ai_cdss.models import SessionSchema, TimeseriesSchema, PPFSchema
+from ai_cdss.models import SessionSchema, TimeseriesSchema, PPFSchema, PCMSchema
 from rgs_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
 import logging
-from typing import List, Optional
+from typing import List
 from pathlib import Path
 
 # Set up logging
@@ -32,34 +32,6 @@ class DataLoader:
         Initialize the DataLoader with a list of patient IDs and RGS mode.
         """
         self.rgs_mode = rgs_mode
-
-    def load_data(self, patient_list: List[int]) -> pd.DataFrame:
-        """
-        Load and merge session and timeseries data.
-
-        Returns
-        -------
-        pd.DataFrame
-            Merged data containing session and timeseries information.
-        """
-        session = self.load_session_data(patient_list)
-        timeseries = self.load_timeseries_data(patient_list)
-
-        # Merge dms using mean
-        timeseries = (
-            timeseries
-            .groupby(["PATIENT_ID", "SESSION_ID", "PROTOCOL_ID", "GAME_MODE", "SECONDS_FROM_START"])
-            .agg({
-                "DM_KEY": lambda x: list(set(x)),  # Unique parameters at this time
-                "DM_VALUE": "mean",               # Average parameter value
-                "PE_KEY": "first",                # Assume same performance key per time, take first
-                "PE_VALUE": "mean"                # Average performance value (usually only one)
-            })
-            .reset_index()
-        )
-
-        data = session.merge(timeseries, on=["PATIENT_ID", "SESSION_ID", "PROTOCOL_ID"])
-        return data
 
     @pa.check_types
     def load_session_data(self, patient_list: List[int]) -> DataFrame[SessionSchema]:
@@ -152,4 +124,39 @@ class DataLoader:
 
         except Exception as e:
             logger.error(f"Failed to load PPF data: {e}")
+            raise
+
+    @pa.check_types
+    def load_protocol_similarity(self) -> DataFrame[PCMSchema]:
+        """
+        Load protocol similarity data from internal storage.
+
+        Returns
+        -------
+        DataFrame[ProtocolSimilaritySchema]
+            Protocol similarity data with columns: PROTOCOL_ID_1, PROTOCOL_ID_2, SIMILARITY_SCORE.
+        """
+        try:
+            # Define similarity file paths
+            output_dir = Path.home() / ".ai_cdss" / "output"
+            parquet_file = output_dir / "protocol_similarity.parquet"
+            csv_file = output_dir / "protocol_similarity.csv"
+            
+            # Check if Parquet file exists
+            if parquet_file.exists():
+                similarity_data = pd.read_parquet(parquet_file).reset_index()
+            # Fall back to CSV if Parquet file is not found
+            elif csv_file.exists():
+                similarity_data = pd.read_csv(csv_file, index_col=0)
+            else:
+                raise FileNotFoundError(
+                    "No protocol similarity file found in ~/.ai_cdss/output. "
+                    "Expected either protocol_similarity.parquet or protocol_similarity.csv."
+                )
+            
+            logger.info("Protocol similarity data loaded successfully.")
+            return similarity_data
+
+        except Exception as e:
+            logger.error(f"Failed to load protocol similarity data: {e}")
             raise

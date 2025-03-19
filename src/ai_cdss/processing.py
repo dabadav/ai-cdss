@@ -1,4 +1,3 @@
-from abc import ABC, abstractmethod
 import importlib.resources
 from typing import Optional
 from pathlib import Path
@@ -110,70 +109,6 @@ def compute_ppf(patient_deficiency, protocol_mapped):
 def merge_data(left, right):
     return pd.merge(left, right, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
 
-def rank_top_n(df, n): return (
-    df.groupby("PATIENT_ID")
-    .apply(lambda x: x.nlargest(n, "SCORE"))
-    .reset_index(drop=True)
-)
-
-def schedule(df, days_per_week=7, prescriptions_per_day=5):
-    """
-    Generates a weekly schedule for each patient by distributing their top recommended protocols across the week.
-    Ensures that:
-    1. The same protocol is not scheduled twice in a single day.
-    2. The total number of prescriptions is exactly `days_per_week * prescriptions_per_day`.
-    
-    Args:
-    df (pd.DataFrame): Long format DataFrame with columns ['PATIENT_ID', 'PROTOCOL_ID'].
-    days_per_week (int): Number of days in the schedule (default: 7).
-    prescriptions_per_day (int): Number of protocols per day (default: 5).
-    
-    Returns:
-    pd.DataFrame: A DataFrame where each row corresponds to a (PATIENT_ID, PROTOCOL_ID) pair,
-                and the 'DAYS' column contains a list of day indexes (1-based) for when the protocol should be played.
-    """
-    total_prescriptions = days_per_week * prescriptions_per_day
-    schedule_dict = {}
-
-    for patient_id, group in df.groupby("PATIENT_ID"):
-        protocols = group["PROTOCOL_ID"].tolist()
-
-        # Expand protocol list to ensure at least `total_prescriptions`
-        expanded_protocols = (protocols * ((total_prescriptions // len(protocols)) + 1))[:total_prescriptions]
-
-        # Shuffle protocols for distribution across days
-        np.random.shuffle(expanded_protocols)
-
-        # Assign protocols to days ensuring no duplicates in a single day
-        patient_schedule = {protocol: [] for protocol in protocols}
-        day_protocols = [[] for _ in range(days_per_week)]
-        
-        for i, protocol in enumerate(expanded_protocols):
-            day_idx = i % days_per_week
-            if protocol not in day_protocols[day_idx]:  # Ensure no duplicate protocol on the same day
-                day_protocols[day_idx].append(protocol)
-                patient_schedule[protocol].append(day_idx + 1)  # Use 1-based indexing for days
-
-        schedule_dict[patient_id] = patient_schedule
-
-    # Convert to long format DataFrame
-    structured_schedule = []
-    for patient_id, protocols in schedule_dict.items():
-        for protocol_id, days in protocols.items():
-            structured_schedule.append({"PATIENT_ID": patient_id, "PROTOCOL_ID": protocol_id, "DAYS": days})
-
-    schedule_df = pd.DataFrame(structured_schedule)
-    df["DAYS"] = schedule_df.DAYS
-    
-    return df
-
-def below_mean(x): return x < x.mean()
-
-def interchange_mask(df): return (
-    df.groupby('PATIENT_ID')['NEW_SCORE']
-    .transform(below_mean)
-)
-
 def compute_protocol_similarity(protocol_mapped):
     """ Compute protocol similarity.
     """
@@ -192,43 +127,10 @@ def compute_protocol_similarity(protocol_mapped):
     gower_sim_matrix = pd.DataFrame(1- gower_sim_matrix, index=protocol_ids, columns=protocol_ids)
     gower_sim_matrix.columns.name = "PROTOCOL_SIM"
 
+    gower_sim_matrix = gower_sim_matrix.stack().reset_index()
+    gower_sim_matrix.columns = ["PROTOCOL_A", "PROTOCOL_B", "SIMILARITY"]
+
     return gower_sim_matrix
-
-def get_usage(session, patient_id):
-    patient_sessions = session[session.PATIENT_ID == patient_id]
-    patient_sessions.index = patient_sessions.PROTOCOL_ID
-    return patient_sessions.NEW_USAGE
-
-def find_substitute(patient, protocol, protocol_sim, scoring):
-    # Exclude the current protocol
-    protocols = protocol_sim.columns.astype(type(protocol)).drop(protocol)
-    
-    # Get usage and similarity data for other protocols
-    protocol_usage = get_usage(scoring, patient)
-    usage = protocol_usage[protocols]
-    sim = protocol_sim.loc[protocol, protocols]
-    
-    # Find the minimum usage value
-    min_usage = usage.min()
-    # Get candidates with the lowest usage
-    candidates = usage[usage == min_usage].index
-    
-    # Among these candidates, select the one with highest similarity
-    max_sim = sim[candidates].max()
-    final_candidates = sim[sim == max_sim].index
-    
-    # Return the first candidate (or handle ties)
-    return final_candidates[0] if not final_candidates.empty else None
-
-def substitute_protocol(row, protocol_sim, scoring):
-    if row["INTERCHANGE"]:
-        return find_substitute(
-            row["PATIENT_ID"],
-            row["PROTOCOL_ID"], 
-            protocol_sim, 
-            scoring
-        )
-    return row["PROTOCOL_ID"]
 
 #################################
 # ------ Data Processing ------ #
