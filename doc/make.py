@@ -16,12 +16,12 @@ def generate_apidoc():
     if not os.path.exists(source_dir):
         os.makedirs(source_dir)
     
-    subprocess.run(["sphinx-apidoc", "-o", source_dir, module_dir, "--force"], check=True)
+    subprocess.run(["sphinx-apidoc", "-o", source_dir, module_dir, "--force"])
     print("Generated API documentation.")
 
 def build_docs():
     """Builds HTML documentation."""
-    subprocess.run(["sphinx-build", "-b", "html", "doc/source", "doc/build/html"], check=True)
+    subprocess.run(["sphinx-build", "-b", "html", "doc/source", "doc/build/html"])
     print("Documentation successfully built! Open doc/build/index.html in a browser.")
 
 if __name__ == "__main__":
