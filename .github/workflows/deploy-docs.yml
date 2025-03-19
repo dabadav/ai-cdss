@@ -1,0 +1,38 @@
+name: Deploy Sphinx Documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Install Poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: "1.6.1"  # Update to your Poetry version
+
+      - name: 📦 Install Dependencies
+        run: |
+          poetry install --no-root
+
+      - name: 🔨 Generate Documentation
+        run: |
+          poetry run python docs/make.py
+
+      - name: 🚀 Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: docs/build/html
