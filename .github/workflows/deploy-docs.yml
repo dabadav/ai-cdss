@@ -39,4 +39,4 @@ jobs:
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: doc/build
+          publish_dir: doc/build/html  # ← FIX: Ensure we use the correct path
