@@ -1608,7 +1608,7 @@ sqlalchemy = "2.0.35"
 type = "git"
 url = "https://github.com/dabadav/rgs-interface.git"
 reference = "v0.2.2"
-resolved_reference = "6435abde7923c49f0ebc58d129aeeef7d76372e5"
+resolved_reference = "c41061f383d8c76dc39642c99276211801d4a24f"
 
 [[package]]
 name = "roman-numerals-py"
