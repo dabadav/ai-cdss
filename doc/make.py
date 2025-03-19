@@ -21,7 +21,9 @@ def generate_apidoc():
 
 def build_docs():
     """Builds HTML documentation."""
-    subprocess.run(["sphinx-build", "-b", "html", "doc/source", "doc/build/html"])
+    output_dir = "doc/build/html"
+    os.makedirs(output_dir, exist_ok=True)
+    subprocess.run(["sphinx-build", "-b", "html", "doc/source", output_dir])
     print("Documentation successfully built! Open doc/build/html/index.html in a browser.")
 
 if __name__ == "__main__":
