@@ -2,6 +2,7 @@
 import math
 from typing import Dict, List
 
+import pandas as pd
 from pandera.typing import DataFrame
 from ai_cdss.models import ScoringSchema
 
@@ -32,17 +33,39 @@ class CDSS:
         if not prescriptions.empty:
             # If the patient has prescriptions, decide which ones to swap
             protocols_to_swap = self.decide_prescription_swap(patient_id)
+            # Exclude protocols already prescribed
+            protocols_excluded = prescriptions.PROTOCOL_ID.to_list()
+            # Iterate protocols
             for protocol_id in protocols_to_swap:
-                substitute = self.get_substitute(patient_id, protocol_id, protocol_similarity)
+                substitute = self.get_substitute(patient_id, protocol_id, protocol_similarity, protocol_excluded=protocols_excluded)
                 if substitute:
-                    recommendations[protocol_id] = substitute
+                    # Add substitute to protocols excluded
+                    protocols_excluded.append(substitute)
+                    # Change add the schedule of the original
+                    substitute_scores = self.get_scores(patient_id, substitute)
+                    original_scores = self.get_scores(patient_id, protocol_id)
+                    substitute_scores["DAYS"] = original_scores["DAYS"]
+                    
+                    # Add to recommendations
+                    recommendations[substitute] = substitute_scores
+     
         else:
-
             # If the patient has no prescriptions, recommend the top N protocols
             top_protocols = self.get_top_protocols(patient_id, self.n)
-            recommendations = self.schedule_protocols(top_protocols)
+            scheduled_protocols = self.schedule_protocols(top_protocols)
 
-        return recommendations
+            for day, protocols in scheduled_protocols.items():
+                for protocol in protocols:
+                    score_details = self.get_scores(patient_id, protocol)
+
+                    if protocol in recommendations:
+                        recommendations[protocol]["DAYS"].append(day)  # Append to existing days list
+                    else:
+                        score_details["DAYS"] = [day]  # Initialize a list of days
+                        recommendations[protocol] = score_details
+
+        recommendations_df = pd.DataFrame(recommendations.values())
+        return recommendations_df
 
     def schedule_protocols(self, protocols: List[int]):
         """
@@ -83,7 +106,7 @@ class CDSS:
             Optional[str]: The ID of the substitute protocol if a swap is needed, or None if no swap is needed.
         """
         prescriptions = self.get_prescriptions(patient_id)
-        return prescriptions[prescriptions['SCORE'].transform(lambda x: x < x.mean())].PROTOCOL_ID.values
+        return prescriptions[prescriptions['SCORE'].transform(lambda x: x < x.mean())].PROTOCOL_ID.to_list()
 
     def get_substitute(self, patient_id: int, protocol_id: int, protocol_similarity, protocol_excluded: List[int] = None):
         # Get protocol usage for the given patient and protocol
@@ -156,3 +179,9 @@ class CDSS:
         prescriptions = patient_data[patient_data["DAYS"].apply(lambda x: isinstance(x, list) and len(x) > 0)]
         
         return prescriptions
+
+    def get_scores(self, patient_id: int, protocol_id: int):
+        # Filter scoring DataFrame for the given patient and protocol
+        return self.scoring[
+            (self.scoring["PATIENT_ID"] == patient_id) & (self.scoring["PROTOCOL_ID"] == protocol_id)
+        ].iloc[0].to_dict()

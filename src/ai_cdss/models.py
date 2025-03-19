@@ -1,8 +1,5 @@
 import pandera as pa
 from typing import List
-from pandera.typing import Series, DataFrame
-import pandas as pd
-import numpy as np
 from functools import partial
 
 NullableField = partial(pa.Field, nullable=True)
@@ -81,19 +78,6 @@ class TimeseriesSchema(pa.DataFrameModel):
     pe_key: str = pa.Field(alias="PE_KEY")
     pe_value: float = pa.Field(alias="PE_VALUE")
 
-class BatchSchema(SessionSchema):
-    # Protocol
-    game_mode: str = pa.Field(alias="GAME_MODE")
-    
-    # Time
-    timepoint: int = pa.Field(alias="SECONDS_FROM_START")
-    
-    # Metrics
-    dm_key: object = pa.Field(alias="DM_KEY")
-    dm_value: float = pa.Field(alias="DM_VALUE")
-    pe_key: str = pa.Field(alias="PE_KEY")
-    pe_value: float = pa.Field(alias="PE_VALUE")
-
 class PPFSchema(pa.DataFrameModel):
 
     patient_id: int = pa.Field(alias="PATIENT_ID")
@@ -125,10 +109,3 @@ class ScoringSchema(pa.DataFrameModel):
 
     class Config:
         coerce = True
-
-class PrescriptionSchema(ScoringSchema):
-    days: List[int] = pa.Field(nullable=False, coerce=True)
-
-    @pa.check(days)
-    def check_no_repeated_days(cls, days: Series[List[int]]) -> Series[bool]:
-        return days.apply(lambda lst: len(lst) == len(set(lst)))

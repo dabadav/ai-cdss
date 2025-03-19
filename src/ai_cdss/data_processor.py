@@ -2,7 +2,7 @@
 import pandas as pd
 import logging
 from typing import List
-from ai_cdss.models import ScoringSchema, PPFSchema, BatchSchema, SessionSchema, TimeseriesSchema
+from ai_cdss.models import ScoringSchema, PPFSchema, SessionSchema, TimeseriesSchema
 import pandera as pa
 from pandera.typing import DataFrame
 
