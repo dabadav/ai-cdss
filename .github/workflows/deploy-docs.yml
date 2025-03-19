@@ -35,7 +35,7 @@ jobs:
         run: |
           poetry run python doc/make.py
 
-      - name: 🔍 Debug: List Generated Documentation Files
+      - name: 🔍 Debug List Generated Documentation Files
         run: |
           ls -la doc/build/html
 
