@@ -1584,7 +1584,7 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "rgs-interface"
-version = "0.2.1"
+version = "0.2.2"
 description = "Fetch data from Eodyne production database"
 optional = false
 python-versions = ">=3.12,<4.0"
@@ -1607,8 +1607,8 @@ sqlalchemy = "2.0.35"
 [package.source]
 type = "git"
 url = "https://github.com/dabadav/rgs-interface.git"
-reference = "v0.2.1"
-resolved_reference = "0f701dfec07818f2f537a3ffb477bcd34a3e424e"
+reference = "v0.2.2"
+resolved_reference = "6435abde7923c49f0ebc58d129aeeef7d76372e5"
 
 [[package]]
 name = "roman-numerals-py"
@@ -2231,4 +2231,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "3d797c09a5b16b2657d85167e6bf46bed1dee60910a6433dbb24dfd2a60a6192"
+content-hash = "30a8b625d00e3fdbf432a04a31ae36a5010dc40bdf6784a828629e6896ad4667"
