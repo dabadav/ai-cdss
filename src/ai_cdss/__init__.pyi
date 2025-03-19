@@ -1,8 +1,6 @@
-# Author: Eodyne Systems
-# License: MIT
+# ai_cdss/__init__.pyi
 
-"""Clinical Decision Support System for Rehabilitation Gaming System."""
-
+# Public API for ai_cdss
 from .models import SessionSchema, TimeseriesSchema, PPFSchema, PCMSchema, ScoringSchema
 from .cdss import CDSS
 from .data_loader import DataLoader
@@ -10,7 +8,7 @@ from .data_processor import DataProcessor
 
 __all__ = [
     "SessionSchema",
-    "TimeSeriesSchema",
+    "TimeseriesSchema",
     "PPFSchema",
     "PCMSchema",
     "ScoringSchema",

@@ -7,14 +7,29 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 dependencies = [
     "pandera (==0.23.0)",
-    "gower (>=0.1.2,<0.2.0)"
+    "gower (>=0.1.2,<0.2.0)",
+    "rgs_interface @ git+https://github.com/dabadav/rgs-interface.git@v0.2.1"
 ]
 packages = [{ include = "ai_cdss", from = "src" }]
-
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]
+sphinx = "^8.2.3"
+sphinx-autodoc-typehints = "^3.1.0"
+sphinx-rtd-theme = "^3.0.2"
+sphinxcontrib-napoleon = "^0.7"
+pytest = "^8.3.5"
+sphinx-pandera = "^0.0.5"
+pydata-sphinx-theme = "^0.16.1"
+myst-parser = "^4.0.1"
+sphinx-design = "^0.6.1"
+mypy = "^1.15.0"
+
+[tool.poetry.scripts]
+docs = "sphinx.cmd.build:main"
