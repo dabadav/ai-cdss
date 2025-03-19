@@ -1,4 +1,4 @@
-name: Deploy Sphinx Documentation to GitHub Pages
+name: Deploy Sphinx Docs
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
       - master
 
 permissions:
-  contents: read
-  pages: write
+  contents: write
+  pages: write   
   id-token: write
 
 jobs:
