@@ -35,6 +35,10 @@ jobs:
         run: |
           poetry run python doc/make.py
 
+      - name: 🔍 Debug: List Generated Documentation Files
+        run: |
+          ls -la doc/build/html
+
       - name: 🚀 Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:

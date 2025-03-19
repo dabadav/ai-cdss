@@ -4,7 +4,7 @@ import subprocess
 
 def clean_docs():
     """Removes old documentation before regenerating."""
-    build_path = "doc/build"
+    build_path = "doc/build/html"
     if os.path.exists(build_path):
         shutil.rmtree(build_path)
         print("Removed old documentation.")
@@ -22,7 +22,7 @@ def generate_apidoc():
 def build_docs():
     """Builds HTML documentation."""
     subprocess.run(["sphinx-build", "-b", "html", "doc/source", "doc/build/html"])
-    print("Documentation successfully built! Open doc/build/index.html in a browser.")
+    print("Documentation successfully built! Open doc/build/html/index.html in a browser.")
 
 if __name__ == "__main__":
     clean_docs()
