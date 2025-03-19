@@ -33,7 +33,7 @@ jobs:
 
       - name: 🔨 Generate Documentation
         run: |
-          poetry run python docs/make.py
+          poetry run python doc/make.py
 
       - name: 🚀 Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
