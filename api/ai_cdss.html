@@ -2674,9 +2674,63 @@ checks.</p>
 <section id="module-ai_cdss.ppf">
 <span id="ai-cdss-ppf-module"></span><h2>ai_cdss.ppf module<a class="headerlink" href="#module-ai_cdss.ppf" title="Link to this heading">#</a></h2>
 <dl class="py function">
+<dt class="sig sig-object py" id="ai_cdss.ppf.load_patient_subscales">
+<span class="sig-prename descclassname"><span class="pre">ai_cdss.ppf.</span></span><span class="sig-name descname"><span class="pre">load_patient_subscales</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/ppf.html#load_patient_subscales"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.ppf.load_patient_subscales" title="Link to this definition">#</a></dt>
+<dd><p>Load patient clinical subscale scores from a given file or the default directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>file_path</strong> (<em>str</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ai_cdss.ppf.load_protocol_attributes">
+<span class="sig-prename descclassname"><span class="pre">ai_cdss.ppf.</span></span><span class="sig-name descname"><span class="pre">load_protocol_attributes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/ppf.html#load_protocol_attributes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.ppf.load_protocol_attributes" title="Link to this definition">#</a></dt>
+<dd><p>Load protocol attributes from a given file or the default directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>file_path</strong> (<em>str</em>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="ai_cdss.ppf.main">
 <span class="sig-prename descclassname"><span class="pre">ai_cdss.ppf.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/ppf.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.ppf.main" title="Link to this definition">#</a></dt>
 <dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ai_cdss.ppf.safe_load_csv">
+<span class="sig-prename descclassname"><span class="pre">ai_cdss.ppf.</span></span><span class="sig-name descname"><span class="pre">safe_load_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">default_filename</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/ppf.html#safe_load_csv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.ppf.safe_load_csv" title="Link to this definition">#</a></dt>
+<dd><p>Safely loads a CSV file, either from a given file path or from the default data directory.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> (<em>str</em><em>, </em><em>optional</em>) – Full path to the CSV file. If not provided, <cite>default_filename</cite> is used.</p></li>
+<li><p><strong>default_filename</strong> (<em>str</em><em>, </em><em>optional</em>) – Name of the file in the default directory.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Loaded data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>FileNotFoundError</strong> – If the file does not exist.</p></li>
+<li><p><strong>ValueError</strong> – If the file cannot be read as a valid CSV.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 </section>
 <section id="module-ai_cdss.processing">
@@ -5014,7 +5068,10 @@ checks.</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-ai_cdss.ppf">ai_cdss.ppf module</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.ppf.load_patient_subscales"><code class="docutils literal notranslate"><span class="pre">load_patient_subscales()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.ppf.load_protocol_attributes"><code class="docutils literal notranslate"><span class="pre">load_protocol_attributes()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.ppf.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.ppf.safe_load_csv"><code class="docutils literal notranslate"><span class="pre">safe_load_csv()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#module-ai_cdss.processing">ai_cdss.processing module</a><ul class="nav section-nav flex-column">

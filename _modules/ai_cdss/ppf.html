@@ -331,9 +331,66 @@
                 <article class="bd-article">
                   
   <h1>Source code for ai_cdss.ppf</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClinicalSubscales</span><span class="p">,</span> <span class="n">ProtocolToClinicalMapper</span><span class="p">,</span> <span class="n">compute_ppf</span><span class="p">,</span> <span class="n">merge_data</span><span class="p">,</span> <span class="n">compute_protocol_similarity</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClinicalSubscales</span><span class="p">,</span> <span class="n">ProtocolToClinicalMapper</span><span class="p">,</span> <span class="n">compute_ppf</span><span class="p">,</span> <span class="n">merge_data</span><span class="p">,</span> <span class="n">compute_protocol_similarity</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+
+<span class="c1"># Default data directory</span>
+<span class="n">DEFAULT_DATA_DIR</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;.ai_cdss&quot;</span> <span class="o">/</span> <span class="s2">&quot;data&quot;</span>
+<span class="n">DEFAULT_DATA_DIR</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<div class="viewcode-block" id="safe_load_csv">
+<a class="viewcode-back" href="../../api/ai_cdss.html#ai_cdss.ppf.safe_load_csv">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">safe_load_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">default_filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Safely loads a CSV file, either from a given file path or from the default data directory.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        file_path (str, optional): Full path to the CSV file. If not provided, `default_filename` is used.</span>
+<span class="sd">        default_filename (str, optional): Name of the file in the default directory.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pd.DataFrame: Loaded data.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If the file does not exist.</span>
+<span class="sd">        ValueError: If the file cannot be read as a valid CSV.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">file_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="k">if</span> <span class="n">file_path</span> <span class="k">else</span> <span class="n">DEFAULT_DATA_DIR</span> <span class="o">/</span> <span class="n">default_filename</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">file_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File not found: </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">. Ensure the correct path is specified.&quot;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        
+        <span class="c1"># If the file was loaded from outside the default directory, save a copy</span>
+        <span class="n">default_file_path</span> <span class="o">=</span> <span class="n">DEFAULT_DATA_DIR</span> <span class="o">/</span> <span class="n">file_path</span><span class="o">.</span><span class="n">name</span>
+        
+        <span class="k">if</span> <span class="n">file_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">!=</span> <span class="n">DEFAULT_DATA_DIR</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">default_file_path</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File copied to default directory: </span><span class="si">{</span><span class="n">default_file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">df</span>
+    
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error reading </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="load_patient_subscales">
+<a class="viewcode-back" href="../../api/ai_cdss.html#ai_cdss.ppf.load_patient_subscales">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_patient_subscales</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load patient clinical subscale scores from a given file or the default directory.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">safe_load_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;clinical_scores.csv&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="load_protocol_attributes">
+<a class="viewcode-back" href="../../api/ai_cdss.html#ai_cdss.ppf.load_protocol_attributes">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_attributes</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load protocol attributes from a given file or the default directory.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">safe_load_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;protocol_attributes.csv&quot;</span><span class="p">)</span></div>
+
 
 <div class="viewcode-block" id="main">
 <a class="viewcode-back" href="../../api/ai_cdss.html#ai_cdss.ppf.main">[docs]</a>
@@ -343,8 +400,8 @@
     <span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;.ai_cdss&quot;</span> <span class="o">/</span> <span class="s2">&quot;output&quot;</span>
     <span class="n">output_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="n">patient</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;../data/clinical_scores.csv&quot;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">protocol</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;../data/protocol_attributes.csv&quot;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">patient</span> <span class="o">=</span> <span class="n">load_patient_subscales</span><span class="p">()</span>
+    <span class="n">protocol</span> <span class="o">=</span> <span class="n">load_protocol_attributes</span><span class="p">()</span>
 
     <span class="n">patient_deficiency</span> <span class="o">=</span> <span class="n">ClinicalSubscales</span><span class="p">()</span><span class="o">.</span><span class="n">compute_deficit_matrix</span><span class="p">(</span><span class="n">patient</span><span class="p">)</span>
     <span class="n">protocol_mapped</span>    <span class="o">=</span> <span class="n">ProtocolToClinicalMapper</span><span class="p">()</span><span class="o">.</span><span class="n">map_protocol_features</span><span class="p">(</span><span class="n">protocol</span><span class="p">)</span>
