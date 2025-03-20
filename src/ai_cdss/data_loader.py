@@ -89,7 +89,7 @@ class DataLoader:
             
             # Check if file exists
             if (output_dir / "ppf.parquet").exists():
-                ppf_data = pd.read_parquet(output_dir / "ppf.parquet").reset_index()
+                ppf_data = pd.read_parquet(path = output_dir / "ppf.parquet").reset_index()
             else:
                 raise FileNotFoundError("No PPF file found in ~/.ai_cdss/output.")
             
@@ -142,7 +142,7 @@ class DataLoader:
             
             # Check if Parquet file exists
             if parquet_file.exists():
-                similarity_data = pd.read_parquet(parquet_file).reset_index()
+                similarity_data = pd.read_parquet(path = parquet_file).reset_index()
             # Fall back to CSV if Parquet file is not found
             elif csv_file.exists():
                 similarity_data = pd.read_csv(csv_file, index_col=0)

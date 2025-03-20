@@ -9,9 +9,10 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
 dependencies = [
-    "pandera (==0.23.0)",
+    "pandera (>=0.23.1,<0.24.0)",
     "gower (>=0.1.2,<0.2.0)",
-    "rgs_interface @ git+https://github.com/dabadav/rgs-interface.git@v0.2.2"
+    "rgs_interface @ git+https://github.com/dabadav/rgs-interface.git@v0.2.2",
+    "pandas[parquet] (>=2.2.3,<3.0.0)"
 ]
 packages = [{ include = "ai_cdss", from = "src" }]
 
@@ -30,6 +31,7 @@ pydata-sphinx-theme = "^0.16.1"
 myst-parser = "^4.0.1"
 sphinx-design = "^0.6.1"
 mypy = "^1.15.0"
+pandera = {extras = ["strategies"], version = "^0.23.1"}
 
 [tool.poetry.scripts]
 docs = "sphinx.cmd.build:main"

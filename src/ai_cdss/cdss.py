@@ -51,6 +51,10 @@ class CDSS:
         """
         recommendations = {}
 
+        patient_data = self.scoring[self.scoring["PATIENT_ID"] == patient_id]
+        if patient_data.empty:
+            return patient_data
+
         # Get current prescriptions for the patient
         prescriptions = self.get_prescriptions(patient_id)
 
@@ -75,7 +79,7 @@ class CDSS:
      
         else:
             # If the patient has no prescriptions, recommend the top N protocols
-            top_protocols = self.get_top_protocols(patient_id, self.n)
+            top_protocols = self.get_top_protocols(patient_id)
             scheduled_protocols = self.schedule_protocols(top_protocols)
 
             for day, protocols in scheduled_protocols.items():
@@ -109,15 +113,16 @@ class CDSS:
         schedule = {day: [] for day in range(1, self.days + 1)}  # Days are 1-indexed
         total_slots = self.days * self.protocols_per_day
 
-        # Repeat protocols as needed to fill the total slots
-        repeated_protocols = (protocols * math.ceil(total_slots / len(protocols)))[:total_slots]
+        if protocols:
+            # Repeat protocols as needed to fill the total slots
+            repeated_protocols = (protocols * math.ceil(total_slots / len(protocols)))[:total_slots]
 
-        # Distribute protocols evenly across days
-        for i, protocol in enumerate(repeated_protocols):
-            day = (i % self.days) + 1  # Distribute protocols in a round-robin fashion
-            
-            if protocol not in schedule[day]:
-                schedule[day].append(protocol)
+            # Distribute protocols evenly across days
+            for i, protocol in enumerate(repeated_protocols):
+                day = (i % self.days) + 1  # Distribute protocols in a round-robin fashion
+                
+                if protocol not in schedule[day]:
+                    schedule[day].append(protocol)
 
         return schedule
 
@@ -233,7 +238,6 @@ class CDSS:
         """
         patient_data = self.scoring[self.scoring["PATIENT_ID"] == patient_id]
         prescriptions = patient_data[patient_data["DAYS"].apply(lambda x: isinstance(x, list) and len(x) > 0)]
-        
         return prescriptions
 
     def get_scores(self, patient_id: int, protocol_id: int):
