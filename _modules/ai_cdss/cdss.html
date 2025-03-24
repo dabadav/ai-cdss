@@ -32,6 +32,7 @@
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
     <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
     <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/style.css?v=94b71b34" />
   
   <!-- So that users can add custom icons -->
   <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
@@ -370,7 +371,7 @@
 
 <div class="viewcode-block" id="CDSS.recommend">
 <a class="viewcode-back" href="../../api/cdss.html#ai_cdss.cdss.CDSS.recommend">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">recommend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">recommend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">ScoringSchema</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Recommend prescriptions for a patient.</span>
 
@@ -386,51 +387,59 @@
 <span class="sd">        DataFrame</span>
 <span class="sd">            A DataFrame mapping recommended protocol IDs to their scheduling details.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">recommendations</span> <span class="o">=</span> <span class="p">{}</span>
-
+        <span class="c1"># Get scores for patient</span>
         <span class="n">patient_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">patient_id</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">patient_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">patient_data</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
 
-        <span class="c1"># Get current prescriptions for the patient</span>
+        <span class="c1"># Get current prescriptions (which already include scores)</span>
         <span class="n">prescriptions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prescriptions</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
 
+        <span class="c1"># Track protocol rows to output</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="k">if</span> <span class="ow">not</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-            <span class="c1"># If the patient has prescriptions, decide which ones to swap</span>
+            <span class="c1"># 🔁 Identify which protocols need substitution</span>
             <span class="n">protocols_to_swap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decide_prescription_swap</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
-            <span class="c1"># Exclude protocols already prescribed</span>
-            <span class="n">protocols_excluded</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">PROTOCOL_ID</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span>
-            <span class="c1"># Iterate protocols</span>
+            <span class="n">protocols_excluded</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+            <span class="c1"># ➕ Directly add non-swapped prescriptions</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">[</span><span class="o">~</span><span class="n">prescriptions</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">protocols_to_swap</span><span class="p">)]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="s2">&quot;records&quot;</span><span class="p">))</span>
+
+            <span class="c1"># 🔁 Swap selected protocols</span>
             <span class="k">for</span> <span class="n">protocol_id</span> <span class="ow">in</span> <span class="n">protocols_to_swap</span><span class="p">:</span>
-                <span class="n">substitute</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_substitute</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">,</span> <span class="n">protocol_excluded</span><span class="o">=</span><span class="n">protocols_excluded</span><span class="p">)</span>
+                <span class="n">substitute</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_substitute</span><span class="p">(</span>
+                    <span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">,</span> <span class="n">protocol_excluded</span><span class="o">=</span><span class="n">protocols_excluded</span>
+                <span class="p">)</span>
                 <span class="k">if</span> <span class="n">substitute</span><span class="p">:</span>
-                    <span class="c1"># Add substitute to protocols excluded</span>
                     <span class="n">protocols_excluded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substitute</span><span class="p">)</span>
-                    <span class="c1"># Change add the schedule of the original</span>
-                    <span class="n">substitute_scores</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scores</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">substitute</span><span class="p">)</span>
-                    <span class="n">original_scores</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scores</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">)</span>
-                    <span class="n">substitute_scores</span><span class="p">[</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">original_scores</span><span class="p">[</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span>
-                    
-                    <span class="c1"># Add to recommendations</span>
-                    <span class="n">recommendations</span><span class="p">[</span><span class="n">substitute</span><span class="p">]</span> <span class="o">=</span> <span class="n">substitute_scores</span>
-     
+                    <span class="n">substitute_row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scores</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">substitute</span><span class="p">)</span>
+                    <span class="n">substitute_row</span><span class="p">[</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">prescriptions</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">protocol_id</span><span class="p">,</span> <span class="s2">&quot;DAYS&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">substitute_row</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">substitute</span>
+                    <span class="n">substitute_row</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">patient_id</span>
+                    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substitute_row</span><span class="p">)</span>
+
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># If the patient has no prescriptions, recommend the top N protocols</span>
+            <span class="c1"># 🆕 No prescriptions → Generate new schedule</span>
             <span class="n">top_protocols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_top_protocols</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
-            <span class="n">scheduled_protocols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule_protocols</span><span class="p">(</span><span class="n">top_protocols</span><span class="p">)</span>
+            <span class="n">schedule</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule_protocols</span><span class="p">(</span><span class="n">top_protocols</span><span class="p">)</span>  <span class="c1"># {day: [protocol_id, ...]}</span>
 
-            <span class="k">for</span> <span class="n">day</span><span class="p">,</span> <span class="n">protocols</span> <span class="ow">in</span> <span class="n">scheduled_protocols</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="k">for</span> <span class="n">protocol</span> <span class="ow">in</span> <span class="n">protocols</span><span class="p">:</span>
-                    <span class="n">score_details</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scores</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol</span><span class="p">)</span>
-
-                    <span class="k">if</span> <span class="n">protocol</span> <span class="ow">in</span> <span class="n">recommendations</span><span class="p">:</span>
-                        <span class="n">recommendations</span><span class="p">[</span><span class="n">protocol</span><span class="p">][</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">day</span><span class="p">)</span>  <span class="c1"># Append to existing days list</span>
+            <span class="n">seen</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># protocol_id: row</span>
+            <span class="k">for</span> <span class="n">day</span><span class="p">,</span> <span class="n">protocol_ids</span> <span class="ow">in</span> <span class="n">schedule</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">protocol_id</span> <span class="ow">in</span> <span class="n">protocol_ids</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">protocol_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+                        <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scores</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">)</span>
+                        <span class="n">row</span><span class="p">[</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">day</span><span class="p">]</span>
+                        <span class="n">row</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">protocol_id</span>
+                        <span class="n">row</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">patient_id</span>
+                        <span class="n">seen</span><span class="p">[</span><span class="n">protocol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span>
                     <span class="k">else</span><span class="p">:</span>
-                        <span class="n">score_details</span><span class="p">[</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">day</span><span class="p">]</span>  <span class="c1"># Initialize a list of days</span>
-                        <span class="n">recommendations</span><span class="p">[</span><span class="n">protocol</span><span class="p">]</span> <span class="o">=</span> <span class="n">score_details</span>
+                        <span class="n">seen</span><span class="p">[</span><span class="n">protocol_id</span><span class="p">][</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">day</span><span class="p">)</span>
 
-        <span class="n">recommendations_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">recommendations</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
-        <span class="k">return</span> <span class="n">recommendations_df</span></div>
+            <span class="n">rows</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">seen</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="c1"># Convert to DataFrame</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="CDSS.schedule_protocols">

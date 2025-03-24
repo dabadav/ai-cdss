@@ -2,12 +2,31 @@
 
 .. title:: CDSS
 
-CDSS
-====
-
 .. LOGO
 
-.. frontpage gallery is added by a conditional in _templates/layout.html
+.. grid:: 2
+   :class-container: cards-gallery
+
+   .. card:: ✅ Protocol Evaluation
+      :link: /guide/scoring
+      :link-type: doc
+      :text-align: center
+      :class-card: sd-shadow-md sd-rounded-4
+
+      **Score protocols** for a patient based on clinical condition and RGS activities interaction data.
+
+   .. card:: ℹ️ Prescriptions Recommendation
+      :link: /guide/index
+      :link-type: doc
+      :text-align: center
+      :class-card: sd-shadow-md sd-rounded-4
+
+      **Protocol prescription** decision making algorithm explanation.
+
+.. image:: _static/diagrams/cdss-lr.svg
+   :alt: CDSS Flowchart
+   :width: 100%
+   :class: zoom-image sd-rounded-2
 
 .. toctree::
    :hidden:
