@@ -10,6 +10,7 @@ from pathlib import Path
 
 import ai_cdss
 
+sys.path.insert(0, os.path.abspath('.'))
 sys.path.append(str(Path(".").resolve()))
 
 # -- Project information -----------------------------------------------------
@@ -31,6 +32,7 @@ extensions = [
     "sphinx.ext.graphviz",        # Enables Graphviz diagrams
     "sphinx.ext.inheritance_diagram",  # Class hierarchy visualization
     "sphinxcontrib.sphinx_pandera",  # Render pandera schemas
+    # "sphinx_gallery.gen_gallery",
 ]
 
 templates_path = ['_templates']
@@ -40,6 +42,10 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = 'pydata_sphinx_theme'
 html_static_path = ['_static']
+html_css_files = [
+    "style.css",
+]
+
 htmlhelp_basename = 'CDSSDoc'
 
 # -- PyData heme Configuration -----------------------------------------------
@@ -80,7 +86,34 @@ html_context = {
     "github_repo": "ai-cdss",  # Your repository name
     "github_version": "main",  # The branch name (e.g., main, master)
     "doc_path": "doc",        # The path to your documentation in the repository
+    'carousel': [
+        {'title': 'Test 1', 'text': 'This is test card 1', 'url': '#'},
+        {'title': 'Test 2', 'text': 'This is test card 2', 'url': '#'}
+    ]
+    # "carousel": [
+    #     dict(
+    #         title="Activity Evaluation",
+    #         text="Receptive field estima\u00adtion with optional smooth\u00adness priors.",
+    #         url="guide/introduction.html",
+    #         # img="",
+    #         # alt="",
+    #     ),
+    #     dict(
+    #         title="Therapeutic Interchange",
+    #         text="Receptive field estima\u00adtion with optional smooth\u00adness priors.",  # noqa E501
+    #         url="api/index.html",
+    #         # img=".png",
+    #         # alt="STRF",
+    #     ),
+    # ]
 }
+
+# -- Sphinx Gallery conf ----------------------------------------------------
+
+# sphinx_gallery_conf = {
+#     'examples_dirs': None,  # Disable examples scanning
+# }
+
 
 # -- Napoleon Settings (For Google/NumPy Docstrings) ------------------------
 
@@ -110,6 +143,14 @@ autodoc_typehints = "description"  # Show type hints inline with parameter descr
 # -- Graphviz Diagrams ------------------------------------------------------
 
 graphviz_output_format = "svg"
+
+# -- MySt Enable Math --------------------------------------------------------
+
+myst_enable_extensions = [
+    "dollarmath",
+    "amsmath",
+]
+
 
 # -- Extensions for Better Documentation -------------------------------------
 

@@ -33,7 +33,7 @@ class CDSS:
         self.days = days
         self.protocols_per_day = protocols_per_day
 
-    def recommend(self, patient_id: int, protocol_similarity) -> Dict[str, str]:
+    def recommend(self, patient_id: int, protocol_similarity) -> DataFrame[ScoringSchema]:
         """
         Recommend prescriptions for a patient.
 
@@ -49,51 +49,59 @@ class CDSS:
         DataFrame
             A DataFrame mapping recommended protocol IDs to their scheduling details.
         """
-        recommendations = {}
-
+        # Get scores for patient
         patient_data = self.scoring[self.scoring["PATIENT_ID"] == patient_id]
         if patient_data.empty:
-            return patient_data
+            return pd.DataFrame()
 
-        # Get current prescriptions for the patient
+        # Get current prescriptions (which already include scores)
         prescriptions = self.get_prescriptions(patient_id)
 
+        # Track protocol rows to output
+        rows = []
+
         if not prescriptions.empty:
-            # If the patient has prescriptions, decide which ones to swap
+            # 🔁 Identify which protocols need substitution
             protocols_to_swap = self.decide_prescription_swap(patient_id)
-            # Exclude protocols already prescribed
-            protocols_excluded = prescriptions.PROTOCOL_ID.to_list()
-            # Iterate protocols
+            protocols_excluded = prescriptions["PROTOCOL_ID"].tolist()
+
+            # ➕ Directly add non-swapped prescriptions
+            rows.extend(prescriptions[~prescriptions["PROTOCOL_ID"].isin(protocols_to_swap)].to_dict("records"))
+
+            # 🔁 Swap selected protocols
             for protocol_id in protocols_to_swap:
-                substitute = self.get_substitute(patient_id, protocol_id, protocol_similarity, protocol_excluded=protocols_excluded)
+                substitute = self.get_substitute(
+                    patient_id, protocol_id, protocol_similarity, protocol_excluded=protocols_excluded
+                )
                 if substitute:
-                    # Add substitute to protocols excluded
                     protocols_excluded.append(substitute)
-                    # Change add the schedule of the original
-                    substitute_scores = self.get_scores(patient_id, substitute)
-                    original_scores = self.get_scores(patient_id, protocol_id)
-                    substitute_scores["DAYS"] = original_scores["DAYS"]
-                    
-                    # Add to recommendations
-                    recommendations[substitute] = substitute_scores
-     
+                    substitute_row = self.get_scores(patient_id, substitute)
+                    substitute_row["DAYS"] = prescriptions.loc[prescriptions["PROTOCOL_ID"] == protocol_id, "DAYS"].values[0]
+                    substitute_row["PROTOCOL_ID"] = substitute
+                    substitute_row["PATIENT_ID"] = patient_id
+                    rows.append(substitute_row)
+
         else:
-            # If the patient has no prescriptions, recommend the top N protocols
+            # 🆕 No prescriptions → Generate new schedule
             top_protocols = self.get_top_protocols(patient_id)
-            scheduled_protocols = self.schedule_protocols(top_protocols)
+            schedule = self.schedule_protocols(top_protocols)  # {day: [protocol_id, ...]}
 
-            for day, protocols in scheduled_protocols.items():
-                for protocol in protocols:
-                    score_details = self.get_scores(patient_id, protocol)
-
-                    if protocol in recommendations:
-                        recommendations[protocol]["DAYS"].append(day)  # Append to existing days list
+            seen = {}  # protocol_id: row
+            for day, protocol_ids in schedule.items():
+                for protocol_id in protocol_ids:
+                    if protocol_id not in seen:
+                        row = self.get_scores(patient_id, protocol_id)
+                        row["DAYS"] = [day]
+                        row["PROTOCOL_ID"] = protocol_id
+                        row["PATIENT_ID"] = patient_id
+                        seen[protocol_id] = row
                     else:
-                        score_details["DAYS"] = [day]  # Initialize a list of days
-                        recommendations[protocol] = score_details
+                        seen[protocol_id]["DAYS"].append(day)
 
-        recommendations_df = pd.DataFrame(recommendations.values())
-        return recommendations_df
+            rows.extend(seen.values())
+
+        # Convert to DataFrame
+        return pd.DataFrame(rows).sort_values(by="PROTOCOL_ID").reset_index(drop=True)
 
     def schedule_protocols(self, protocols: List[int]):
         """

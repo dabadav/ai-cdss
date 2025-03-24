@@ -9,24 +9,43 @@ def main():
         2955, 2956, 2957, 2958, 2959, 2960, 2961, 2962, 2963, 3081, 3229, 3318, 3432
     ]
 
+    # Parameters
+    rgs_mode = "app"
+    weights = [1,1,1]
+    alpha = 0.5
+
+    n = 12
+    days = 7
+    protocols_per_day = 5
+
+    # Services
     loader = DataLoader(
-        rgs_mode = "app"
+        rgs_mode = rgs_mode
     )
     processor = DataProcessor(
-        weights=[1,1,1],
-        alpha=0.5
+        weights=weights,
+        alpha=alpha
     )
 
-    data = loader.load_data(PATIENT_LIST)
-    ppf = loader.load_ppf_data(PATIENT_LIST)
-    scoring = processor.process(data, ppf)
+    # Execution
+    session = loader.load_session_data(patient_list=PATIENT_LIST)
+    timeseries = loader.load_timeseries_data(patient_list=PATIENT_LIST)
+    ppf = loader.load_ppf_data(patient_list=PATIENT_LIST)
+    protocol_similarity = loader.load_protocol_similarity()
 
-    pipeline = CDSS(
-        PATIENT_LIST,
-        n=5
+    scores = processor.process_data(session_data=session, timeseries_data=timeseries, ppf_data=ppf)
+    
+    # CDSS
+    cdss = CDSS(
+        scoring=scores,
+        n=n,
+        days=days,
+        protocols_per_day=protocols_per_day
     )
     
-    pipeline.recommend()
+    # Results
+    for patient in PATIENT_LIST:
+        cdss.recommend(patient_id=patient, protocol_similarity=protocol_similarity)
 
 if __name__ == "__main__":
     main()

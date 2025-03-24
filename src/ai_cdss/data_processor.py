@@ -66,6 +66,13 @@ class DataProcessor:
     @pa.check_types
     def process_data(self, session_data: DataFrame[SessionSchema], timeseries_data: DataFrame[TimeseriesSchema], ppf_data: DataFrame[PPFSchema]) -> DataFrame[ScoringSchema]:
 
+        data = self.merge_session_and_timeseries(session_data=session_data, timeseries_data=timeseries_data)
+        score = self.compute_patient_protocol_scores(data, ppf_data)
+
+        return score
+
+    def merge_session_and_timeseries(self, session_data: DataFrame[SessionSchema], timeseries_data: DataFrame[TimeseriesSchema]):
+        
         # Aggregate timeseries by session
         timeseries = (
             timeseries_data
@@ -75,7 +82,7 @@ class DataProcessor:
             .pipe(self.compute_ewma, value_col="PE_VALUE", group_cols=["PATIENT_ID", "PROTOCOL_ID"]) # Compute PE EWMA
         )
         
-        # Aggregate session by sessino
+        # Compute ewma adherence
         session = (
             session_data
             .sort_values(by=["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID"]) # Sort df by protocol, session
@@ -84,20 +91,20 @@ class DataProcessor:
         
         # Merge session and timeseries data and compute protocol metrics ADHERENCE and ACTIVE PRESCRIPTIONS
         data = session.merge(timeseries, on=["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID"], how="left")
-        data = self.aggregate_metrics_per_protocol(data)
 
+        return data
+
+    def compute_patient_protocol_scores(self, data, ppf_data):
+        # Aggregate metrics per protocol
+        data = self.aggregate_metrics_per_protocol(data)
         # Merge session, timeseries, and ppf
         data = ppf_data.merge(data, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
-        
         # Initialize missing values
         data = self.initialize_missing_metrics(data)
-        
         # Compute objective function score alpha*Adherence + beta*DM + gamma*PPF
         score = self.compute_score(data)
-
         # Sort the output dataframe
         score.sort_values(by=["PATIENT_ID", "PROTOCOL_ID"], inplace=True)
-
         return score
 
     def aggregate_dms_by_time(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
@@ -107,7 +114,7 @@ class DataProcessor:
             .sort_values(by=["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID", "SECONDS_FROM_START"]) # Sort df by time
             .groupby(["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID", "GAME_MODE", "SECONDS_FROM_START"])
             .agg({
-                "DM_KEY": lambda x: list(set(x)),  # Unique parameters at this time
+                "DM_KEY": lambda x: tuple(set(x)),  # Unique parameters at this time
                 "DM_VALUE": "mean",               # Average parameter value
                 "PE_KEY": "first",                # Assume same performance key per time, take first
                 "PE_VALUE": "mean"                # Average performance value (usually only one)
