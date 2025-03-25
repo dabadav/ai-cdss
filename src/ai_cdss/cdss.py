@@ -61,14 +61,14 @@ class CDSS:
         rows = []
 
         if not prescriptions.empty:
-            # 🔁 Identify which protocols need substitution
+            # Identify which protocols need substitution
             protocols_to_swap = self.decide_prescription_swap(patient_id)
             protocols_excluded = prescriptions["PROTOCOL_ID"].tolist()
 
-            # ➕ Directly add non-swapped prescriptions
+            # Directly add non-swapped prescriptions
             rows.extend(prescriptions[~prescriptions["PROTOCOL_ID"].isin(protocols_to_swap)].to_dict("records"))
 
-            # 🔁 Swap selected protocols
+            # Swap selected protocols
             for protocol_id in protocols_to_swap:
                 substitute = self.get_substitute(
                     patient_id, protocol_id, protocol_similarity, protocol_excluded=protocols_excluded
@@ -82,7 +82,7 @@ class CDSS:
                     rows.append(substitute_row)
 
         else:
-            # 🆕 No prescriptions → Generate new schedule
+            # No prescriptions → Generate new schedule
             top_protocols = self.get_top_protocols(patient_id)
             schedule = self.schedule_protocols(top_protocols)  # {day: [protocol_id, ...]}
 

@@ -102,7 +102,6 @@ class DataLoader:
             # If no PPF data for a patient
             if missing_patients:
                 logger.warning(f"PPF missing for {len(missing_patients)} patients: {missing_patients}")
-
                 protocols = set(ppf_data["PROTOCOL_ID"].unique())
 
                 # Generate new rows where each missing patient is assigned every protocol
@@ -114,7 +113,6 @@ class DataLoader:
 
                 # Concatenate missing patient data into the existing PPF dataset
                 ppf_data = pd.concat([ppf_data, missing_combinations], ignore_index=True)
-                
                 return ppf_data
             
             logger.info("PPF data loaded successfully.")
