@@ -446,7 +446,6 @@
             <span class="c1"># If no PPF data for a patient</span>
             <span class="k">if</span> <span class="n">missing_patients</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;PPF missing for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">missing_patients</span><span class="p">)</span><span class="si">}</span><span class="s2"> patients: </span><span class="si">{</span><span class="n">missing_patients</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
                 <span class="n">protocols</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">ppf_data</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
 
                 <span class="c1"># Generate new rows where each missing patient is assigned every protocol</span>
@@ -458,7 +457,6 @@
 
                 <span class="c1"># Concatenate missing patient data into the existing PPF dataset</span>
                 <span class="n">ppf_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ppf_data</span><span class="p">,</span> <span class="n">missing_combinations</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-                
                 <span class="k">return</span> <span class="n">ppf_data</span>
             
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;PPF data loaded successfully.&quot;</span><span class="p">)</span>

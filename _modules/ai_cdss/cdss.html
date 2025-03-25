@@ -399,14 +399,14 @@
         <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-            <span class="c1"># 🔁 Identify which protocols need substitution</span>
+            <span class="c1"># Identify which protocols need substitution</span>
             <span class="n">protocols_to_swap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decide_prescription_swap</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
             <span class="n">protocols_excluded</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 
-            <span class="c1"># ➕ Directly add non-swapped prescriptions</span>
+            <span class="c1"># Directly add non-swapped prescriptions</span>
             <span class="n">rows</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">[</span><span class="o">~</span><span class="n">prescriptions</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">protocols_to_swap</span><span class="p">)]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="s2">&quot;records&quot;</span><span class="p">))</span>
 
-            <span class="c1"># 🔁 Swap selected protocols</span>
+            <span class="c1"># Swap selected protocols</span>
             <span class="k">for</span> <span class="n">protocol_id</span> <span class="ow">in</span> <span class="n">protocols_to_swap</span><span class="p">:</span>
                 <span class="n">substitute</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_substitute</span><span class="p">(</span>
                     <span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">,</span> <span class="n">protocol_excluded</span><span class="o">=</span><span class="n">protocols_excluded</span>
@@ -420,7 +420,7 @@
                     <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substitute_row</span><span class="p">)</span>
 
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># 🆕 No prescriptions → Generate new schedule</span>
+            <span class="c1"># No prescriptions → Generate new schedule</span>
             <span class="n">top_protocols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_top_protocols</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
             <span class="n">schedule</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule_protocols</span><span class="p">(</span><span class="n">top_protocols</span><span class="p">)</span>  <span class="c1"># {day: [protocol_id, ...]}</span>
 
