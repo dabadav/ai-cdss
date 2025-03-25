@@ -411,6 +411,9 @@
     <span class="n">ppf_contrib</span> <span class="o">=</span> <span class="n">merge_data</span><span class="p">(</span><span class="n">ppf</span><span class="p">,</span> <span class="n">contrib</span><span class="p">)</span>
     <span class="n">ppf_contrib</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s1">&#39;PATIENT_ID&#39;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
+    <span class="c1"># Save Contrib Subscales as metadata</span>
+    <span class="n">ppf_contrib</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;SUBSCALES&quot;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">protocol_mapped</span><span class="o">.</span><span class="n">columns</span><span class="p">)}</span>
+
     <span class="c1"># Save to CSV in versioned output directory</span>
     <span class="n">output_path</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;ppf.parquet&quot;</span>
     <span class="n">ppf_contrib</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">output_path</span><span class="p">)</span>
