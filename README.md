@@ -1,21 +1,26 @@
 
-# Clinical Decision Support System
+# ai-cdss: Clinical Decision Support System
 
-### Input
+<div class="column" align="middle">
+    <a href="https://dabadav.github.io/ai-cdss/index.html">
+        <img src="https://img.shields.io/badge/Docs-online-green?label=Documentation" alt="Docs"/>
+    </a>
+    <a href="https://github.com/dabadav/ai-cdss/actions/workflows/tests.yml">
+        <img src="https://github.com/dabadav/ai-cdss/actions/workflows/test.yml/badge.svg" alt="CI - Test"/>
+    </a>
+    <a href="https://github.com/dabadav/ai-cdss/releases/latest">
+        <img src="https://img.shields.io/github/v/release/dabadav/ai-cdss?label=GitHub%20Release" alt="GitHub Release"/>
+    </a>
+</div>
 
-- SessionBatch: pd.DataFrame = (sessions, session_info)
+## Documentation
 
-### Output:
+[`Documentation`](https://dabadav.github.io/ai-cdss/index.html) for the ai-cdss encompasses installation instructions, tutorials, examples and an API reference.
 
-- WeeklyPrescriptionBatch
+## Installation
 
-    - prescriptions: Dict[str, Dict[str, Any]] = (patient, protocol, prescription)
+To install the lastest stable version of the ai-cdss, use pip in a terminal:
 
-        prescription
-
-        - day: List
-        - score: int
-        - factors: List
-        - contributions: List
-        - explanation: str
-
+```bash
+pip install ai_cdss-0.1.0.tar.gz
+```
