@@ -22,7 +22,7 @@ class RecommendationOut(BaseModel):
     contrib: List[float] = Field(alias="CONTRIB")
     days: List[int] = Field(alias="DAYS")
     score: float = Field(alias="SCORE")
-    top_features: List[str]  # 👈 new field, not aliased
-    
+    explanation: List[str] = Field(alias="EXPLANATION")
+
 class RecommendationsResponse(RootModel):
     root: Dict[int, List[RecommendationOut]]

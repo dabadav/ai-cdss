@@ -66,6 +66,9 @@ def main():
     ppf_contrib = merge_data(ppf, contrib)
     ppf_contrib.set_index('PATIENT_ID', inplace=True)
 
+    # Save Contrib Subscales as metadata
+    ppf_contrib.attrs = {"SUBSCALES": list(protocol_mapped.columns)}
+
     # Save to CSV in versioned output directory
     output_path = output_dir / "ppf.parquet"
     ppf_contrib.to_parquet(output_path)

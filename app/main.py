@@ -6,21 +6,44 @@ from .schemas import RecommendationRequest, RecommendationsResponse, Recommendat
 from ai_cdss.cdss import CDSS
 from ai_cdss.data_loader import DataLoader
 from ai_cdss.data_processor import DataProcessor
-from ai_cdss.ppf import load_patient_subscales
 
-app = FastAPI()
+app = FastAPI(
+    title="AI-CDSS API",
+    description="Clinical Decision Support System (CDSS) for personalized rehabilitation protocol recommendations.",
+    version="1.0.0",
+    contact={
+        "name": "Eodyne Systems",
+        "email": "contact@eodyne.com"
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    }
+)
 
 def get_top_contributing_features(values: List[float], keys: List[str], top_n: int = 3) -> List[str]:
     if len(values) != len(keys):
         raise ValueError("Length of values and keys must match.")
     return [k for k, v in sorted(zip(keys, values), key=lambda x: x[1], reverse=True)[:top_n]]
 
-@app.post("/recommend", response_model=RecommendationsResponse)
+@app.post(
+    "/recommend/{rgs_mode}", 
+    response_model=RecommendationsResponse,
+    summary="Get personalized rehabilitation recommendations",
+    description="""
+    Generate a list of protocol recommendations for each patient in the request.
+    Recommendations are based on patient profiles, time series data, and computed protocol suitability.
+    Each recommendation includes a computed PPF score, adherence values, usage history, 
+    and an explanation field identifying the top contributing clinical subscales.
+    """,
+    tags=["Recommendations"]    
+    )
 def recommend(
+    rgs_mode,
     request: RecommendationRequest,
-    settings: Settings = Depends(get_settings)
+    settings: Settings = Depends(get_settings),
 ):
-    rgs_mode = request.rgs_mode or settings.RGS_MODE
+    # rgs_mode = request.rgs_mode or settings.RGS_MODE
     weights = request.weights or settings.WEIGHTS
     alpha = request.alpha if request.alpha is not None else settings.ALPHA
     n = request.n or settings.N
@@ -35,8 +58,6 @@ def recommend(
     ppf = loader.load_ppf_data(patient_list=request.patient_list)
     protocol_similarity = loader.load_protocol_similarity()
     scores = processor.process_data(session, timeseries, ppf)
-    protocol_attributes = load_patient_subscales()
-    attribute_keys = list(protocol_attributes.columns)
     
     cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
@@ -45,7 +66,7 @@ def recommend(
             patient: [
                 RecommendationOut(
                     **row,
-                    top_features=get_top_contributing_features(row["CONTRIB"], attribute_keys)
+                    EXPLANATION=get_top_contributing_features(row["CONTRIB"], scores.attrs.get("SUBSCALES"))
                 )
                 for row in cdss.recommend(patient, protocol_similarity).to_dict(orient="records")
             ]

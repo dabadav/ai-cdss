@@ -48,9 +48,7 @@ class DataProcessor:
 
     compute_score(scoring)
         Computes the final scoring function.
-
     """
-
     def __init__(self, weights: List[float] = [1,1,1], alpha: float = 0.5):
         """
         Initialize the data processor with optional weights for scoring.
@@ -68,7 +66,7 @@ class DataProcessor:
 
         data = self.merge_session_and_timeseries(session_data=session_data, timeseries_data=timeseries_data)
         score = self.compute_patient_protocol_scores(data, ppf_data)
-
+        score.attrs = ppf_data.attrs # Propagate attrs
         return score
 
     def merge_session_and_timeseries(self, session_data: DataFrame[SessionSchema], timeseries_data: DataFrame[TimeseriesSchema]):
