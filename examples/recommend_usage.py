@@ -56,3 +56,5 @@ cdss = CDSS(
 # Results
 recommendation = cdss.recommend(patient_id=PATIENT_LIST[0], protocol_similarity=protocol_similarity)
 print(recommendation)
+
+# %%

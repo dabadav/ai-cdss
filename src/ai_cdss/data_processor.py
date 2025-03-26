@@ -43,7 +43,9 @@ class DataProcessor:
     compute_ewma(df, value_col, group_cols)
         Computes Exponential Weighted Moving Average (EWMA):
 
-        $$EWMA_t = \alpha \cdot X_t + (1 - \alpha) \cdot EWMA_{t-1}$$
+        .. math::
+            
+            EWMA_t = \\alpha \\cdot X_t + (1 - \\alpha) \\cdot EWMA_{t-1}
 
     compute_score(scoring)
         Computes the final scoring function.
@@ -257,7 +259,7 @@ class DataProcessor:
 
         .. math::
 
-            S = \alpha \cdot A + \beta \cdot DM + \gamma \cdot PPF
+            S = \\alpha \\cdot A + \\beta \\cdot DM + \\gamma \\cdot PPF
 
         Parameters
         ----------
