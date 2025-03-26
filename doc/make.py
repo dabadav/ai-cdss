@@ -28,5 +28,5 @@ def build_docs():
 
 if __name__ == "__main__":
     clean_docs()
-    generate_apidoc()
+    # generate_apidoc()
     build_docs()

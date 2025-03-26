@@ -1,12 +1,10 @@
-CDSS Class
-==========
-
-:py:mod:`ai_cdss.cdss`:
+CDSS
+====
 
 .. currentmodule:: ai_cdss.cdss
 
-.. automodule:: ai_cdss.cdss
-   :members:
-   :show-inheritance:
-   :undoc-members:
+.. autosummary::
+    :toctree: ../generated/
+    :template: autosummary/class_no_inherited_members.rst
 
+    CDSS

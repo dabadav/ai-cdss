@@ -12,21 +12,21 @@ class CDSS:
 
     This system provides personalized recommendations for patients based on scoring data.
     It allows protocol recommendations, scheduling, and prescription adjustments.
+
+    Parameters
+    ----------
+    scoring : DataFrame
+        A DataFrame containing patient protocol scores.
+    n : int, optional
+        Number of top protocols to recommend, by default 12.
+    days : int, optional
+        Number of days for scheduling, by default 7.
+    protocols_per_day : int, optional
+        Maximum number of protocols per day, by default 5.
     """
     def __init__(self, scoring: DataFrame[ScoringSchema], n: int = 12, days: int = 7, protocols_per_day: int = 5):
         """
         Initialize the Clinical Decision Support System.
-
-        Parameters
-        ----------
-        scoring : DataFrame
-            A DataFrame containing patient protocol scores.
-        n : int, optional
-            Number of top protocols to recommend, by default 12.
-        days : int, optional
-            Number of days for scheduling, by default 7.
-        protocols_per_day : int, optional
-            Maximum number of protocols per day, by default 5.
         """
         self.scoring = scoring
         self.n = n

@@ -10,8 +10,10 @@ from pathlib import Path
 
 import ai_cdss
 
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.append(str(Path(".").resolve()))
+# sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.dirname(__file__))
+# sys.path.append(str(Path(".").resolve()))
+# sys.path.insert(0, os.path.abspath("../../src"))  # adjust if needed
 
 # -- Project information -----------------------------------------------------
 
@@ -26,13 +28,15 @@ extensions = [
     "sphinx_design",
     "sphinx.ext.autodoc",         # Extracts docstrings from code
     "sphinx.ext.autosummary",     # Generates API documentation
-    "sphinx.ext.napoleon",        # Supports Google-style & NumPy-style docstrings
+    "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",        # Adds links to source code
     "sphinx_autodoc_typehints",   # Shows type hints in documentation
     "sphinx.ext.graphviz",        # Enables Graphviz diagrams
     "sphinx.ext.inheritance_diagram",  # Class hierarchy visualization
-    "sphinxcontrib.sphinx_pandera",  # Render pandera schemas
-    # "sphinx_gallery.gen_gallery",
+    "numpydoc",
+    # "sphinxcontrib.sphinx_pandera",  # Render pandera schemas
+    "sphinxcontrib.mermaid",
+    "sphinx_gallery.gen_gallery",
 ]
 
 templates_path = ['_templates']
@@ -48,7 +52,7 @@ html_css_files = [
 
 htmlhelp_basename = 'CDSSDoc'
 
-# -- PyData heme Configuration -----------------------------------------------
+# -- PyData theme Configuration -----------------------------------------------
 
 html_title = "CDSS"  # You can modify this as well
 html_show_sourcelink = False
@@ -86,59 +90,40 @@ html_context = {
     "github_repo": "ai-cdss",  # Your repository name
     "github_version": "main",  # The branch name (e.g., main, master)
     "doc_path": "doc",        # The path to your documentation in the repository
-    'carousel': [
-        {'title': 'Test 1', 'text': 'This is test card 1', 'url': '#'},
-        {'title': 'Test 2', 'text': 'This is test card 2', 'url': '#'}
-    ]
-    # "carousel": [
-    #     dict(
-    #         title="Activity Evaluation",
-    #         text="Receptive field estima\u00adtion with optional smooth\u00adness priors.",
-    #         url="guide/introduction.html",
-    #         # img="",
-    #         # alt="",
-    #     ),
-    #     dict(
-    #         title="Therapeutic Interchange",
-    #         text="Receptive field estima\u00adtion with optional smooth\u00adness priors.",  # noqa E501
-    #         url="api/index.html",
-    #         # img=".png",
-    #         # alt="STRF",
-    #     ),
-    # ]
 }
+
+# -- NumPyDoc configuration -----------------------------------------------------
+
+numpydoc_class_members_toctree = False
+numpydoc_attributes_as_param_list = True
+numpydoc_xref_param_type = False
 
 # -- Sphinx Gallery conf ----------------------------------------------------
 
-# sphinx_gallery_conf = {
-#     'examples_dirs': None,  # Disable examples scanning
-# }
-
-
-# -- Napoleon Settings (For Google/NumPy Docstrings) ------------------------
-
-napoleon_numpy_docstring = True
-napoleon_include_init_with_doc = False  # Don't document __init__ separately
-napoleon_use_param = True
-napoleon_use_rtype = True
+sphinx_gallery_conf = {
+    "examples_dirs": ["../../examples"],  # Your example scripts live here
+    "gallery_dirs": ["auto_examples"],  # Where to output the generated gallery
+    "backreferences_dir": "generated",  # Optional: for cross-links from API
+    "filename_pattern": r".*\.py$",  # Include all .py files
+    "download_all_examples": False,
+    "remove_config_comments": True,
+    "show_memory": False,
+    "line_numbers": False,
+    "plot_gallery": True,
+    "abort_on_example_error": True,
+    "min_reported_time": 0.0,
+    "doc_module": ("ai_cdss",),
+    "reference_url": {"ai_cdss": None},
+}
 
 # -- Autodoc Settings (Controls Function/Class Documentation) ----------------
 
-autosummary_generate = True  # Automatically create stub pages for modules
+autosummary_generate = True
 autodoc_default_options = {"inherited-members": None}
-autodoc_inherit_docstrings = False
-
-# autodoc_default_options = {
-#     "members": True,           # Include all documented members
-#     "undoc-members": False,    # Exclude undocumented members
-#     "private-members": False,  # Exclude private methods (_method_name)
-#     "special-members": "__init__",  # Include __init__ method
-#     "show-inheritance": True,  # Show class inheritance
-# }
 
 # -- Type Hint Settings ------------------------------------------------------
 
-autodoc_typehints = "description"  # Show type hints inline with parameter descriptions
+autodoc_typehints = "none"  # Show type hints inline with parameter descriptions
 
 # -- Graphviz Diagrams ------------------------------------------------------
 

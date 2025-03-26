@@ -2,12 +2,9 @@
 
 .. title:: CDSS
 
-.. LOGO
-
 .. grid:: 2
-   :class-container: cards-gallery
 
-   .. card:: ✅ Protocol Evaluation
+   .. grid-item-card:: ✅ Protocol Evaluation
       :link: /guide/scoring
       :link-type: doc
       :text-align: center
@@ -15,7 +12,7 @@
 
       **Score protocols** for a patient based on clinical condition and RGS activities interaction data.
 
-   .. card:: ℹ️ Prescriptions Recommendation
+   .. grid-item-card:: ℹ️ Prescriptions Recommendation
       :link: /guide/index
       :link-type: doc
       :text-align: center

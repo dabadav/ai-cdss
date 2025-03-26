@@ -1,0 +1,58 @@
+"""
+Basic usage of CDSS to generate a protocol recommendation.
+==========================================================
+
+This example demonstrates how to use the `DataLoader`, `DataProcessor`, and `CDSS`
+to load data and generate a 7-day protocol plan.
+"""
+
+# %%
+
+from ai_cdss.cdss import CDSS
+from ai_cdss.data_loader import DataLoader
+from ai_cdss.data_processor import DataProcessor
+from IPython.display import display
+
+print(__doc__)
+
+PATIENT_LIST = [
+    775,  787,  788
+]
+
+# Parameters
+rgs_mode = "app"
+weights = [1,1,1]
+alpha = 0.5
+
+n = 12
+days = 7
+protocols_per_day = 5
+
+# Services
+loader = DataLoader(
+    rgs_mode = rgs_mode
+)
+processor = DataProcessor(
+    weights=weights,
+    alpha=alpha
+)
+
+# Execution
+session = loader.load_session_data(patient_list=PATIENT_LIST)
+timeseries = loader.load_timeseries_data(patient_list=PATIENT_LIST)
+ppf = loader.load_ppf_data(patient_list=PATIENT_LIST)
+protocol_similarity = loader.load_protocol_similarity()
+
+scores = processor.process_data(session_data=session, timeseries_data=timeseries, ppf_data=ppf)
+
+# CDSS
+cdss = CDSS(
+    scoring=scores,
+    n=n,
+    days=days,
+    protocols_per_day=protocols_per_day
+)
+
+# Results
+recommendation = cdss.recommend(patient_id=PATIENT_LIST[0], protocol_similarity=protocol_similarity)
+display(recommendation)
