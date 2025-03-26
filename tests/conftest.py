@@ -1,13 +1,13 @@
 # tests/conftest.py
 import pytest
-from ai_cdss.models import SessionSchema, TimeseriesSchema, PPFSchema
+from ai_cdss.models import SessionSchema, TimeseriesSchema, PPFSchema, PCMSchema
 import numpy as np
 import pandas as pd
 
 # -- Global Fixtures
 
 @pytest.fixture
-def synthetic_data_factory(shared_synthetic_ids_factory):
+def synthetic_data_factory():
     """
     Fixture factory that generates both synthetic session and timeseries data using consistent shared IDs.
 
@@ -38,7 +38,7 @@ def synthetic_data_factory(shared_synthetic_ids_factory):
         A function that returns two pandas DataFrames: (session_data, timeseries_data),
         both validated against their respective schema and sharing consistent IDs.
     """
-    def _generate(
+    def _factory(
         num_patients=3,
         num_protocols=2,
         num_sessions=3,
@@ -47,41 +47,67 @@ def synthetic_data_factory(shared_synthetic_ids_factory):
         null_cols_timeseries=None,
         test_discrepancies=False
     ):
-        shared_ids = shared_synthetic_ids_factory(
+        return generate_synthetic_data(
+            num_patients=num_patients,
+            num_protocols=num_protocols,
+            num_sessions=num_sessions,
+            timepoints=timepoints,
+            null_cols_session=null_cols_session,
+            null_cols_timeseries=null_cols_timeseries,
+            test_discrepancies=test_discrepancies
+        )
+    
+    return _factory
+
+def generate_synthetic_data(
+    num_patients=3,
+    num_protocols=2,
+    num_sessions=3,
+    timepoints=10,
+    null_cols_session=None,
+    null_cols_timeseries=None,
+    test_discrepancies=False 
+):
+    shared_ids = generate_synthetic_ids(
+        num_patients=num_patients,
+        num_protocols=num_protocols,
+        num_sessions=num_sessions
+    )
+
+    session_df = generate_synthetic_session_data(
+        shared_ids, columns_with_nulls=null_cols_session
+    )
+
+    timeseries_df = generate_synthetic_timeseries_data(
+        shared_ids,
+        num_timepoints=timepoints,
+        columns_with_nulls=null_cols_timeseries,
+        test_discrepancies=test_discrepancies
+    )
+
+    ppf_df = generate_synthetic_ppf_data(shared_ids)
+
+    return session_df, timeseries_df, ppf_df
+
+@pytest.fixture
+def shared_synthetic_ids_factory():
+    def _factory(num_patients=3, num_protocols=2, num_sessions=3):
+        return generate_synthetic_ids(
             num_patients=num_patients,
             num_protocols=num_protocols,
             num_sessions=num_sessions
         )
+    return _factory
 
-        session_df = generate_synthetic_session_data(
-            shared_ids, columns_with_nulls=null_cols_session
-        )
-
-        timeseries_df = generate_synthetic_timeseries_data(
-            shared_ids,
-            num_timepoints=timepoints,
-            columns_with_nulls=null_cols_timeseries,
-            test_discrepancies=test_discrepancies
-        )
-
-        ppf_df = generate_synthetic_ppf_data(shared_ids)
-
-        return session_df, timeseries_df, ppf_df
-
-    return _generate
-
-@pytest.fixture
-def shared_synthetic_ids_factory():
-    def _generate(num_patients=3, num_protocols=2, num_sessions=3):
-        np.random.seed(42)
-        session_ids = []
-        for patient_id in range(1, num_patients + 1):
-            for protocol_id in range(1, num_protocols + 1):
-                for _ in range(num_sessions):
-                    session_id = np.random.randint(15000, 20000)
-                    session_ids.append((patient_id, protocol_id, session_id))
-        return session_ids
-    return _generate
+def generate_synthetic_ids(num_patients=3, num_protocols=2, num_sessions=3):
+    np.random.seed(42)
+    session_ids = []
+    for patient_id in range(1, num_patients + 1):
+        for protocol_id in range(1, num_protocols + 1):
+            for _ in range(num_sessions):
+                session_id = np.random.randint(15000, 20000)
+                session_ids.append((patient_id, protocol_id, session_id))
+    return session_ids
 
 # -- Synthetic Data for Session and Timeseries
 
@@ -224,3 +250,37 @@ def generate_synthetic_ppf_data(shared_ids, num_features=5):
 
     df = pd.DataFrame(data)
     return PPFSchema.validate(df)
+
+# -- Synthetic Protocol Similarity
+
+def generate_synthetic_protocol_similarity(num_protocols=5, seed=42):
+    """
+    Generate synthetic protocol similarity data.
+
+    Parameters
+    ----------
+    num_protocols : int
+        Number of unique protocols (default is 5).
+    seed : int
+        Random seed for reproducibility (default is 42).
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with columns: PROTOCOL_ID_1, PROTOCOL_ID_2, SIMILARITY_SCORE.
+    """
+    np.random.seed(seed)
+    data = []
+
+    protocol_ids = list(range(1, num_protocols + 1))
+
+    for i in range(len(protocol_ids)):
+        for j in range(i + 1, len(protocol_ids)):
+            data.append({
+                "PROTOCOL_A": protocol_ids[i],
+                "PROTOCOL_B": protocol_ids[j],
+                "SIMILARITY": round(np.random.uniform(0.5, 1.0), 3)
+            })
+
+    df = pd.DataFrame(data)
+    return PCMSchema.validate(df)

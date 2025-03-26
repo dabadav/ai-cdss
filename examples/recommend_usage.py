@@ -8,9 +8,12 @@ to load data and generate a 7-day protocol plan.
 
 # %%
 
+import sys
+sys.path.append("..")
 from ai_cdss.cdss import CDSS
 from ai_cdss.data_loader import DataLoader
 from ai_cdss.data_processor import DataProcessor
+from tests.conftest import generate_synthetic_data, generate_synthetic_protocol_similarity
 # from IPython.display import display
 
 print(__doc__)
@@ -38,10 +41,22 @@ processor = DataProcessor(
 )
 
 # Execution
-session = loader.load_session_data(patient_list=PATIENT_LIST)
-timeseries = loader.load_timeseries_data(patient_list=PATIENT_LIST)
-ppf = loader.load_ppf_data(patient_list=PATIENT_LIST)
-protocol_similarity = loader.load_protocol_similarity()
+
+# session = loader.load_session_data(patient_list=PATIENT_LIST)
+# timeseries = loader.load_timeseries_data(patient_list=PATIENT_LIST)
+# ppf = loader.load_ppf_data(patient_list=PATIENT_LIST)
+session, timeseries, ppf = generate_synthetic_data(
+    num_patients=5, 
+    num_protocols=4, 
+    num_sessions=5, 
+    timepoints=5,
+    null_cols_session=[],
+    null_cols_timeseries=[],
+    test_discrepancies=False
+)
+
+# protocol_similarity = loader.load_protocol_similarity()
+protocol_similarity = generate_synthetic_protocol_similarity(num_protocols=4)
 
 scores = processor.process_data(session_data=session, timeseries_data=timeseries, ppf_data=ppf)
 
@@ -54,7 +69,10 @@ cdss = CDSS(
 )
 
 # Results
-recommendation = cdss.recommend(patient_id=PATIENT_LIST[0], protocol_similarity=protocol_similarity)
+# patient_id = PATIENT_LIST[0]
+patient_id = 1
+
+recommendation = cdss.recommend(patient_id=patient_id, protocol_similarity=protocol_similarity)
 print(recommendation)
 
 # %%
