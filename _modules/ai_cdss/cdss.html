@@ -1,0 +1,691 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ai_cdss.cdss &#8212; CDSS</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/style.css?v=94b71b34" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
+window.addEventListener("load", () => mermaid.run());
+</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/ai_cdss/cdss';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class=" navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">CDSS</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class=" navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/index.html">
+    Docs
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/index.html">
+    API
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/dabadav/ai-cdss" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/index.html">
+    Docs
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/index.html">
+    API
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/dabadav/ai-cdss" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">ai_cdss.cdss</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for ai_cdss.cdss</h1><div class="highlight"><pre>
+<span></span><span class="c1"># src/pipeline.py</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pandera.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringSchema</span>
+
+<div class="viewcode-block" id="CDSS">
+<a class="viewcode-back" href="../../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CDSS</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Clinical Decision Support System (CDSS) Class.</span>
+
+<span class="sd">    This system provides personalized recommendations for patients based on scoring data.</span>
+<span class="sd">    It allows protocol recommendations, scheduling, and prescription adjustments.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    scoring : DataFrame</span>
+<span class="sd">        A DataFrame containing patient protocol scores.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Number of top protocols to recommend, by default 12.</span>
+<span class="sd">    days : int, optional</span>
+<span class="sd">        Number of days for scheduling, by default 7.</span>
+<span class="sd">    protocols_per_day : int, optional</span>
+<span class="sd">        Maximum number of protocols per day, by default 5.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scoring</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">ScoringSchema</span><span class="p">],</span> <span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">12</span><span class="p">,</span> <span class="n">days</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">7</span><span class="p">,</span> <span class="n">protocols_per_day</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Initialize the Clinical Decision Support System.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scoring</span> <span class="o">=</span> <span class="n">scoring</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n</span> <span class="o">=</span> <span class="n">n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">days</span> <span class="o">=</span> <span class="n">days</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">protocols_per_day</span> <span class="o">=</span> <span class="n">protocols_per_day</span>
+
+<div class="viewcode-block" id="CDSS.recommend">
+<a class="viewcode-back" href="../../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS.recommend">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">recommend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">ScoringSchema</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Recommend prescriptions for a patient.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        patient_id : int</span>
+<span class="sd">            The ID of the patient.</span>
+<span class="sd">        protocol_similarity : DataFrame</span>
+<span class="sd">            A DataFrame containing protocol similarity scores.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        DataFrame</span>
+<span class="sd">            A DataFrame mapping recommended protocol IDs to their scheduling details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Get scores for patient</span>
+        <span class="n">patient_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">patient_id</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">patient_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+
+        <span class="c1"># Get current prescriptions (which already include scores)</span>
+        <span class="n">prescriptions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prescriptions</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+
+        <span class="c1"># Track protocol rows to output</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="c1"># Identify which protocols need substitution</span>
+            <span class="n">protocols_to_swap</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decide_prescription_swap</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+            <span class="n">protocols_excluded</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+            <span class="c1"># Directly add non-swapped prescriptions</span>
+            <span class="n">rows</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">[</span><span class="o">~</span><span class="n">prescriptions</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">protocols_to_swap</span><span class="p">)]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="s2">&quot;records&quot;</span><span class="p">))</span>
+
+            <span class="c1"># Swap selected protocols</span>
+            <span class="k">for</span> <span class="n">protocol_id</span> <span class="ow">in</span> <span class="n">protocols_to_swap</span><span class="p">:</span>
+                <span class="n">substitute</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_substitute</span><span class="p">(</span>
+                    <span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">,</span> <span class="n">protocol_excluded</span><span class="o">=</span><span class="n">protocols_excluded</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">substitute</span><span class="p">:</span>
+                    <span class="n">protocols_excluded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substitute</span><span class="p">)</span>
+                    <span class="n">substitute_row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scores</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">substitute</span><span class="p">)</span>
+                    <span class="n">substitute_row</span><span class="p">[</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">prescriptions</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">protocol_id</span><span class="p">,</span> <span class="s2">&quot;DAYS&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    <span class="n">substitute_row</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">substitute</span>
+                    <span class="n">substitute_row</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">patient_id</span>
+                    <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substitute_row</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># No prescriptions → Generate new schedule</span>
+            <span class="n">top_protocols</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_top_protocols</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+            <span class="n">schedule</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">schedule_protocols</span><span class="p">(</span><span class="n">top_protocols</span><span class="p">)</span>  <span class="c1"># {day: [protocol_id, ...]}</span>
+
+            <span class="n">seen</span> <span class="o">=</span> <span class="p">{}</span>  <span class="c1"># protocol_id: row</span>
+            <span class="k">for</span> <span class="n">day</span><span class="p">,</span> <span class="n">protocol_ids</span> <span class="ow">in</span> <span class="n">schedule</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">protocol_id</span> <span class="ow">in</span> <span class="n">protocol_ids</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">protocol_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+                        <span class="n">row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_scores</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">)</span>
+                        <span class="n">row</span><span class="p">[</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">day</span><span class="p">]</span>
+                        <span class="n">row</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">protocol_id</span>
+                        <span class="n">row</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">patient_id</span>
+                        <span class="n">seen</span><span class="p">[</span><span class="n">protocol_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">row</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">seen</span><span class="p">[</span><span class="n">protocol_id</span><span class="p">][</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">day</span><span class="p">)</span>
+
+            <span class="n">rows</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">seen</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+        <span class="c1"># Convert to DataFrame</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CDSS.schedule_protocols">
+<a class="viewcode-back" href="../../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS.schedule_protocols">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">schedule_protocols</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">protocols</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Distribute protocols across days while ensuring constraints.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        protocols : list of int</span>
+<span class="sd">            List of protocol IDs to distribute.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            A dictionary mapping days to scheduled protocols.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">schedule</span> <span class="o">=</span> <span class="p">{</span><span class="n">day</span><span class="p">:</span> <span class="p">[]</span> <span class="k">for</span> <span class="n">day</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">days</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)}</span>  <span class="c1"># Days are 1-indexed</span>
+        <span class="n">total_slots</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">days</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocols_per_day</span>
+
+        <span class="k">if</span> <span class="n">protocols</span><span class="p">:</span>
+            <span class="c1"># Repeat protocols as needed to fill the total slots</span>
+            <span class="n">repeated_protocols</span> <span class="o">=</span> <span class="p">(</span><span class="n">protocols</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="n">total_slots</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">protocols</span><span class="p">)))[:</span><span class="n">total_slots</span><span class="p">]</span>
+
+            <span class="c1"># Distribute protocols evenly across days</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">protocol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">repeated_protocols</span><span class="p">):</span>
+                <span class="n">day</span> <span class="o">=</span> <span class="p">(</span><span class="n">i</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">days</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>  <span class="c1"># Distribute protocols in a round-robin fashion</span>
+                
+                <span class="k">if</span> <span class="n">protocol</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">schedule</span><span class="p">[</span><span class="n">day</span><span class="p">]:</span>
+                    <span class="n">schedule</span><span class="p">[</span><span class="n">day</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">protocol</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">schedule</span></div>
+
+
+<div class="viewcode-block" id="CDSS.decide_prescription_swap">
+<a class="viewcode-back" href="../../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS.decide_prescription_swap">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decide_prescription_swap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Determine which prescriptions to swap based on their score.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        patient_id : int</span>
+<span class="sd">            The ID of the patient.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of int</span>
+<span class="sd">            List of protocol IDs to be swapped.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">prescriptions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_prescriptions</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">prescriptions</span><span class="p">[</span><span class="n">prescriptions</span><span class="p">[</span><span class="s1">&#39;SCORE&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">x</span><span class="o">.</span><span class="n">mean</span><span class="p">())]</span><span class="o">.</span><span class="n">PROTOCOL_ID</span><span class="o">.</span><span class="n">to_list</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="CDSS.get_substitute">
+<a class="viewcode-back" href="../../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS.get_substitute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_substitute</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">,</span> <span class="n">protocol_excluded</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Find a suitable substitute for a given protocol.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        patient_id : int</span>
+<span class="sd">            The ID of the patient.</span>
+<span class="sd">        protocol_id : int</span>
+<span class="sd">            The protocol to be substituted.</span>
+<span class="sd">        protocol_similarity : DataFrame</span>
+<span class="sd">            A DataFrame containing protocol similarity scores.</span>
+<span class="sd">        protocol_excluded : list of int, optional</span>
+<span class="sd">            List of protocols to exclude from consideration, by default None.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        int</span>
+<span class="sd">            The ID of the substitute protocol, or None if no suitable substitute is found.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Get protocol usage for the given patient and protocol</span>
+        <span class="n">usage</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">patient_id</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">)[</span><span class="s2">&quot;USAGE&quot;</span><span class="p">]</span>   
+        <span class="p">)</span>     
+        <span class="c1"># Get protocol similarities</span>
+        <span class="n">similarities</span> <span class="o">=</span> <span class="n">protocol_similarity</span><span class="p">[</span>
+            <span class="p">(</span><span class="n">protocol_similarity</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_A&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">protocol_id</span><span class="p">)</span>
+        <span class="p">]</span>
+        
+        <span class="c1"># Drop rows where PROTOCOL_B is the same as PROTOCOL_A (self-similarity)</span>
+        <span class="n">similarities</span> <span class="o">=</span> <span class="n">similarities</span><span class="p">[</span><span class="n">similarities</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_A&quot;</span><span class="p">]</span> <span class="o">!=</span> <span class="n">similarities</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_B&quot;</span><span class="p">]]</span>
+        
+        <span class="c1"># Exclude protocols in the `protocol_excluded` list from similarities</span>
+        <span class="k">if</span> <span class="n">protocol_excluded</span><span class="p">:</span>
+            <span class="n">similarities</span> <span class="o">=</span> <span class="n">similarities</span><span class="p">[</span><span class="o">~</span><span class="n">similarities</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_B&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">protocol_excluded</span><span class="p">)]</span>
+        
+        <span class="c1"># Find the minimum usage value</span>
+        <span class="n">min_usage</span> <span class="o">=</span> <span class="n">usage</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        
+        <span class="c1"># Get candidates with the lowest usage</span>
+        <span class="n">candidates</span> <span class="o">=</span> <span class="n">usage</span><span class="p">[</span><span class="n">usage</span> <span class="o">==</span> <span class="n">min_usage</span><span class="p">]</span><span class="o">.</span><span class="n">index</span>
+        
+        <span class="c1"># Among these candidates, select the one with the highest similarity</span>
+        <span class="n">candidate_similarities</span> <span class="o">=</span> <span class="n">similarities</span><span class="p">[</span><span class="n">similarities</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_B&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">candidates</span><span class="p">)]</span>
+        
+        <span class="c1"># Find the maximum similarity among candidates</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate_similarities</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="n">max_sim</span> <span class="o">=</span> <span class="n">candidate_similarities</span><span class="p">[</span><span class="s2">&quot;SIMILARITY&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+            
+            <span class="n">final_candidates</span> <span class="o">=</span> <span class="n">candidate_similarities</span><span class="p">[</span>
+                <span class="n">candidate_similarities</span><span class="p">[</span><span class="s2">&quot;SIMILARITY&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">max_sim</span>
+            <span class="p">][</span><span class="s2">&quot;PROTOCOL_B&quot;</span><span class="p">]</span>
+            
+            <span class="c1"># Return the first candidate (or handle ties)</span>
+            <span class="k">return</span> <span class="n">final_candidates</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">final_candidates</span><span class="o">.</span><span class="n">empty</span> <span class="k">else</span> <span class="kc">None</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="CDSS.get_top_protocols">
+<a class="viewcode-back" href="../../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS.get_top_protocols">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_top_protocols</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Select the top N protocols for a patient based on scores.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        patient_id : int</span>
+<span class="sd">            The ID of the patient.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        list of int</span>
+<span class="sd">            A list of top protocol IDs.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">patient_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">patient_id</span><span class="p">]</span>
+        <span class="n">top_protocols</span> <span class="o">=</span> <span class="n">patient_data</span><span class="o">.</span><span class="n">nlargest</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="s2">&quot;SCORE&quot;</span><span class="p">)[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">top_protocols</span></div>
+
+    
+<div class="viewcode-block" id="CDSS.get_prescriptions">
+<a class="viewcode-back" href="../../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS.get_prescriptions">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_prescriptions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve the current prescriptions for a patient.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        patient_id : int</span>
+<span class="sd">            The ID of the patient.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        DataFrame</span>
+<span class="sd">            A DataFrame containing prescription details.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">patient_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">patient_id</span><span class="p">]</span>
+        <span class="n">prescriptions</span> <span class="o">=</span> <span class="n">patient_data</span><span class="p">[</span><span class="n">patient_data</span><span class="p">[</span><span class="s2">&quot;DAYS&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">prescriptions</span></div>
+
+
+<div class="viewcode-block" id="CDSS.get_scores">
+<a class="viewcode-back" href="../../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS.get_scores">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_scores</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Retrieve scores for a given patient and protocol.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        patient_id : int</span>
+<span class="sd">            The ID of the patient.</span>
+<span class="sd">        protocol_id : int</span>
+<span class="sd">            The ID of the protocol.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dict</span>
+<span class="sd">            A dictionary containing score details for the specified patient and protocol.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        
+        <span class="c1"># Filter scoring DataFrame for the given patient and protocol</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">patient_id</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">protocol_id</span><span class="p">)</span>
+        <span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2025, Eodyne Systems.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+</div>
+
+  </footer>
+  </body>
+</html>
