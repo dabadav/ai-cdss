@@ -11,7 +11,7 @@ to load data and generate a 7-day protocol plan.
 from ai_cdss.cdss import CDSS
 from ai_cdss.data_loader import DataLoader
 from ai_cdss.data_processor import DataProcessor
-from IPython.display import display
+# from IPython.display import display
 
 print(__doc__)
 
@@ -55,4 +55,4 @@ cdss = CDSS(
 
 # Results
 recommendation = cdss.recommend(patient_id=PATIENT_LIST[0], protocol_similarity=protocol_similarity)
-display(recommendation)
+print(recommendation)
