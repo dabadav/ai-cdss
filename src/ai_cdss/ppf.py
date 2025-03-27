@@ -1,3 +1,38 @@
+"""
+Script to run PPF and Protocol Similarity computation.
+It runs for all patients existing in the clinical scores file.
+
+**Requirements:**
+
+The following input files must be located in `~/.ai_cdss/data/`:
+
+- `clinical_scores.csv`  
+  Patient clinical subscales (clinical baseline scores for patients)
+
+- `protocol_attributes.csv`  
+  Protocol attributes (matrix of protocols and the domains they target for rehabilitation)
+
+**Outputs:**
+
+Results are saved to `~/.ai_cdss/output/`:
+
+- `ppf.parquet`  
+  PPF Matrix in long format (`PATIENT_ID`, `PROTOCOL_ID`, `PPF`, `CONTRIB`)  
+  Follows schema: :class:`ai_cdss.models.PPFSchema`
+
+- `protocol_similarity.csv`  
+  Protocol similarity matrix in long format (`PROTOCOL_A`, `PROTOCOL_B`, `SIMILARITY`)  
+  Follows schema: :class:`ai_cdss.models.PCMSchema`
+
+**How to run:**
+
+Run this script from the command line:
+
+.. code-block:: bash
+
+    python -m ai_cdss.ppf
+"""
+
 from pathlib import Path
 import pandas as pd
 from ai_cdss.processing import ClinicalSubscales, ProtocolToClinicalMapper, compute_ppf, merge_data, compute_protocol_similarity

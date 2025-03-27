@@ -9,3 +9,4 @@ API Reference
    models
    cdss
    processor
+   static

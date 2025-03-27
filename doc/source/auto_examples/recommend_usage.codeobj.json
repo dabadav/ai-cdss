@@ -1,0 +1,555 @@
+{
+ "CDSS": [
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "ai_cdss.cdss",
+   "module_short": "ai_cdss",
+   "name": "CDSS"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "CDSS"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.cdss",
+   "module_short": "ai_cdss",
+   "name": "CDSS"
+  }
+ ],
+ "DataLoaderMock": [
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderMock"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderMock"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderBase"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderBase"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "abc",
+   "module_short": "abc",
+   "name": "ABC"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderMock"
+  }
+ ],
+ "DataProcessor": [
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "ai_cdss.data_processor",
+   "module_short": "ai_cdss",
+   "name": "DataProcessor"
+  },
+  {
+   "is_class": true,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataProcessor"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_processor",
+   "module_short": "ai_cdss",
+   "name": "DataProcessor"
+  }
+ ],
+ "PATIENT_LIST": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "list"
+  }
+ ],
+ "__doc__": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "str"
+  }
+ ],
+ "alpha": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "float"
+  }
+ ],
+ "cdss": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.cdss",
+   "module_short": "ai_cdss",
+   "name": "CDSS"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "CDSS"
+  }
+ ],
+ "cdss.recommend": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.cdss",
+   "module_short": "ai_cdss",
+   "name": "CDSS.recommend"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "CDSS.recommend"
+  }
+ ],
+ "days": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "loader": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderMock"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderMock"
+  }
+ ],
+ "loader.load_ppf_data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderMock.load_ppf_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderMock.load_ppf_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderBase.load_ppf_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderBase.load_ppf_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "abc",
+   "module_short": "abc",
+   "name": "ABC.load_ppf_data"
+  }
+ ],
+ "loader.load_protocol_similarity": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderMock.load_protocol_similarity"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderMock.load_protocol_similarity"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderBase.load_protocol_similarity"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderBase.load_protocol_similarity"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "abc",
+   "module_short": "abc",
+   "name": "ABC.load_protocol_similarity"
+  }
+ ],
+ "loader.load_session_data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderMock.load_session_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderMock.load_session_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderBase.load_session_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderBase.load_session_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "abc",
+   "module_short": "abc",
+   "name": "ABC.load_session_data"
+  }
+ ],
+ "loader.load_timeseries_data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderMock.load_timeseries_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderMock.load_timeseries_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_loader",
+   "module_short": "ai_cdss.data_loader",
+   "name": "DataLoaderBase.load_timeseries_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataLoaderBase.load_timeseries_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "abc",
+   "module_short": "abc",
+   "name": "ABC.load_timeseries_data"
+  }
+ ],
+ "n": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "patient_id": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "ppf": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core.frame",
+   "module_short": "pandas.core.frame",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core",
+   "module_short": "pandas.core",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas",
+   "module_short": "pandas",
+   "name": "DataFrame"
+  }
+ ],
+ "processor": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_processor",
+   "module_short": "ai_cdss",
+   "name": "DataProcessor"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataProcessor"
+  }
+ ],
+ "processor.process_data": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss.data_processor",
+   "module_short": "ai_cdss",
+   "name": "DataProcessor.process_data"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "ai_cdss",
+   "module_short": "ai_cdss",
+   "name": "DataProcessor.process_data"
+  }
+ ],
+ "protocol_similarity": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core.frame",
+   "module_short": "pandas.core.frame",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core",
+   "module_short": "pandas.core",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas",
+   "module_short": "pandas",
+   "name": "DataFrame"
+  }
+ ],
+ "protocols_per_day": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "int"
+  }
+ ],
+ "recommendation": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core.frame",
+   "module_short": "pandas.core.frame",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core",
+   "module_short": "pandas.core",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas",
+   "module_short": "pandas",
+   "name": "DataFrame"
+  }
+ ],
+ "rgs_mode": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "str"
+  }
+ ],
+ "scores": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core.frame",
+   "module_short": "pandas.core.frame",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core",
+   "module_short": "pandas.core",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas",
+   "module_short": "pandas",
+   "name": "DataFrame"
+  }
+ ],
+ "session": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core.frame",
+   "module_short": "pandas.core.frame",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core",
+   "module_short": "pandas.core",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas",
+   "module_short": "pandas",
+   "name": "DataFrame"
+  }
+ ],
+ "sys.path.append": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "builtin_function_or_method"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "sys.path",
+   "module_short": "sys.path",
+   "name": "append"
+  }
+ ],
+ "timeseries": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core.frame",
+   "module_short": "pandas.core.frame",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas.core",
+   "module_short": "pandas.core",
+   "name": "DataFrame"
+  },
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "pandas",
+   "module_short": "pandas",
+   "name": "DataFrame"
+  }
+ ],
+ "weights": [
+  {
+   "is_class": false,
+   "is_explicit": false,
+   "module": "builtins",
+   "module_short": "builtins",
+   "name": "list"
+  }
+ ]
+}

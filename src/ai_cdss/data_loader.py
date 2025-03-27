@@ -196,14 +196,18 @@ class DataLoaderMock(DataLoaderBase):
         )
         self.num_protocols = num_protocols
 
+    @pa.check_types
     def load_session_data(self, patient_list: List[int]) -> DataFrame[SessionSchema]:
         return generate_synthetic_session_data(shared_ids=self.ids)
 
+    @pa.check_types
     def load_timeseries_data(self, patient_list: List[int]) -> DataFrame[TimeseriesSchema]:
         return generate_synthetic_timeseries_data(shared_ids=self.ids)
 
+    @pa.check_types
     def load_ppf_data(self, patient_list: List[int]) -> DataFrame[PPFSchema]:
         return generate_synthetic_ppf_data(shared_ids=self.ids)
     
+    @pa.check_types
     def load_protocol_similarity(self) -> DataFrame[PCMSchema]:
         return generate_synthetic_protocol_similarity(num_protocols=self.num_protocols)

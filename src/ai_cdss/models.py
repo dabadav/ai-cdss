@@ -8,8 +8,10 @@ NullableField = partial(pa.Field, nullable=True)
 # RGS Data Input
 
 class SessionSchema(pa.DataFrameModel):
-    """Handles session schema."""
-    
+    """
+    Schema for RGS session-level data, including patient profile, prescription and session details.
+    """
+
     # Patient profile
     patient_id: int = NullableField(alias='PATIENT_ID')
     hospital_id: int = NullableField(alias='HOSPITAL_ID')
@@ -59,6 +61,9 @@ class SessionSchema(pa.DataFrameModel):
     score: int = NullableField(alias='SCORE', ge=0)
 
 class TimeseriesSchema(pa.DataFrameModel):
+    """
+    Schema for timeseries session data. Includes measurements per-second of difficulty modulators (DM) and performance estimates (PE).
+    """
     # Identifiers
     patient_id: int = pa.Field(alias="PATIENT_ID", gt=0)
     session_id: int = pa.Field(alias="SESSION_ID", gt=0)
@@ -77,7 +82,9 @@ class TimeseriesSchema(pa.DataFrameModel):
     pe_value: float = pa.Field(alias="PE_VALUE")
 
 class PPFSchema(pa.DataFrameModel):
-
+    """
+    Schema for Patient-Protocol Fit (PPF) data. Represents how well a protocol fits a patient, including a PPF score and feature contributions.
+    """
     patient_id: int = pa.Field(alias="PATIENT_ID")
     protocol_id: int = pa.Field(alias="PROTOCOL_ID")
 
@@ -85,7 +92,9 @@ class PPFSchema(pa.DataFrameModel):
     contrib: object = pa.Field(alias="CONTRIB")
 
 class PCMSchema(pa.DataFrameModel):
-
+    """
+    Schema for protocol similarity matrix. Include pairwise similarity scores between protocols based on clinical domain overlap.
+    """
     protocol_a: int = pa.Field(alias="PROTOCOL_A")
     protocol_b: int = pa.Field(alias="PROTOCOL_B")
     similarity: float = pa.Field(alias="SIMILARITY")
@@ -95,7 +104,7 @@ class PCMSchema(pa.DataFrameModel):
 
 class ScoringSchema(pa.DataFrameModel):
     """
-    Prescription output validation schema.
+    Schema for prescription scoring output. Represents the result of a recommendation.
     """
 
     class Config:
