@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Guide &#8212; CDSS</title>
+    <title>CDSS User Guide &#8212; CDSS</title>
   
   
   
@@ -37,7 +37,7 @@
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=5d4bc26b" />
+    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=d3303cf0" />
   
   <!-- So that users can add custom icons -->
   <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
@@ -53,7 +53,7 @@
     <script src="../_static/modal.js?v=f3ac3e3f"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="API Reference" href="../api/index.html" />
+    <link rel="next" title="Overview" href="overview.html" />
     <link rel="prev" title="CDSS" href="../index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -135,7 +135,7 @@
     
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="#">
-    Docs
+    Guide
   </a>
 </li>
 
@@ -233,7 +233,7 @@
     
 <li class="nav-item current active">
   <a class="nav-link nav-internal" href="#">
-    Docs
+    Guide
   </a>
 </li>
 
@@ -287,7 +287,15 @@
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"></div>
+  <div class="bd-toc-item navbar-nav"><ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="patient_story.html">Prototypical User: Elena</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decision_process.html">Step-by-Step Decision Process (Using Elena)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="justification.html">Justification of System Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interpretation.html">Interpreting the Recommendation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limitation.html">Limitations and Assumptions</a></li>
+</ul>
+</div>
 </nav></div>
     </div>
   
@@ -326,7 +334,7 @@
         <i class="fa-solid fa-home"></i>
       </a>
     </li>
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Guide</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">CDSS User Guide</span></li>
   </ul>
 </nav>
 </div>
@@ -343,13 +351,26 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="guide">
-<h1>Guide<a class="headerlink" href="#guide" title="Link to this heading">#</a></h1>
-<p>This section contains the user guide for the Clinical Decision Support System (CDSS).</p>
-<ul class="simple">
-<li><p><a class="reference internal" href="introduction.html"><span class="std std-doc">Introduction</span></a></p></li>
+  <section id="cdss-user-guide">
+<span id="guide"></span><h1>CDSS User Guide<a class="headerlink" href="#cdss-user-guide" title="Link to this heading">#</a></h1>
+<p>This section introduces the Clinical Decision Support System (CDSS), how it works, and how to interpret its outputs. It uses a prototypical patient to walk you through the full decision pipeline.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="patient_story.html">Prototypical User: Elena</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decision_process.html">Step-by-Step Decision Process (Using Elena)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="decision_process.html#data-ingestion">1. Data Ingestion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decision_process.html#feature-extraction">2. Feature Extraction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decision_process.html#patient-profiling">3. Patient Profiling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decision_process.html#protocol-matching">4. Protocol Matching</a></li>
+<li class="toctree-l2"><a class="reference internal" href="decision_process.html#prescription-generation">5. Prescription Generation</a></li>
 </ul>
-<img src="../_static/diagrams/cdss-lr.svg" alt="CDSS Flowchart" class="sd-rounded-2 zoomable" style="width:100%;">
+</li>
+<li class="toctree-l1"><a class="reference internal" href="justification.html">Justification of System Design</a></li>
+<li class="toctree-l1"><a class="reference internal" href="interpretation.html">Interpreting the Recommendation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limitation.html">Limitations and Assumptions</a></li>
+</ul>
+</div>
 </section>
 
 
@@ -358,6 +379,30 @@
               
               
               
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../index.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">CDSS</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="overview.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Overview</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
               
             </div>
             

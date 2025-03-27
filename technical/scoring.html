@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Introduction &#8212; CDSS</title>
+    <title>Protocol Evaluation &#8212; CDSS</title>
   
   
   
@@ -37,7 +37,7 @@
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=5d4bc26b" />
+    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=d3303cf0" />
   
   <!-- So that users can add custom icons -->
   <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
@@ -49,7 +49,9 @@
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'guide/introduction';</script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'technical/scoring';</script>
     <script src="../_static/modal.js?v=f3ac3e3f"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -132,8 +134,8 @@
   <ul class="bd-navbar-elements navbar-nav">
     
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="index.html">
-    Docs
+  <a class="nav-link nav-internal" href="../guide/index.html">
+    Guide
   </a>
 </li>
 
@@ -236,8 +238,8 @@
   <ul class="bd-navbar-elements navbar-nav">
     
 <li class="nav-item ">
-  <a class="nav-link nav-internal" href="index.html">
-    Docs
+  <a class="nav-link nav-internal" href="../guide/index.html">
+    Guide
   </a>
 </li>
 
@@ -321,7 +323,7 @@
         <i class="fa-solid fa-home"></i>
       </a>
     </li>
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Introduction</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Protocol Evaluation</span></li>
   </ul>
 </nav>
 </div>
@@ -338,16 +340,33 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="introduction">
-<h1>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">#</a></h1>
-<p>The Clinical Decision Support System (CDSS) is designed to assist healthcare professionals in making informed decisions about patient care. This documentation provides an overview of the system’s features, principles, and implementation details.</p>
-<section id="features">
-<h2>Features<a class="headerlink" href="#features" title="Link to this heading">#</a></h2>
+  <section class="tex2jax_ignore mathjax_ignore" id="protocol-evaluation">
+<h1>Protocol Evaluation<a class="headerlink" href="#protocol-evaluation" title="Link to this heading">#</a></h1>
+<p>We will score the protocols based on the following variables:</p>
 <ul class="simple">
-<li><p><strong>ai_cdss Package</strong>: A comprehensive package that includes tools and protocols for clinical decision support.</p></li>
-<li><p><strong>Dynamic Protocol Adjustment</strong>: Adjusts treatment protocols based on patient prognostics and performance.</p></li>
-<li><p><strong>Value-Based Swapping</strong>: Uses a value function to determine when to swap protocols for optimal patient outcomes.</p></li>
+<li><p><strong>Patient-Protocol Fit (PPF)</strong></p></li>
 </ul>
+<p>Similarity between patient profile <span class="math notranslate nohighlight">\(P_u\)</span> (normalized patient deficiency in clinical subscales) and protocol profile <span class="math notranslate nohighlight">\(Q_p\)</span>  (normalized protocol attributes, on the impact of a protocol to clinical subscales improvement) for all protocols.</p>
+<div class="math notranslate nohighlight">
+\[PPF = \cos(\theta) = \frac{P \cdot Q}{\|P\|\|Q\|}\]</div>
+<ul class="simple">
+<li><p><strong>Recent Difficulty Modulator Changes (<span class="math notranslate nohighlight">\(\Delta DM\)</span>)</strong>:</p></li>
+</ul>
+<p>Exponentially weighted average increase in difficulty modulators across recent sessions, emphasizing recent performance.</p>
+<div class="math notranslate nohighlight">
+\[\Delta DM_t = \frac{\sum_{i=0}^{t}(1 - \alpha)^i \cdot DM_{t - i}}{\sum_{i=0}^{t}(1 - \alpha)^i}\]</div>
+<ul class="simple">
+<li><p><strong>Recent Adherence</strong>:</p></li>
+</ul>
+<p>Session-wise adherence for all past sessions computed in minutes of protocol <span class="math notranslate nohighlight">\(u\)</span> for a patient <span class="math notranslate nohighlight">\(p\)</span>.</p>
+<div class="math notranslate nohighlight">
+\[\text{Adherence} = \frac{\text{Completed Duration}}{\text{Prescribed Duration}}\]</div>
+<section id="scoring-function">
+<h2>Scoring Function<a class="headerlink" href="#scoring-function" title="Link to this heading">#</a></h2>
+<p>Each protocol’s overall score combines these factors:</p>
+<div class="math notranslate nohighlight">
+\[\text{Score} = \alpha \cdot PPF + \beta \cdot \Delta DM + \gamma \cdot \text{Adherence}\]</div>
+<p>Coefficients <span class="math notranslate nohighlight">\(\alpha, \beta, \gamma\)</span> weigh factor importance.</p>
 </section>
 </section>
 
@@ -357,6 +376,12 @@
               
               
               
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
               
             </div>
             
@@ -374,7 +399,7 @@
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#features">Features</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#scoring-function">Scoring Function</a></li>
 </ul>
   </nav></div>
 

@@ -5,7 +5,7 @@
 .. grid:: 2
 
    .. grid-item-card:: ✅ Protocol Evaluation
-      :link: /guide/scoring
+      :link: /technical/scoring
       :link-type: doc
       :text-align: center
       :class-card: sd-shadow-md sd-rounded-4
@@ -30,5 +30,5 @@
 .. toctree::
    :hidden:
 
-   Docs <guide/index>
+   Guide <guide/index>
    API <api/index>
