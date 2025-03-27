@@ -1,0 +1,530 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ai_cdss.models &#8212; CDSS</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=4ae1632d" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=d2d258e8" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/style.css?v=94b71b34" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=5929fcd5"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
+window.addEventListener("load", () => mermaid.run());
+</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = '_modules/ai_cdss/models';</script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search the docs ..."
+         aria-label="Search the docs ..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class=" navbar-header-items__start">
+    
+      <div class="navbar-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">CDSS</p>
+  
+</a></div>
+    
+  </div>
+  
+  <div class=" navbar-header-items">
+    
+    <div class="me-auto navbar-header-items__center">
+      
+        <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/index.html">
+    Docs
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/index.html">
+    API
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+      
+    </div>
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+        <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+      
+        <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/dabadav/ai-cdss" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar hide-on-wide">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+      <div class="sidebar-header-items__center">
+        
+          
+          
+            <div class="navbar-item">
+<nav>
+  <ul class="bd-navbar-elements navbar-nav">
+    
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../guide/index.html">
+    Docs
+  </a>
+</li>
+
+
+<li class="nav-item ">
+  <a class="nav-link nav-internal" href="../../api/index.html">
+    API
+  </a>
+</li>
+
+  </ul>
+</nav></div>
+          
+        
+      </div>
+    
+    
+    
+      <div class="sidebar-header-items__end">
+        
+          <div class="navbar-item">
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button></div>
+        
+          <div class="navbar-item"><ul class="navbar-icon-links"
+    aria-label="Icon Links">
+        <li class="nav-item">
+          
+          
+          
+          
+          
+          
+          
+          
+          <a href="https://github.com/dabadav/ai-cdss" title="GitHub" class="nav-link pst-navbar-icon" rel="noopener" target="_blank" data-bs-toggle="tooltip" data-bs-placement="bottom"><i class="fab fa-github-square fa-lg" aria-hidden="true"></i>
+            <span class="sr-only">GitHub</span></a>
+        </li>
+</ul></div>
+        
+      </div>
+    
+  </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item">
+
+<nav aria-label="Breadcrumb" class="d-print-none">
+  <ul class="bd-breadcrumbs">
+    
+    <li class="breadcrumb-item breadcrumb-home">
+      <a href="../../index.html" class="nav-link" aria-label="Home">
+        <i class="fa-solid fa-home"></i>
+      </a>
+    </li>
+    
+    <li class="breadcrumb-item"><a href="../index.html" class="nav-link">Module code</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">ai_cdss.models</span></li>
+  </ul>
+</nav>
+</div>
+      
+    </div>
+  
+  
+</div>
+</div>
+              
+              
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <h1>Source code for ai_cdss.models</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span>
+
+<span class="n">NullableField</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># ---------------------------------------------------------------------</span>
+<span class="c1"># RGS Data Input</span>
+
+<div class="viewcode-block" id="SessionSchema">
+<a class="viewcode-back" href="../../generated/ai_cdss.models.SessionSchema.html#ai_cdss.models.SessionSchema">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SessionSchema</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">DataFrameModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Schema for RGS session-level data, including patient profile, prescription and session details.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Patient profile</span>
+    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PATIENT_ID&#39;</span><span class="p">)</span>
+    <span class="n">hospital_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;HOSPITAL_ID&#39;</span><span class="p">)</span>
+    <span class="n">paretic_side</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PARETIC_SIDE&#39;</span><span class="p">)</span>
+    <span class="n">upper_extremity_to_train</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;UPPER_EXTREMITY_TO_TRAIN&#39;</span><span class="p">)</span>
+    <span class="n">hand_raising_capacity</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;HAND_RAISING_CAPACITY&#39;</span><span class="p">)</span>
+    <span class="n">cognitive_function_level</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;COGNITIVE_FUNCTION_LEVEL&#39;</span><span class="p">)</span>
+    <span class="n">has_heminegligence</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;HAS_HEMINEGLIGENCE&#39;</span><span class="p">)</span>
+    <span class="n">gender</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;GENDER&#39;</span><span class="p">)</span>
+    <span class="n">skin_color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;SKIN_COLOR&#39;</span><span class="p">)</span>
+    <span class="n">age</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;AGE&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>
+    <span class="n">videogame_exp</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;VIDEOGAME_EXP&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">computer_exp</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;COMPUTER_EXP&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">comments</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;COMMENTS&#39;</span><span class="p">)</span>
+    <span class="n">ptn_height_cm</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PTN_HEIGHT_CM&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">250</span><span class="p">)</span>
+    <span class="n">arm_size_cm</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;ARM_SIZE_CM&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+
+    <span class="c1"># Identifiers</span>
+    <span class="n">prescription_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PRESCRIPTION_ID&#39;</span><span class="p">)</span>
+    <span class="n">session_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;SESSION_ID&#39;</span><span class="p">)</span>
+    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PROTOCOL_ID&#39;</span><span class="p">)</span>
+
+    <span class="c1"># Prescription</span>
+    <span class="n">prescription_starting_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PRESCRIPTION_STARTING_DATE&#39;</span><span class="p">)</span>
+    <span class="n">prescription_ending_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PRESCRIPTION_ENDING_DATE&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Session</span>
+    <span class="n">session_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">)</span>
+    <span class="n">starting_hour</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;STARTING_HOUR&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">23</span><span class="p">)</span>
+    <span class="n">starting_time_category</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;STARTING_TIME_CATEGORY&#39;</span><span class="p">,</span> <span class="n">isin</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;MORNING&quot;</span><span class="p">,</span> <span class="s2">&quot;AFTERNOON&quot;</span><span class="p">,</span> <span class="s2">&quot;EVENING&quot;</span><span class="p">,</span> <span class="s2">&quot;NIGHT&quot;</span><span class="p">])</span>
+    <span class="n">weekday</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;WEEKDAY_INDEX&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Weekday Index (0=Monday, 6=Sunday)&quot;</span><span class="p">)</span>
+    
+    <span class="n">status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;STATUS&#39;</span><span class="p">,</span> <span class="n">isin</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;CLOSED&quot;</span><span class="p">,</span> <span class="s2">&quot;ABORTED&quot;</span><span class="p">,</span> <span class="s2">&quot;ONGOING&quot;</span><span class="p">])</span>
+    
+    <span class="c1"># Protocol</span>
+    <span class="n">protocol_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PROTOCOL_TYPE&#39;</span><span class="p">)</span>
+    <span class="n">ar_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;AR_MODE&#39;</span><span class="p">)</span>
+    
+    <span class="c1"># Metrics</span>
+    <span class="n">real_session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;REAL_SESSION_DURATION&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">prescribed_session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PRESCRIBED_SESSION_DURATION&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;SESSION_DURATION&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">adherence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;ADHERENCE&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">total_success</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;TOTAL_SUCCESS&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">total_errors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;TOTAL_ERRORS&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;SCORE&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TimeseriesSchema">
+<a class="viewcode-back" href="../../generated/ai_cdss.models.TimeseriesSchema.html#ai_cdss.models.TimeseriesSchema">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TimeseriesSchema</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">DataFrameModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Schema for timeseries session data. Includes measurements per-second of difficulty modulators (DM) and performance estimates (PE).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Identifiers</span>
+    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">session_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;SESSION_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    
+    <span class="c1"># Protocol</span>
+    <span class="n">game_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;GAME_MODE&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Time</span>
+    <span class="n">timepoint</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;SECONDS_FROM_START&quot;</span><span class="p">)</span>
+    
+    <span class="c1"># Metrics</span>
+    <span class="n">dm_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;DM_KEY&quot;</span><span class="p">)</span>
+    <span class="n">dm_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;DM_VALUE&quot;</span><span class="p">)</span>
+    <span class="n">pe_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PE_KEY&quot;</span><span class="p">)</span>
+    <span class="n">pe_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PE_VALUE&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PPFSchema">
+<a class="viewcode-back" href="../../generated/ai_cdss.models.PPFSchema.html#ai_cdss.models.PPFSchema">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PPFSchema</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">DataFrameModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Schema for Patient-Protocol Fit (PPF) data. Represents how well a protocol fits a patient, including a PPF score and feature contributions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">)</span>
+    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">)</span>
+
+    <span class="n">ppf</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PPF&quot;</span><span class="p">)</span>
+    <span class="n">contrib</span><span class="p">:</span> <span class="nb">object</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;CONTRIB&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="PCMSchema">
+<a class="viewcode-back" href="../../generated/ai_cdss.models.PCMSchema.html#ai_cdss.models.PCMSchema">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PCMSchema</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">DataFrameModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Schema for protocol similarity matrix. Include pairwise similarity scores between protocols based on clinical domain overlap.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">protocol_a</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_A&quot;</span><span class="p">)</span>
+    <span class="n">protocol_b</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_B&quot;</span><span class="p">)</span>
+    <span class="n">similarity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;SIMILARITY&quot;</span><span class="p">)</span></div>
+
+
+<span class="c1"># ---------------------------------------------------------------------</span>
+<span class="c1"># Recommender Output</span>
+
+<div class="viewcode-block" id="ScoringSchema">
+<a class="viewcode-back" href="../../generated/ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ScoringSchema</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">DataFrameModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Schema for prescription scoring output. Represents the result of a recommendation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
+        <span class="n">coerce</span> <span class="o">=</span> <span class="kc">True</span>
+    
+    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a positive integer.&quot;</span><span class="p">)</span>
+    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a positive integer.&quot;</span><span class="p">)</span>
+    <span class="n">ppf</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PPF&quot;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a probability (0-1).&quot;</span><span class="p">)</span>
+    <span class="n">adherence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;ADHERENCE&quot;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a probability (0-1).&quot;</span><span class="p">)</span>
+    <span class="n">dm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;DM_VALUE&quot;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be non-negative.&quot;</span><span class="p">)</span>
+    <span class="n">contrib</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;CONTRIB&quot;</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coerce</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;SCORE&quot;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Score must be a positive float.&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+                </article>
+              
+              
+              
+              
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+          </footer>
+        
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+<div class="bd-footer__inner bd-page-width">
+  
+    <div class="footer-items__start">
+      
+        <div class="footer-item">
+
+  <p class="copyright">
+    
+      © Copyright 2025, Eodyne Systems.
+      <br/>
+    
+  </p>
+</div>
+      
+    </div>
+  
+  
+  
+</div>
+
+  </footer>
+  </body>
+</html>

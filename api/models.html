@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Interface Models &#8212; CDSS</title>
+    <title>Data Interfaces &#8212; CDSS</title>
   
   
   
@@ -52,7 +52,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'api/models';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="CDSS" href="cdss.html" />
+    <link rel="next" title="ai_cdss.models.SessionSchema" href="../generated/ai_cdss.models.SessionSchema.html" />
     <link rel="prev" title="RCT Configuration" href="configuration.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -289,7 +289,14 @@
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="configuration.html">RCT Configuration</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Interface Models</a></li>
+<li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">Data Interfaces</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.SessionSchema.html">ai_cdss.models.SessionSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.TimeseriesSchema.html">ai_cdss.models.TimeseriesSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.PPFSchema.html">ai_cdss.models.PPFSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.PCMSchema.html">ai_cdss.models.PCMSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.ScoringSchema.html">ai_cdss.models.ScoringSchema</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="cdss.html">CDSS</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.cdss.CDSS.html">ai_cdss.cdss.CDSS</a></li>
 </ul>
@@ -298,6 +305,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.DataProcessor.html">ai_cdss.DataProcessor</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1"><a class="reference internal" href="static.html">PPF and Protocol Similarity Script</a></li>
 </ul>
 </div>
 </nav></div>
@@ -341,7 +349,7 @@
     
     <li class="breadcrumb-item"><a href="index.html" class="nav-link">API Reference</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Interface Models</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Data Interfaces</span></li>
   </ul>
 </nav>
 </div>
@@ -358,8 +366,40 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="interface-models">
-<h1>Interface Models<a class="headerlink" href="#interface-models" title="Link to this heading">#</a></h1>
+  <section id="data-interfaces">
+<h1>Data Interfaces<a class="headerlink" href="#data-interfaces" title="Link to this heading">#</a></h1>
+<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">ai_cdss.models</span></code>:</p>
+<p>This module defines the main data validation interfaces for the Clinical Decision Support System (CDSS).
+Each class represents a structured Pandera schema used to validate key data inputs and outputs in the pipeline, including:</p>
+<ul class="simple">
+<li><p><strong>Session-level data</strong> (e.g., patient demographics, protocol metadata, adherence, performance)</p></li>
+<li><p><strong>Time series records</strong> (e.g., difficulty modulator and performance estimates across a session)</p></li>
+<li><p><strong>Patient Protocol Fit scores</strong> between patients and protocols.</p></li>
+<li><p><strong>Protocol Similarity scores</strong> pairwise protocol similarity based on protocol attributes.</p></li>
+<li><p><strong>Recommendation outputs</strong> (e.g., protocol assignment scores and therapeutic parameters)</p></li>
+</ul>
+<p>The schemas enforce strict typing and constraints to ensure data consistency throughout the system.
+All schemas inherit from <cite>pandera.DataFrameModel</cite> and are used both for runtime validation and structured documentation.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/ai_cdss.models.SessionSchema.html#ai_cdss.models.SessionSchema" title="ai_cdss.models.SessionSchema"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SessionSchema</span></code></a></p></td>
+<td><p>Schema for RGS session-level data, including patient profile, prescription and session details.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/ai_cdss.models.TimeseriesSchema.html#ai_cdss.models.TimeseriesSchema" title="ai_cdss.models.TimeseriesSchema"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TimeseriesSchema</span></code></a></p></td>
+<td><p>Schema for timeseries session data. Includes measurements per-second of difficulty modulators (DM) and performance estimates (PE).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/ai_cdss.models.PPFSchema.html#ai_cdss.models.PPFSchema" title="ai_cdss.models.PPFSchema"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PPFSchema</span></code></a></p></td>
+<td><p>Schema for Patient-Protocol Fit (PPF) data. Represents how well a protocol fits a patient, including a PPF score and feature contributions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/ai_cdss.models.PCMSchema.html#ai_cdss.models.PCMSchema" title="ai_cdss.models.PCMSchema"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PCMSchema</span></code></a></p></td>
+<td><p>Schema for protocol similarity matrix. Include pairwise similarity scores between protocols based on clinical domain overlap.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema" title="ai_cdss.models.ScoringSchema"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ScoringSchema</span></code></a></p></td>
+<td><p>Schema for prescription scoring output. Represents the result of a recommendation.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 
 

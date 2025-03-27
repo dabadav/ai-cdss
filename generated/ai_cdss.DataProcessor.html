@@ -54,6 +54,7 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'generated/ai_cdss.DataProcessor';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="PPF and Protocol Similarity Script" href="../api/static.html" />
     <link rel="prev" title="DataProcessor" href="../api/processor.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
@@ -294,7 +295,14 @@
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../api/architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/configuration.html">RCT Configuration</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/models.html">Interface Models</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/models.html">Data Interfaces</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.SessionSchema.html">ai_cdss.models.SessionSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.TimeseriesSchema.html">ai_cdss.models.TimeseriesSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.PPFSchema.html">ai_cdss.models.PPFSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.PCMSchema.html">ai_cdss.models.PCMSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.ScoringSchema.html">ai_cdss.models.ScoringSchema</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../api/cdss.html">CDSS</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="ai_cdss.cdss.CDSS.html">ai_cdss.cdss.CDSS</a></li>
 </ul>
@@ -303,6 +311,7 @@
 <li class="toctree-l2 current active"><a class="current reference internal" href="#">ai_cdss.DataProcessor</a></li>
 </ul>
 </details></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/static.html">PPF and Protocol Similarity Script</a></li>
 </ul>
 </div>
 </nav></div>
@@ -581,7 +590,7 @@ processed timeseries with session-level info.</p>
 and computes final patient-protocol scores.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ScoringSchema</span></code>]</span></p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema" title="ai_cdss.models.ScoringSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScoringSchema</span></code></a>]</span></p>
 </dd>
 <dt class="field-even">Parameters<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
@@ -604,13 +613,7 @@ and computes final patient-protocol scores.</p>
 
 </dd></dl>
 
-<section id="examples-using-ai-cdss-dataprocessor">
-<span id="sphx-glr-backreferences-ai-cdss-dataprocessor"></span><h2>Examples using <code class="docutils literal notranslate"><span class="pre">ai_cdss.DataProcessor</span></code><a class="headerlink" href="#examples-using-ai-cdss-dataprocessor" title="Link to this heading">#</a></h2>
-<div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the DataLoader, DataProcessor, and CDSS to load data and generate a 7-day protocol plan."><img alt="" src="../_images/sphx_glr_recommend_usage_thumb.png" />
-<p><a class="reference internal" href="../auto_examples/recommend_usage.html#sphx-glr-auto-examples-recommend-usage-py"><span class="std std-ref">Basic usage of CDSS to generate a protocol recommendation.</span></a></p>
-  <div class="sphx-glr-thumbnail-title">Basic usage of CDSS to generate a protocol recommendation.</div>
-</div></div></section>
-</section>
+<span class="target" id="sphx-glr-backreferences-ai-cdss-dataprocessor"></span></section>
 
 
                 </article>
@@ -646,7 +649,6 @@ and computes final patient-protocol scores.</p>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.process_data"><code class="docutils literal notranslate"><span class="pre">DataProcessor.process_data()</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples-using-ai-cdss-dataprocessor">Examples using <code class="docutils literal notranslate"><span class="pre">ai_cdss.DataProcessor</span></code></a></li>
 </ul>
   </nav></div>
 

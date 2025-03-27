@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Basic usage of CDSS to generate a protocol recommendation. &#8212; CDSS</title>
+    <title>ai_cdss.models.ScoringSchema &#8212; CDSS</title>
   
   
   
@@ -49,9 +49,11 @@
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'auto_examples/recommend_usage';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'generated/ai_cdss.models.ScoringSchema';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="CDSS" href="../api/cdss.html" />
+    <link rel="prev" title="ai_cdss.models.PCMSchema" href="ai_cdss.models.PCMSchema.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -137,7 +139,7 @@
 </li>
 
 
-<li class="nav-item ">
+<li class="nav-item current active">
   <a class="nav-link nav-internal" href="../api/index.html">
     API
   </a>
@@ -202,6 +204,10 @@
   
 
   
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
 </div>
 
     </header>
@@ -235,7 +241,7 @@
 </li>
 
 
-<li class="nav-item ">
+<li class="nav-item current active">
   <a class="nav-link nav-internal" href="../api/index.html">
     API
   </a>
@@ -284,7 +290,28 @@
 <nav class="bd-docs-nav bd-links"
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
-  <div class="bd-toc-item navbar-nav"></div>
+  <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../api/architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/configuration.html">RCT Configuration</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../api/models.html">Data Interfaces</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.SessionSchema.html">ai_cdss.models.SessionSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.TimeseriesSchema.html">ai_cdss.models.TimeseriesSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.PPFSchema.html">ai_cdss.models.PPFSchema</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.PCMSchema.html">ai_cdss.models.PCMSchema</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">ai_cdss.models.ScoringSchema</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/cdss.html">CDSS</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.cdss.CDSS.html">ai_cdss.cdss.CDSS</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/processor.html">DataProcessor</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.DataProcessor.html">ai_cdss.DataProcessor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/static.html">PPF and Protocol Similarity Script</a></li>
+</ul>
+</div>
 </nav></div>
     </div>
   
@@ -323,7 +350,13 @@
         <i class="fa-solid fa-home"></i>
       </a>
     </li>
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Basic usage of CDSS to generate a protocol recommendation.</span></li>
+    
+    <li class="breadcrumb-item"><a href="../api/index.html" class="nav-link">API Reference</a></li>
+    
+    
+    <li class="breadcrumb-item"><a href="../api/models.html" class="nav-link">Data Interfaces</a></li>
+    
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">ai_cdss.models.ScoringSchema</span></li>
   </ul>
 </nav>
 </div>
@@ -340,96 +373,57 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <div class="sphx-glr-download-link-note admonition note">
-<p class="admonition-title">Note</p>
-<p><a class="reference internal" href="#sphx-glr-download-auto-examples-recommend-usage-py"><span class="std std-ref">Go to the end</span></a>
-to download the full example code.</p>
+  <section id="ai-cdss-models-scoringschema">
+<h1>ai_cdss.models.ScoringSchema<a class="headerlink" href="#ai-cdss-models-scoringschema" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ai_cdss.models.ScoringSchema">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ai_cdss.models.</span></span><span class="sig-name descname"><span class="pre">ScoringSchema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/models.html#ScoringSchema"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.models.ScoringSchema" title="Link to this definition">#</a></dt>
+<dd><blockquote>
+<div><p>Schema for prescription scoring output. Represents the result of a recommendation.</p>
+</div></blockquote>
+<div class="pst-scrollable-table-container"><table class="table" id="id1">
+<caption><span class="caption-text">Schema Fields</span><a class="headerlink" href="#id1" title="Link to this table">#</a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p>Column</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Validation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>PATIENT_ID</p></td>
+<td><p>int64</p></td>
+<td><p>&gt; 0</p></td>
+</tr>
+<tr class="row-odd"><td><p>PROTOCOL_ID</p></td>
+<td><p>int64</p></td>
+<td><p>&gt; 0</p></td>
+</tr>
+<tr class="row-even"><td><p>PPF</p></td>
+<td><p>float64</p></td>
+<td><p>≥ 0; ≤ 1</p></td>
+</tr>
+<tr class="row-odd"><td><p>ADHERENCE</p></td>
+<td><p>float64</p></td>
+<td><p>≥ 0; ≤ 1</p></td>
+</tr>
+<tr class="row-even"><td><p>DM_VALUE</p></td>
+<td><p>float64</p></td>
+<td><p>≥ 0</p></td>
+</tr>
+<tr class="row-odd"><td><p>CONTRIB</p></td>
+<td><p>typing.List[float]</p></td>
+<td><p>—</p></td>
+</tr>
+<tr class="row-even"><td><p>SCORE</p></td>
+<td><p>float64</p></td>
+<td><p>≥ 0</p></td>
+</tr>
+</tbody>
+</table>
 </div>
-<section class="sphx-glr-example-title" id="basic-usage-of-cdss-to-generate-a-protocol-recommendation">
-<span id="sphx-glr-auto-examples-recommend-usage-py"></span><h1>Basic usage of CDSS to generate a protocol recommendation.<a class="headerlink" href="#basic-usage-of-cdss-to-generate-a-protocol-recommendation" title="Link to this heading">#</a></h1>
-<p>This example demonstrates how to use the <cite>DataLoader</cite>, <cite>DataProcessor</cite>, and <cite>CDSS</cite>
-to load data and generate a 7-day protocol plan.</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>   PATIENT_ID  PROTOCOL_ID       PPF                                            CONTRIB  ADHERENCE  DM_VALUE   PE_VALUE  USAGE                DAYS     SCORE
-0           1            1  0.562178  [0.212189, 0.033685, 0.077469, 0.102304, 0.136...   0.712004  6.890026  34.447853    100     [0, 1, 2, 3, 6]  8.164208
-1           1            2  0.965500    [0.43319, 0.062738, 0.203374, 0.2528, 0.013398]   0.655415  6.119549  77.907190    100     [1, 2, 3, 4, 5]  7.740464
-2           1            3  0.812396   [0.100859, 0.02016, 0.007253, 0.32066, 0.363464]   0.651554  6.750162  39.498897    100  [0, 1, 2, 3, 4, 5]  8.214112
-</pre></div>
-</div>
-<div class="line-block">
-<div class="line"><br /></div>
-</div>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
-<span class="n">sys</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;..&quot;</span><span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.cdss</span><span class="w"> </span><span class="kn">import</span> <span class="n">CDSS</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.data_loader</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoaderMock</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.data_processor</span><span class="w"> </span><span class="kn">import</span> <a href="../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor" title="ai_cdss.DataProcessor" class="sphx-glr-backref-module-ai_cdss sphx-glr-backref-type-py-class"><span class="n">DataProcessor</span></a>
-<span class="c1"># from IPython.display import display</span>
+</dd></dl>
 
-<span class="nb">print</span><span class="p">(</span><span class="vm">__doc__</span><span class="p">)</span>
-
-<span class="n">PATIENT_LIST</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="mi">775</span><span class="p">,</span>  <span class="mi">787</span><span class="p">,</span>  <span class="mi">788</span>
-<span class="p">]</span>
-
-<span class="c1"># Parameters</span>
-<span class="n">rgs_mode</span> <span class="o">=</span> <span class="s2">&quot;app&quot;</span>
-<span class="n">weights</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
-<span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.5</span>
-
-<span class="n">n</span> <span class="o">=</span> <span class="mi">12</span>
-<span class="n">days</span> <span class="o">=</span> <span class="mi">7</span>
-<span class="n">protocols_per_day</span> <span class="o">=</span> <span class="mi">5</span>
-
-<span class="c1"># Services</span>
-<span class="n">loader</span> <span class="o">=</span> <span class="n">DataLoaderMock</span><span class="p">(</span>
-    <span class="n">num_patients</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-    <span class="n">num_protocols</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-    <span class="n">num_sessions</span><span class="o">=</span><span class="mi">10</span>
-<span class="p">)</span>
-<a href="../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor" title="ai_cdss.DataProcessor" class="sphx-glr-backref-module-ai_cdss sphx-glr-backref-type-py-class sphx-glr-backref-instance"><span class="n">processor</span></a> <span class="o">=</span> <a href="../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor" title="ai_cdss.DataProcessor" class="sphx-glr-backref-module-ai_cdss sphx-glr-backref-type-py-class"><span class="n">DataProcessor</span></a><span class="p">(</span>
-    <span class="n">weights</span><span class="o">=</span><span class="n">weights</span><span class="p">,</span>
-    <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span>
-<span class="p">)</span>
-
-<span class="c1"># Execution</span>
-<span class="n">session</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">load_session_data</span><span class="p">(</span><span class="n">patient_list</span><span class="o">=</span><span class="n">PATIENT_LIST</span><span class="p">)</span>
-<span class="n">timeseries</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">load_timeseries_data</span><span class="p">(</span><span class="n">patient_list</span><span class="o">=</span><span class="n">PATIENT_LIST</span><span class="p">)</span>
-<span class="n">ppf</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">load_ppf_data</span><span class="p">(</span><span class="n">patient_list</span><span class="o">=</span><span class="n">PATIENT_LIST</span><span class="p">)</span>
-
-<span class="n">protocol_similarity</span> <span class="o">=</span> <span class="n">loader</span><span class="o">.</span><span class="n">load_protocol_similarity</span><span class="p">()</span>
-
-<span class="n">scores</span> <span class="o">=</span> <a href="../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor.process_data" title="ai_cdss.DataProcessor.process_data" class="sphx-glr-backref-module-ai_cdss sphx-glr-backref-type-py-method"><span class="n">processor</span><span class="o">.</span><span class="n">process_data</span></a><span class="p">(</span><span class="n">session_data</span><span class="o">=</span><span class="n">session</span><span class="p">,</span> <span class="n">timeseries_data</span><span class="o">=</span><span class="n">timeseries</span><span class="p">,</span> <span class="n">ppf_data</span><span class="o">=</span><span class="n">ppf</span><span class="p">)</span>
-
-<span class="c1"># CDSS</span>
-<span class="n">cdss</span> <span class="o">=</span> <span class="n">CDSS</span><span class="p">(</span>
-    <span class="n">scoring</span><span class="o">=</span><span class="n">scores</span><span class="p">,</span>
-    <span class="n">n</span><span class="o">=</span><span class="n">n</span><span class="p">,</span>
-    <span class="n">days</span><span class="o">=</span><span class="n">days</span><span class="p">,</span>
-    <span class="n">protocols_per_day</span><span class="o">=</span><span class="n">protocols_per_day</span>
-<span class="p">)</span>
-
-<span class="c1"># Results</span>
-<span class="c1"># patient_id = PATIENT_LIST[0]</span>
-<span class="n">patient_id</span> <span class="o">=</span> <span class="mi">1</span>
-
-<span class="n">recommendation</span> <span class="o">=</span> <span class="n">cdss</span><span class="o">.</span><span class="n">recommend</span><span class="p">(</span><span class="n">patient_id</span><span class="o">=</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="o">=</span><span class="n">protocol_similarity</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">recommendation</span><span class="p">)</span>
-</pre></div>
-</div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.931 seconds)</p>
-<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-recommend-usage-py">
-<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
-<p><a class="reference download internal" download="" href="../_downloads/aa750e9abe7f1471f9842a3481afb58a/recommend_usage.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">recommend_usage.ipynb</span></code></a></p>
-</div>
-<div class="sphx-glr-download sphx-glr-download-python docutils container">
-<p><a class="reference download internal" download="" href="../_downloads/42c93d7aa5de37729ad5047daed26f48/recommend_usage.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">recommend_usage.py</span></code></a></p>
-</div>
-<div class="sphx-glr-download sphx-glr-download-zip docutils container">
-<p><a class="reference download internal" download="" href="../_downloads/c7990f64948a6604d8137d593db98d8f/recommend_usage.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">recommend_usage.zip</span></code></a></p>
-</div>
-</div>
-<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
-</section>
+<span class="target" id="sphx-glr-backreferences-ai-cdss-models-scoringschema"></span></section>
 
 
                 </article>
@@ -441,6 +435,24 @@ to load data and generate a 7-day protocol plan.</p>
             </div>
             
             
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+<div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> On this page
+  </div>
+  <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.models.ScoringSchema"><code class="docutils literal notranslate"><span class="pre">ScoringSchema</span></code></a></li>
+</ul>
+  </nav></div>
+
+</div></div>
               
             
           </div>
