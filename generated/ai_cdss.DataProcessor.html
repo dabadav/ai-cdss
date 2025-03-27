@@ -54,8 +54,8 @@
     <script>DOCUMENTATION_OPTIONS.pagename = 'generated/ai_cdss.DataProcessor';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="PPF and Protocol Similarity Script" href="../api/static.html" />
-    <link rel="prev" title="DataProcessor" href="../api/processor.html" />
+    <link rel="next" title="ai_cdss.cdss.CDSS" href="ai_cdss.cdss.CDSS.html" />
+    <link rel="prev" title="ai_cdss.DataLoader" href="ai_cdss.DataLoader.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -293,24 +293,14 @@
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../api/architecture.html">Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/configuration.html">RCT Configuration</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../api/models.html">Data Interfaces</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.SessionSchema.html">ai_cdss.models.SessionSchema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.TimeseriesSchema.html">ai_cdss.models.TimeseriesSchema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.PPFSchema.html">ai_cdss.models.PPFSchema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.PCMSchema.html">ai_cdss.models.PCMSchema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.ScoringSchema.html">ai_cdss.models.ScoringSchema</a></li>
-</ul>
-</details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../api/cdss.html">CDSS</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../api/modules.html">CDSS</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.DataLoader.html">ai_cdss.DataLoader</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">ai_cdss.DataProcessor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ai_cdss.cdss.CDSS.html">ai_cdss.cdss.CDSS</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../api/processor.html">DataProcessor</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">ai_cdss.DataProcessor</a></li>
-</ul>
-</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/configuration.html">RCT Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/models.html">Data Interfaces</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/static.html">PPF and Protocol Similarity Script</a></li>
 </ul>
 </div>
@@ -356,7 +346,7 @@
     <li class="breadcrumb-item"><a href="../api/index.html" class="nav-link">API Reference</a></li>
     
     
-    <li class="breadcrumb-item"><a href="../api/processor.html" class="nav-link">DataProcessor</a></li>
+    <li class="breadcrumb-item"><a href="../api/modules.html" class="nav-link">CDSS</a></li>
     
     <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">ai_cdss.DataProcessor</span></li>
   </ul>
@@ -402,16 +392,31 @@ Moving Average (EWMA) and computing a final weighted score.</p>
 </dd>
 </dl>
 <p class="rubric">Methods</p>
-<div class="pst-scrollable-table-container"><table class="table">
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><strong>process_data(session_data, timeseries_data, ppf_data)</strong></p></td>
-<td><p>Processes session and timeseries data, computes adherence and DM EWMA, and calculates final scoring.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.aggregate_dms_by_time" title="ai_cdss.DataProcessor.aggregate_dms_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aggregate_dms_by_time</span></code></a>(timeseries_data)</p></td>
+<td><p>Aggregate multiple difficulty modulator (DM) values at the same timepoint.</p></td>
 </tr>
-<tr class="row-even"><td><p><strong>compute_ewma(df, value_col, group_cols)</strong></p></td>
-<td><p>Computes Exponential Weighted Moving Average (EWMA):  .. math::  EWMA_t = alpha cdot X_t + (1 - alpha) cdot EWMA_{t-1}</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.aggregate_metrics_per_protocol" title="ai_cdss.DataProcessor.aggregate_metrics_per_protocol"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aggregate_metrics_per_protocol</span></code></a>(data)</p></td>
+<td><p>Aggregate EWMA values and adherence metrics at the protocol level.</p></td>
 </tr>
-<tr class="row-odd"><td><p><strong>compute_score(scoring)</strong></p></td>
-<td><p>Computes the final scoring function.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.compute_ewma" title="ai_cdss.DataProcessor.compute_ewma"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_ewma</span></code></a>(df, value_col, group_cols)</p></td>
+<td><p>Compute Exponential Weighted Moving Average (EWMA) over grouped time series.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.compute_patient_protocol_scores" title="ai_cdss.DataProcessor.compute_patient_protocol_scores"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_patient_protocol_scores</span></code></a>(data, ppf_data)</p></td>
+<td><p>Combine protocol-level metrics and PPF values to compute a final score.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.compute_score" title="ai_cdss.DataProcessor.compute_score"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_score</span></code></a>(scoring)</p></td>
+<td><p>Compute the final score based on adherence, DM, and PPF values.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.initialize_missing_metrics" title="ai_cdss.DataProcessor.initialize_missing_metrics"><code class="xref py py-obj docutils literal notranslate"><span class="pre">initialize_missing_metrics</span></code></a>(data)</p></td>
+<td><p>Fill missing protocol-level metrics with zeros.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.merge_session_and_timeseries" title="ai_cdss.DataProcessor.merge_session_and_timeseries"><code class="xref py py-obj docutils literal notranslate"><span class="pre">merge_session_and_timeseries</span></code></a>(session_data, ...)</p></td>
+<td><p>Merge and align session and timeseries data for each patient and protocol.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.process_data" title="ai_cdss.DataProcessor.process_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_data</span></code></a>(session_data, timeseries_data, ...)</p></td>
+<td><p>Process and score patient-protocol combinations using session, timeseries, and PPF data.</p></td>
 </tr>
 </tbody>
 </table>

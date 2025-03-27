@@ -49,11 +49,11 @@
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'api/cdss';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/modules';</script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="ai_cdss.cdss.CDSS" href="../generated/ai_cdss.cdss.CDSS.html" />
-    <link rel="prev" title="ai_cdss.models.ScoringSchema" href="../generated/ai_cdss.models.ScoringSchema.html" />
+    <link rel="next" title="ai_cdss.DataLoader" href="../generated/ai_cdss.DataLoader.html" />
+    <link rel="prev" title="API Reference" href="index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -287,24 +287,14 @@
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="configuration.html">RCT Configuration</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="models.html">Data Interfaces</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.SessionSchema.html">ai_cdss.models.SessionSchema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.TimeseriesSchema.html">ai_cdss.models.TimeseriesSchema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.PPFSchema.html">ai_cdss.models.PPFSchema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.PCMSchema.html">ai_cdss.models.PCMSchema</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.models.ScoringSchema.html">ai_cdss.models.ScoringSchema</a></li>
-</ul>
-</details></li>
 <li class="toctree-l1 current active has-children"><a class="current reference internal" href="#">CDSS</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.DataLoader.html">ai_cdss.DataLoader</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.DataProcessor.html">ai_cdss.DataProcessor</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.cdss.CDSS.html">ai_cdss.cdss.CDSS</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="processor.html">DataProcessor</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../generated/ai_cdss.DataProcessor.html">ai_cdss.DataProcessor</a></li>
-</ul>
-</details></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">RCT Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="models.html">Data Interfaces</a></li>
 <li class="toctree-l1"><a class="reference internal" href="static.html">PPF and Protocol Similarity Script</a></li>
 </ul>
 </div>
@@ -368,6 +358,33 @@
                   
   <section id="cdss">
 <h1>CDSS<a class="headerlink" href="#cdss" title="Link to this heading">#</a></h1>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>[DB or Synthetic Data]
+      └─&gt; DataLoader
+            └─&gt; Session Data
+            └─&gt; Timeseries Data
+            └─&gt; PPF
+            └─&gt; Protocol Similarity
+
+              └─&gt; DataProcessor (weights, alpha)
+                    └─&gt; Score matrix: Patient x Protocol
+
+                        └─&gt; CDSS (n, days, protocols/day)
+                              └─&gt; Final 7-day recommendations per patient
+</pre></div>
+</div>
+<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">ai_cdss</span></code>:</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader" title="ai_cdss.DataLoader"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DataLoader</span></code></a>([rgs_mode])</p></td>
+<td><p>Loads data from database and CSV files.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor" title="ai_cdss.DataProcessor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DataProcessor</span></code></a>([weights, alpha])</p></td>
+<td><p>A class for processing patient session data, applying Exponential Weighted  Moving Average (EWMA) and computing a final weighted score.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">ai_cdss.cdss</span></code>:</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="../generated/ai_cdss.cdss.CDSS.html#ai_cdss.cdss.CDSS" title="ai_cdss.cdss.CDSS"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CDSS</span></code></a>(scoring[, n, days, protocols_per_day])</p></td>

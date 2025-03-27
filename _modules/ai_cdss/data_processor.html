@@ -344,17 +344,23 @@ window.addEventListener("load", () => mermaid.run());
                 <article class="bd-article">
                   
   <h1>Source code for ai_cdss.data_processor</h1><div class="highlight"><pre>
-<span></span><span class="c1"># data_processor.py</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringSchema</span><span class="p">,</span> <span class="n">PPFSchema</span><span class="p">,</span> <span class="n">SessionSchema</span><span class="p">,</span> <span class="n">TimeseriesSchema</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pandera.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringSchema</span><span class="p">,</span> <span class="n">PPFSchema</span><span class="p">,</span> <span class="n">SessionSchema</span><span class="p">,</span> <span class="n">TimeseriesSchema</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
 <span class="c1"># Set up logging</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<span class="c1"># ---------------------------------------------------------------------</span>
+<span class="c1"># Data Processor Class</span>
 
 <div class="viewcode-block" id="DataProcessor">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor">[docs]</a>
@@ -381,22 +387,6 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">        List of weights :math:`\\alpha`, :math:`\\beta`, :math:`\\gamma` for computing the final score.</span>
 <span class="sd">    alpha : float</span>
 <span class="sd">        The smoothing factor for EWMA, controlling how much past values influence the trend.</span>
-
-<span class="sd">    Methods</span>
-<span class="sd">    -------</span>
-<span class="sd">    process_data(session_data, timeseries_data, ppf_data)</span>
-<span class="sd">        Processes session and timeseries data, computes adherence and DM EWMA, and</span>
-<span class="sd">        calculates final scoring.</span>
-<span class="sd">        </span>
-<span class="sd">    compute_ewma(df, value_col, group_cols)</span>
-<span class="sd">        Computes Exponential Weighted Moving Average (EWMA):</span>
-
-<span class="sd">        .. math::</span>
-<span class="sd">            </span>
-<span class="sd">            EWMA_t = \\alpha \\cdot X_t + (1 - \\alpha) \\cdot EWMA_{t-1}</span>
-
-<span class="sd">    compute_score(scoring)</span>
-<span class="sd">        Computes the final scoring function.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>

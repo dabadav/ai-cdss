@@ -4,9 +4,7 @@ API Reference
 .. toctree::
    :maxdepth: 2
 
-   architecture
+   modules
    configuration
    models
-   cdss
-   processor
    static
