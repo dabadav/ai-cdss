@@ -37,7 +37,7 @@
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=94b71b34" />
+    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=5d4bc26b" />
   
   <!-- So that users can add custom icons -->
   <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
@@ -50,6 +50,7 @@
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'generated/ai_cdss.DataLoader';</script>
+    <script src="../_static/modal.js?v=f3ac3e3f"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="ai_cdss.DataProcessor" href="ai_cdss.DataProcessor.html" />
@@ -396,40 +397,6 @@
 </table>
 </div>
 <dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_ppf_data">
-<span class="sig-name descname"><span class="pre">load_ppf_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_ppf_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_ppf_data" title="Link to this definition">#</a></dt>
-<dd><p>Load PPF (precomputed patient-protocol fit) from internal data.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.PPFSchema.html#ai_cdss.models.PPFSchema" title="ai_cdss.models.PPFSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">PPFSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>DataFrame[PPFSchema]</dt><dd><p>PPF data indexed by PROTOCOL_ID.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_protocol_similarity">
-<span class="sig-name descname"><span class="pre">load_protocol_similarity</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_protocol_similarity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_protocol_similarity" title="Link to this definition">#</a></dt>
-<dd><p>Load protocol similarity data from internal storage.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.PCMSchema.html#ai_cdss.models.PCMSchema" title="ai_cdss.models.PCMSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">PCMSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>DataFrame[ProtocolSimilaritySchema]</dt><dd><p>Protocol similarity data with columns: PROTOCOL_ID_1, PROTOCOL_ID_2, SIMILARITY_SCORE.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataLoader.load_session_data">
 <span class="sig-name descname"><span class="pre">load_session_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_session_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_session_data" title="Link to this definition">#</a></dt>
 <dd><p>Load session data from the RGS interface.</p>
@@ -457,6 +424,40 @@
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
 <dt>DataFrame[TimeseriesSchema]</dt><dd><p>Timeseries data for the specified patients.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_ppf_data">
+<span class="sig-name descname"><span class="pre">load_ppf_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_ppf_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_ppf_data" title="Link to this definition">#</a></dt>
+<dd><p>Load PPF (precomputed patient-protocol fit) from internal data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.PPFSchema.html#ai_cdss.models.PPFSchema" title="ai_cdss.models.PPFSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">PPFSchema</span></code></a>]</span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt>DataFrame[PPFSchema]</dt><dd><p>PPF data indexed by PROTOCOL_ID.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_protocol_similarity">
+<span class="sig-name descname"><span class="pre">load_protocol_similarity</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_protocol_similarity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_protocol_similarity" title="Link to this definition">#</a></dt>
+<dd><p>Load protocol similarity data from internal storage.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.PCMSchema.html#ai_cdss.models.PCMSchema" title="ai_cdss.models.PCMSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">PCMSchema</span></code></a>]</span></p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt>DataFrame[ProtocolSimilaritySchema]</dt><dd><p>Protocol similarity data with columns: PROTOCOL_ID_1, PROTOCOL_ID_2, SIMILARITY_SCORE.</p>
 </dd>
 </dl>
 </dd>
@@ -491,10 +492,10 @@
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader"><code class="docutils literal notranslate"><span class="pre">DataLoader</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_ppf_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_ppf_data()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_protocol_similarity"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_protocol_similarity()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_session_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_session_data()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_timeseries_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_timeseries_data()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_ppf_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_ppf_data()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_protocol_similarity"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_protocol_similarity()</span></code></a></li>
 </ul>
 </li>
 </ul>

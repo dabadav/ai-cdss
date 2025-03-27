@@ -37,7 +37,7 @@
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
     <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
     <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
-    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=94b71b34" />
+    <link rel="stylesheet" type="text/css" href="../_static/style.css?v=5d4bc26b" />
   
   <!-- So that users can add custom icons -->
   <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
@@ -52,6 +52,7 @@
     <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
     <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'generated/ai_cdss.DataProcessor';</script>
+    <script src="../_static/modal.js?v=f3ac3e3f"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="ai_cdss.cdss.CDSS" href="ai_cdss.cdss.CDSS.html" />
@@ -422,6 +423,82 @@ Moving Average (EWMA) and computing a final weighted score.</p>
 </table>
 </div>
 <dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataProcessor.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ppf_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.process_data" title="Link to this definition">#</a></dt>
+<dd><p>Process and score patient-protocol combinations using session, timeseries, and PPF data.</p>
+<p>Applies EWMA to adherence and difficulty modulators, merges features,
+and computes final patient-protocol scores.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema" title="ai_cdss.models.ScoringSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScoringSchema</span></code></a>]</span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt><strong>session_data</strong><span class="classifier">DataFrame[SessionSchema]</span></dt><dd><p>Session-level data including adherence and scheduling information.</p>
+</dd>
+<dt><strong>timeseries_data</strong><span class="classifier">DataFrame[TimeseriesSchema]</span></dt><dd><p>Timepoint-level data including DMs and performance metrics.</p>
+</dd>
+<dt><strong>ppf_data</strong><span class="classifier">DataFrame[PPFSchema]</span></dt><dd><p>Patient-protocol fitness values and contributions.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt>DataFrame[ScoringSchema]</dt><dd><p>Final scored dataframe with protocol recommendations.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataProcessor.merge_session_and_timeseries">
+<span class="sig-name descname"><span class="pre">merge_session_and_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.merge_session_and_timeseries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.merge_session_and_timeseries" title="Link to this definition">#</a></dt>
+<dd><p>Merge and align session and timeseries data for each patient and protocol.</p>
+<p>Applies EWMA to adherence, DMs, and performance values, and joins the
+processed timeseries with session-level info.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>session_data</strong><span class="classifier">DataFrame[SessionSchema]</span></dt><dd><p>The session metadata per patient and protocol.</p>
+</dd>
+<dt><strong>timeseries_data</strong><span class="classifier">DataFrame[TimeseriesSchema]</span></dt><dd><p>Detailed timepoint observations for difficulty and performance.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt>pd.DataFrame</dt><dd><p>Merged and preprocessed dataset ready for protocol-level aggregation.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataProcessor.compute_patient_protocol_scores">
+<span class="sig-name descname"><span class="pre">compute_patient_protocol_scores</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ppf_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.compute_patient_protocol_scores"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.compute_patient_protocol_scores" title="Link to this definition">#</a></dt>
+<dd><p>Combine protocol-level metrics and PPF values to compute a final score.</p>
+<p>Merges adherence, DM, and PPF features and applies the scoring formula.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt><strong>data</strong><span class="classifier">pd.DataFrame</span></dt><dd><p>Aggregated session and timeseries data per patient-protocol.</p>
+</dd>
+<dt><strong>ppf_data</strong><span class="classifier">DataFrame[PPFSchema]</span></dt><dd><p>Patient-Protocol Fitness dataframe with global and feature-level scores.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt>pd.DataFrame</dt><dd><p>Scored DataFrame sorted by patient and protocol.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataProcessor.aggregate_dms_by_time">
 <span class="sig-name descname"><span class="pre">aggregate_dms_by_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeseries_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.aggregate_dms_by_time"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.aggregate_dms_by_time" title="Link to this definition">#</a></dt>
 <dd><p>Aggregate multiple difficulty modulator (DM) values at the same timepoint.</p>
@@ -470,6 +547,29 @@ Moving Average (EWMA) and computing a final weighted score.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataProcessor.initialize_missing_metrics">
+<span class="sig-name descname"><span class="pre">initialize_missing_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.initialize_missing_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.initialize_missing_metrics" title="Link to this definition">#</a></dt>
+<dd><p>Fill missing protocol-level metrics with zeros.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt><strong>data</strong><span class="classifier">pd.DataFrame</span></dt><dd><p>Dataframe with potentially missing features.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt>pd.DataFrame</dt><dd><p>Safe dataframe with no NaNs.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataProcessor.compute_ewma">
 <span class="sig-name descname"><span class="pre">compute_ewma</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value_col</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">group_cols</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.compute_ewma"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.compute_ewma" title="Link to this definition">#</a></dt>
 <dd><p>Compute Exponential Weighted Moving Average (EWMA) over grouped time series.</p>
@@ -494,29 +594,6 @@ Moving Average (EWMA) and computing a final weighted score.</p>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.compute_patient_protocol_scores">
-<span class="sig-name descname"><span class="pre">compute_patient_protocol_scores</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ppf_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.compute_patient_protocol_scores"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.compute_patient_protocol_scores" title="Link to this definition">#</a></dt>
-<dd><p>Combine protocol-level metrics and PPF values to compute a final score.</p>
-<p>Merges adherence, DM, and PPF features and applies the scoring formula.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>data</strong><span class="classifier">pd.DataFrame</span></dt><dd><p>Aggregated session and timeseries data per patient-protocol.</p>
-</dd>
-<dt><strong>ppf_data</strong><span class="classifier">DataFrame[PPFSchema]</span></dt><dd><p>Patient-Protocol Fitness dataframe with global and feature-level scores.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>Scored DataFrame sorted by patient and protocol.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataProcessor.compute_score">
 <span class="sig-name descname"><span class="pre">compute_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">scoring</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.compute_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.compute_score" title="Link to this definition">#</a></dt>
 <dd><p>Compute the final score based on adherence, DM, and PPF values.</p>
@@ -534,82 +611,6 @@ Moving Average (EWMA) and computing a final weighted score.</p>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
 <dt>pd.DataFrame</dt><dd><p>DataFrame with an added SCORE column.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.initialize_missing_metrics">
-<span class="sig-name descname"><span class="pre">initialize_missing_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.initialize_missing_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.initialize_missing_metrics" title="Link to this definition">#</a></dt>
-<dd><p>Fill missing protocol-level metrics with zeros.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>data</strong><span class="classifier">pd.DataFrame</span></dt><dd><p>Dataframe with potentially missing features.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>Safe dataframe with no NaNs.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.merge_session_and_timeseries">
-<span class="sig-name descname"><span class="pre">merge_session_and_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.merge_session_and_timeseries"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.merge_session_and_timeseries" title="Link to this definition">#</a></dt>
-<dd><p>Merge and align session and timeseries data for each patient and protocol.</p>
-<p>Applies EWMA to adherence, DMs, and performance values, and joins the
-processed timeseries with session-level info.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>session_data</strong><span class="classifier">DataFrame[SessionSchema]</span></dt><dd><p>The session metadata per patient and protocol.</p>
-</dd>
-<dt><strong>timeseries_data</strong><span class="classifier">DataFrame[TimeseriesSchema]</span></dt><dd><p>Detailed timepoint observations for difficulty and performance.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>Merged and preprocessed dataset ready for protocol-level aggregation.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.process_data">
-<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ppf_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.process_data" title="Link to this definition">#</a></dt>
-<dd><p>Process and score patient-protocol combinations using session, timeseries, and PPF data.</p>
-<p>Applies EWMA to adherence and difficulty modulators, merges features,
-and computes final patient-protocol scores.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema" title="ai_cdss.models.ScoringSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScoringSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>session_data</strong><span class="classifier">DataFrame[SessionSchema]</span></dt><dd><p>Session-level data including adherence and scheduling information.</p>
-</dd>
-<dt><strong>timeseries_data</strong><span class="classifier">DataFrame[TimeseriesSchema]</span></dt><dd><p>Timepoint-level data including DMs and performance metrics.</p>
-</dd>
-<dt><strong>ppf_data</strong><span class="classifier">DataFrame[PPFSchema]</span></dt><dd><p>Patient-protocol fitness values and contributions.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>DataFrame[ScoringSchema]</dt><dd><p>Final scored dataframe with protocol recommendations.</p>
 </dd>
 </dl>
 </dd>
@@ -650,14 +651,14 @@ and computes final patient-protocol scores.</p>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor"><code class="docutils literal notranslate"><span class="pre">DataProcessor</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.process_data"><code class="docutils literal notranslate"><span class="pre">DataProcessor.process_data()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.merge_session_and_timeseries"><code class="docutils literal notranslate"><span class="pre">DataProcessor.merge_session_and_timeseries()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_patient_protocol_scores"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_patient_protocol_scores()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.aggregate_dms_by_time"><code class="docutils literal notranslate"><span class="pre">DataProcessor.aggregate_dms_by_time()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.aggregate_metrics_per_protocol"><code class="docutils literal notranslate"><span class="pre">DataProcessor.aggregate_metrics_per_protocol()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_ewma"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_ewma()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_patient_protocol_scores"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_patient_protocol_scores()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_score"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_score()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.initialize_missing_metrics"><code class="docutils literal notranslate"><span class="pre">DataProcessor.initialize_missing_metrics()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.merge_session_and_timeseries"><code class="docutils literal notranslate"><span class="pre">DataProcessor.merge_session_and_timeseries()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.process_data"><code class="docutils literal notranslate"><span class="pre">DataProcessor.process_data()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_ewma"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_ewma()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_score"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_score()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples-using-ai-cdss-dataprocessor">Examples using <code class="docutils literal notranslate"><span class="pre">ai_cdss.DataProcessor</span></code></a></li>

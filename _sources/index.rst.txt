@@ -20,10 +20,12 @@
 
       **Protocol prescription** decision making algorithm explanation.
 
-.. image:: _static/diagrams/cdss-lr.svg
-   :alt: CDSS Flowchart
-   :width: 100%
-   :class: zoom-image sd-rounded-2
+.. raw:: html
+
+   <img src="_static/diagrams/CDSS_Diagram.png"
+        alt="CDSS Flowchart"
+        class="zoomable sd-rounded-2"
+        style="width: 100%;" />
 
 .. toctree::
    :hidden:
