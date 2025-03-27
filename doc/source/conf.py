@@ -77,7 +77,7 @@ html_theme_options = {
     "collapse_navigation": True,  # Keep expanded navigation
     "show_toc_level": 0,
     "show_nav_level": 2,
-    "show_prev_next": False,        # Hides the previous/next buttons
+    "show_prev_next": True,        # Hides the previous/next buttons
     "footer_start": ["copyright"],
     "footer_end": []
 }

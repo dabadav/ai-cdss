@@ -464,4 +464,11 @@ div.sphx-glr-animation video {
     transform: scale(1.03);  /* Subtle zoom effect */
 }
 
+/* Hide prev/next buttons on the home/index page only */
+
+body[data-page="index"] .prev-next-bottom {
+    display: none;
+}
+
+
   
