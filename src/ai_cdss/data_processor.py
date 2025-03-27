@@ -1,14 +1,20 @@
-# data_processor.py
-import pandas as pd
-import logging
 from typing import List
-from ai_cdss.models import ScoringSchema, PPFSchema, SessionSchema, TimeseriesSchema
+
+import pandas as pd
 import pandera as pa
 from pandera.typing import DataFrame
+
+from ai_cdss.models import ScoringSchema, PPFSchema, SessionSchema, TimeseriesSchema
+
+import logging
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------
+# Data Processor Class
 
 class DataProcessor:
     """
@@ -33,22 +39,6 @@ class DataProcessor:
         List of weights :math:`\\alpha`, :math:`\\beta`, :math:`\\gamma` for computing the final score.
     alpha : float
         The smoothing factor for EWMA, controlling how much past values influence the trend.
-
-    Methods
-    -------
-    process_data(session_data, timeseries_data, ppf_data)
-        Processes session and timeseries data, computes adherence and DM EWMA, and
-        calculates final scoring.
-        
-    compute_ewma(df, value_col, group_cols)
-        Computes Exponential Weighted Moving Average (EWMA):
-
-        .. math::
-            
-            EWMA_t = \\alpha \\cdot X_t + (1 - \\alpha) \\cdot EWMA_{t-1}
-
-    compute_score(scoring)
-        Computes the final scoring function.
     """
     def __init__(self, weights: List[float] = [1,1,1], alpha: float = 0.5):
         """

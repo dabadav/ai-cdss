@@ -74,7 +74,7 @@ html_theme_options = {
     "use_edit_page_button": False,
     "navigation_with_keys": False,
     "navigation_depth": 3,
-    "collapse_navigation": False,  # Keep expanded navigation
+    "collapse_navigation": True,  # Keep expanded navigation
     "show_toc_level": 0,
     "show_nav_level": 2,
     "show_prev_next": False,        # Hides the previous/next buttons
@@ -237,7 +237,6 @@ def skip_inherited_and_config(app, what, name, obj, skip, options):
         if "pa" in defining_class.__module__:
             return True
     return skip
-
 
 # Sphinx hook to run custom logic before build
 def setup(app):

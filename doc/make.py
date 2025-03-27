@@ -9,16 +9,6 @@ def clean_docs():
         shutil.rmtree(build_path)
         print("Removed old documentation.")
 
-def generate_apidoc():
-    """Automatically generates Sphinx documentation from Python docstrings."""
-    source_dir = "doc/source/api"
-    module_dir = "src/ai_cdss"  # Change this to your Python package directory
-    if not os.path.exists(source_dir):
-        os.makedirs(source_dir)
-    
-    subprocess.run(["sphinx-apidoc", "-o", source_dir, module_dir, "--force"])
-    print("Generated API documentation.")
-
 def build_docs():
     """Builds HTML documentation."""
     output_dir = "doc/build/html"
@@ -28,5 +18,4 @@ def build_docs():
 
 if __name__ == "__main__":
     clean_docs()
-    # generate_apidoc()
     build_docs()
