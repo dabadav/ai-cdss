@@ -3,13 +3,13 @@ from pydantic import BaseModel, RootModel, Field
 from typing import List, Optional, Dict
 
 class RecommendationRequest(BaseModel):
-    patient_list: List[int]
-    rgs_mode: Optional[str] = None
-    weights: Optional[List[int]] = None
-    alpha: Optional[float] = None
-    n: Optional[int] = None
-    days: Optional[int] = None
-    protocols_per_day: Optional[int] = None
+    patient_list: List[int] = Field(..., example=[775])
+    rgs_mode: Optional[str] = Field(None, example="app")
+    weights: Optional[List[int]] = Field(None, example=[1, 1, 1])
+    alpha: Optional[float] = Field(None, example=0.5)
+    n: Optional[int] = Field(None, example=12)
+    days: Optional[int] = Field(None, example=7)
+    protocols_per_day: Optional[int] = Field(None, example=5)
 
 class RecommendationOut(BaseModel):
     patient_id: int = Field(alias="PATIENT_ID")
