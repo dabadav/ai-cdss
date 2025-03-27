@@ -349,10 +349,12 @@ to download the full example code.</p>
 <span id="sphx-glr-auto-examples-recommend-usage-py"></span><h1>Basic usage of CDSS to generate a protocol recommendation.<a class="headerlink" href="#basic-usage-of-cdss-to-generate-a-protocol-recommendation" title="Link to this heading">#</a></h1>
 <p>This example demonstrates how to use the <cite>DataLoader</cite>, <cite>DataProcessor</cite>, and <cite>CDSS</cite>
 to load data and generate a 7-day protocol plan.</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>   PATIENT_ID  PROTOCOL_ID       PPF                                            CONTRIB  ADHERENCE  DM_VALUE   PE_VALUE  USAGE                DAYS     SCORE
-0           1            1  0.562178  [0.212189, 0.033685, 0.077469, 0.102304, 0.136...   0.712004  6.890026  34.447853    100     [0, 1, 2, 3, 6]  8.164208
-1           1            2  0.965500    [0.43319, 0.062738, 0.203374, 0.2528, 0.013398]   0.655415  6.119549  77.907190    100     [1, 2, 3, 4, 5]  7.740464
-2           1            3  0.812396   [0.100859, 0.02016, 0.007253, 0.32066, 0.363464]   0.651554  6.750162  39.498897    100  [0, 1, 2, 3, 4, 5]  8.214112
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>   PATIENT_ID  PROTOCOL_ID       PPF  ... USAGE                DAYS     SCORE
+0           1            1  0.562178  ...   100     [0, 1, 2, 3, 6]  8.164208
+1           1            2  0.965500  ...   100     [1, 2, 3, 4, 5]  7.740464
+2           1            3  0.812396  ...   100  [0, 1, 2, 3, 4, 5]  8.214112
+
+[3 rows x 10 columns]
 </pre></div>
 </div>
 <div class="line-block">
@@ -416,7 +418,7 @@ to load data and generate a 7-day protocol plan.</p>
 <span class="nb">print</span><span class="p">(</span><span class="n">recommendation</span><span class="p">)</span>
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.931 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.873 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-recommend-usage-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/aa750e9abe7f1471f9842a3481afb58a/recommend_usage.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">recommend_usage.ipynb</span></code></a></p>
