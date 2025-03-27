@@ -34,7 +34,6 @@ extensions = [
     "sphinx.ext.graphviz",        # Enables Graphviz diagrams
     "sphinx.ext.inheritance_diagram",  # Class hierarchy visualization
     "numpydoc",
-    # "sphinxcontrib.sphinx_pandera",  # Render pandera schemas
     "sphinxcontrib.mermaid",
     "sphinx_gallery.gen_gallery",
 ]
@@ -49,6 +48,7 @@ html_static_path = ['_static']
 html_css_files = [
     "style.css",
 ]
+html_js_files = ['modal.js']
 
 htmlhelp_basename = 'CDSSDoc'
 
@@ -121,6 +121,7 @@ sphinx_gallery_conf = {
 # -- Autodoc Settings (Controls Function/Class Documentation) ----------------
 
 autosummary_generate = True
+autodoc_member_order = 'bysource'
 autodoc_default_options = {"inherited-members": None}
 
 # -- Type Hint Settings ------------------------------------------------------
@@ -137,7 +138,6 @@ myst_enable_extensions = [
     "dollarmath",
     "amsmath",
 ]
-
 
 # -- Extensions for Better Documentation -------------------------------------
 
