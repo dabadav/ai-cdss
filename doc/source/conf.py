@@ -49,7 +49,6 @@ html_css_files = [
     "style.css",
 ]
 html_js_files = ['modal.js']
-
 htmlhelp_basename = 'CDSSDoc'
 
 # -- PyData theme Configuration -----------------------------------------------

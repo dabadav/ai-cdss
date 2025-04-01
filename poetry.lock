@@ -2173,6 +2173,26 @@ pandera = ">=0,<1"
 sphinx = ">=7"
 
 [[package]]
+name = "sphinx-revealjs"
+version = "3.1.4"
+description = "Sphinx extension with theme to generate Reveal.js presentation"
+optional = false
+python-versions = ">=3.9"
+groups = ["dev"]
+files = [
+    {file = "sphinx_revealjs-3.1.4-py3-none-any.whl", hash = "sha256:1accfb8f3469df2298f84d0d0c7bc8e30ea10fbe74a4c17c723b913ee6a7cd79"},
+    {file = "sphinx_revealjs-3.1.4.tar.gz", hash = "sha256:39e5931e36f5654e96130c8ac1550d366cdf3d66cfb0d41ec7e664a0da0d5466"},
+]
+
+[package.dependencies]
+docutils = "*"
+packaging = "*"
+Sphinx = ">=4.0"
+
+[package.extras]
+screenshot = ["playwright"]
+
+[[package]]
 name = "sphinx-rtd-theme"
 version = "3.0.2"
 description = "Read the Docs theme for Sphinx"
@@ -2574,4 +2594,4 @@ standard = ["colorama (>=0.4) ; sys_platform == \"win32\"", "httptools (>=0.6.3)
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "6d1f09d05430fbc2847d83343259255efe0c0c4d40735787fd906cf4c98ab73c"
+content-hash = "0c0fce0b47737399c29fb64ee9223c14b27e166582e35335caea190b53de8ef3"

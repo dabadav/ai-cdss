@@ -1,3 +1,4 @@
+# ai_cdss/data_loader.py
 from abc import ABC, abstractmethod
 from typing import List
 from pathlib import Path
@@ -7,7 +8,7 @@ import pandera as pa
 from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
-from ai_cdss.models import SessionSchema, TimeseriesSchema, PPFSchema, PCMSchema
+from ai_cdss.models import SessionSchema, TimeseriesSchema, PPFSchema, PCMSchema, safe_check_types
 from ai_cdss.evaluation.synthetic import generate_synthetic_session_data, generate_synthetic_protocol_similarity, generate_synthetic_timeseries_data, generate_synthetic_ppf_data, generate_synthetic_ids
 from rgs_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
 
@@ -56,7 +57,7 @@ class DataLoader(DataLoaderBase):
         """
         self.rgs_mode = rgs_mode
 
-    @pa.check_types
+    @safe_check_types(SessionSchema)
     def load_session_data(self, patient_list: List[int]) -> DataFrame[SessionSchema]:
         """
         Load session data from the RGS interface.
@@ -77,7 +78,7 @@ class DataLoader(DataLoaderBase):
             logger.error(f"Failed to load session data: {e}")
             raise
 
-    @pa.check_types
+    @safe_check_types(TimeseriesSchema)
     def load_timeseries_data(self, patient_list: List[int]) -> DataFrame[TimeseriesSchema]:
         """
         Load timeseries data from the RGS interface.
@@ -196,11 +197,11 @@ class DataLoaderMock(DataLoaderBase):
         )
         self.num_protocols = num_protocols
 
-    @pa.check_types
+    @safe_check_types(SessionSchema)
     def load_session_data(self, patient_list: List[int]) -> DataFrame[SessionSchema]:
         return generate_synthetic_session_data(shared_ids=self.ids)
 
-    @pa.check_types
+    @safe_check_types(TimeseriesSchema)
     def load_timeseries_data(self, patient_list: List[int]) -> DataFrame[TimeseriesSchema]:
         return generate_synthetic_timeseries_data(shared_ids=self.ids)
 

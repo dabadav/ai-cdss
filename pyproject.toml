@@ -37,6 +37,7 @@ jinja2 = "^3.1.6"
 pluggy = "^1.5.0"
 numpydoc = "^1.8.0"
 sphinxcontrib-mermaid = "^1.0.0"
+sphinx-revealjs = "^3.1.4"
 
 [tool.poetry.group.api.dependencies]
 pydantic-settings = "^2.8.1"

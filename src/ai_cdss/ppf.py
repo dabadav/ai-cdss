@@ -35,7 +35,7 @@ Run this script from the command line:
 
 from pathlib import Path
 import pandas as pd
-from ai_cdss.processing import ClinicalSubscales, ProtocolToClinicalMapper, compute_ppf, merge_data, compute_protocol_similarity
+from ai_cdss.processing import ClinicalSubscales, ProtocolToClinicalMapper, compute_ppf, compute_protocol_similarity
 import shutil
 
 # Default data directory
@@ -98,7 +98,7 @@ def main():
     protocol_mapped    = ProtocolToClinicalMapper().map_protocol_features(protocol)
 
     ppf, contrib = compute_ppf(patient_deficiency, protocol_mapped)
-    ppf_contrib = merge_data(ppf, contrib)
+    ppf_contrib = pd.merge(ppf, contrib, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
     ppf_contrib.set_index('PATIENT_ID', inplace=True)
 
     # Save Contrib Subscales as metadata

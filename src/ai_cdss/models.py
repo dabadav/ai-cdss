@@ -1,8 +1,25 @@
+# ai_cdss/models.py
 import pandera as pa
-from typing import List
-from functools import partial
+import pandas as pd
+from typing import List, Callable, Type
+from functools import partial, wraps
+import logging
 
 NullableField = partial(pa.Field, nullable=True)
+
+# Set up logging
+logger = logging.getLogger("ai_cdss.models")
+logger.setLevel(logging.INFO)
+
+# Avoid adding multiple handlers in interactive environments
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+logger.propagate = False
+
 
 # ---------------------------------------------------------------------
 # RGS Data Input
@@ -117,3 +134,65 @@ class ScoringSchema(pa.DataFrameModel):
     dm: float = pa.Field(alias="DM_VALUE", ge=0, description="Must be non-negative.")
     contrib: List[float] = pa.Field(alias="CONTRIB", nullable=False, coerce=True)
     score: float = pa.Field(alias="SCORE", ge=0, description="Score must be a positive float.")
+
+# ---------------------------------------------------------------------
+# Validation Decorator
+
+def safe_check_types(schema_model: Type[pa.DataFrameModel]):
+    """
+    Custom decorator: skips dtype checks for nullable columns with all null values.
+    schema_model: A pandera DataFrameModel class.
+    """
+    schema = schema_model.to_schema()
+
+    def decorator(func: Callable):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            df: pd.DataFrame = func(*args, **kwargs)
+            
+            if df.empty:
+                logger.warning("Returned DataFrame is empty.")
+
+            modified_columns = {}
+            skipped_columns = []
+
+            for col_name, col_schema in schema.columns.items():
+                if col_schema.nullable and df[col_name].isna().all():
+                    skipped_columns.append(col_name)                    # Skip dtype validation for this nullable column with all nulls
+                    modified_columns[col_name] = pa.Column(
+                        dtype=None,
+                        checks=col_schema.checks,
+                        nullable=col_schema.nullable,
+                        required=col_schema.required,
+                        unique=col_schema.unique,
+                        coerce=col_schema.coerce,
+                        regex=col_schema.regex,
+                        description=col_schema.description,
+                        title=col_schema.title,
+                    )
+                else:
+                    # Keep original schema if dtype validation is needed
+                    modified_columns[col_name] = col_schema
+            
+            # Log all skipped columns once
+            if skipped_columns:
+                logger.info(
+                    f"Skipping dtype check for nullable columns with all null values: {', '.join(skipped_columns)}"
+                )
+
+            # Reconstruct modified schema
+            temp_schema = pa.DataFrameSchema(
+                columns=modified_columns,
+                checks=schema.checks,
+                index=schema.index,
+                dtype=schema.dtype,
+                coerce=schema.coerce,
+                strict=schema.strict,
+            )
+
+            # Perform validation
+            validated_df = temp_schema.validate(df)
+            return validated_df
+
+        return wrapper
+    return decorator

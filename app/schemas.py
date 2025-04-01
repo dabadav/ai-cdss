@@ -1,10 +1,15 @@
 # schemas.py
 from pydantic import BaseModel, RootModel, Field
 from typing import List, Optional, Dict
+from enum import Enum
+
+class RGSMode(str, Enum):
+    app = "app"
+    plus = "plus"
 
 class RecommendationRequest(BaseModel):
     patient_list: List[int] = Field(..., example=[775])
-    rgs_mode: Optional[str] = Field(None, example="app")
+    # rgs_mode: Optional[str] = Field(None, example="app")
     weights: Optional[List[int]] = Field(None, example=[1, 1, 1])
     alpha: Optional[float] = Field(None, example=0.5)
     n: Optional[int] = Field(None, example=12)

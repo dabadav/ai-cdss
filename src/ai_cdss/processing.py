@@ -106,9 +106,6 @@ def compute_ppf(patient_deficiency, protocol_mapped):
 
     return ppf_long, contrib_long
 
-def merge_data(left, right):
-    return pd.merge(left, right, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
-
 def compute_protocol_similarity(protocol_mapped):
     """ Compute protocol similarity.
     """

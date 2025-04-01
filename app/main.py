@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from typing import List
 from .config import Settings
 from .dependencies import get_settings
-from .schemas import RecommendationRequest, RecommendationsResponse, RecommendationOut
+from .schemas import RecommendationRequest, RecommendationsResponse, RecommendationOut, RGSMode
 from ai_cdss.cdss import CDSS
 from ai_cdss.data_loader import DataLoader
 from ai_cdss.data_processor import DataProcessor
@@ -39,8 +39,8 @@ def get_top_contributing_features(values: List[float], keys: List[str], top_n: i
     tags=["Recommendations"]    
     )
 def recommend(
-    rgs_mode,
     request: RecommendationRequest,
+    rgs_mode: RGSMode = RGSMode.app,
     settings: Settings = Depends(get_settings),
 ):
     # rgs_mode = request.rgs_mode or settings.RGS_MODE
@@ -50,7 +50,7 @@ def recommend(
     days = request.days or settings.DAYS
     protocols_per_day = request.protocols_per_day or settings.PROTOCOLS_PER_DAY
 
-    loader = DataLoader(rgs_mode=rgs_mode)
+    loader = DataLoader(rgs_mode=rgs_mode.value)
     processor = DataProcessor(weights=weights, alpha=alpha)
 
     session = loader.load_session_data(patient_list=request.patient_list)
