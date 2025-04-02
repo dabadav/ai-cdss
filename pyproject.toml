@@ -38,6 +38,7 @@ pluggy = "^1.5.0"
 numpydoc = "^1.8.0"
 sphinxcontrib-mermaid = "^1.0.0"
 sphinx-revealjs = "^3.1.4"
+pytest-cov = "^6.1.0"
 
 [tool.poetry.group.api.dependencies]
 pydantic-settings = "^2.8.1"
