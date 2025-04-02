@@ -45,10 +45,16 @@ processor = DataProcessor(
 session = loader.load_session_data(patient_list=PATIENT_LIST)
 timeseries = loader.load_timeseries_data(patient_list=PATIENT_LIST)
 ppf = loader.load_ppf_data(patient_list=PATIENT_LIST)
+init_metrics = loader.load_protocol_init()
+
 
 protocol_similarity = loader.load_protocol_similarity()
 
-scores = processor.process_data(session_data=session, timeseries_data=timeseries, ppf_data=ppf)
+scores = processor.process_data(
+    session_data=session, 
+    timeseries_data=timeseries, 
+    ppf_data=ppf,
+    init_data=init_metrics)
 
 # CDSS
 cdss = CDSS(
