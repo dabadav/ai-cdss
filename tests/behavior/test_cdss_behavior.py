@@ -37,7 +37,6 @@ def test_cdss_pipeline_behavior(synthetic_data_factory):
     )
 
     # Load protocol similarity
-    loader = DataLoader(rgs_mode="app")
     protocol_similarity = loader.load_protocol_similarity()
 
     # Run CDSS
