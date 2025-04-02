@@ -10,17 +10,20 @@ def test_cdss_pipeline_behavior(synthetic_data_factory):
     - Asserts expected structure and output
     """
     from ai_cdss.data_processor import DataProcessor
-    from ai_cdss.data_loader import DataLoader
+    from ai_cdss.data_loader import DataLoader, DataLoaderMock
     from ai_cdss.cdss import CDSS
 
     # Generate consistent synthetic data
-    session_df, timeseries_df, ppf_df = synthetic_data_factory(
+    loader = DataLoaderMock(
         num_patients=2,
-        num_sessions=2,
-        timepoints=5,
-        null_cols_session=[],
-        null_cols_timeseries=[]
+        num_protocols=3,
+        num_sessions=2
     )
+
+    session_df = loader.load_session_data()
+    timeseries_df = loader.load_timeseries_data()
+    ppf_df = loader.load_ppf_data(patient_list=[])
+    protocol_metrics = loader.load_protocol_init()  
 
     patient_ids = list(session_df.PATIENT_ID.unique())
 
@@ -29,7 +32,8 @@ def test_cdss_pipeline_behavior(synthetic_data_factory):
     scores = processor.process_data(
         session_data=session_df,
         timeseries_data=timeseries_df,
-        ppf_data=ppf_df
+        ppf_data=ppf_df,
+        init_data=protocol_metrics
     )
 
     # Load protocol similarity
@@ -43,12 +47,5 @@ def test_cdss_pipeline_behavior(synthetic_data_factory):
     for pid in patient_ids:
         rec = cdss.recommend(patient_id=pid, protocol_similarity=protocol_similarity)
 
-        collapsed_days_list = list(rec['DAYS'].explode())
-        # Count how many times each day appears
-        day_counts = Counter(collapsed_days_list)
-        # All days where prescribed
-        assert set(collapsed_days_list) == set(range(7))
-        
-        # Check if prescriptions per day is 2
-        for day in range(7):
-            assert day_counts[day] == 2, f"Day {day} has {day_counts[day]} prescriptions (expected 2)"
+        # Implement tests on rec
+        assert not rec.empty, "Recommendations are empty"

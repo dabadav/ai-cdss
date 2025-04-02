@@ -121,9 +121,9 @@ def generate_synthetic_timeseries_data(shared_ids, num_timepoints=10, columns_wi
                 "GAME_MODE": np.random.choice(["STANDARD", "PAY", "SPELL_WORDS"]),
                 "SECONDS_FROM_START": timepoint * np.random.randint(1000, 5000),
                 "DM_KEY": f"param_{np.random.randint(1, 5)}",
-                "DM_VALUE": np.round(np.random.uniform(0, 10), 2),
+                "DM_VALUE": np.round(np.random.uniform(0, 1), 2),
                 "PE_KEY": f"metric_{np.random.randint(1, 3)}",
-                "PE_VALUE": np.round(np.random.uniform(0, 100), 2)
+                "PE_VALUE": np.round(np.random.uniform(0, 1), 2)
             }
 
             for col in columns_with_nulls:
@@ -219,3 +219,76 @@ def generate_synthetic_protocol_similarity(num_protocols=5, seed=42):
 
     df = pd.DataFrame(data)
     return PCMSchema.validate(df)
+
+# -- Synthetic Protocol Initial Metrics
+
+def generate_synthetic_protocol_metric(
+    num_protocols=10,
+    adherence_mode="sample",
+    dm_delta_mode="sample",
+    adherence_params={"dist": "normal", "loc": 0.8, "scale": 0.1},
+    dm_delta_params={"dist": "exponential", "scale": 0.002},
+    uniform_adherence=0.75,
+    uniform_dm_delta=0.001,
+    seed=42
+):
+    """
+    Generate synthetic protocol-level adherence and DM_DELTA metrics.
+
+    Parameters
+    ----------
+    num_protocols : int
+        Number of protocol IDs to generate.
+    adherence_mode : str
+        "sample" to draw from distribution, "uniform" for fixed value.
+    dm_delta_mode : str
+        Same as adherence_mode.
+    adherence_params : dict
+        Parameters for adherence distribution.
+    dm_delta_params : dict
+        Parameters for dm_delta distribution.
+    uniform_adherence : float
+        Value to use if adherence_mode is "uniform".
+    uniform_dm_delta : float
+        Value to use if dm_delta_mode is "uniform".
+    seed : int
+        Random seed.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with PROTOCOL_ID, ADHERENCE, DM_DELTA.
+    """
+    import numpy as np
+    import pandas as pd
+
+    np.random.seed(seed)
+    protocol_ids = list(range(1, num_protocols + 1))
+    n = len(protocol_ids)
+
+    def sample_distribution(params, size):
+        dist = getattr(np.random, params["dist"])
+        kwargs = {k: v for k, v in params.items() if k != "dist"}
+        return dist(size=size, **kwargs)
+
+    # Generate adherence
+    if adherence_mode == "sample":
+        adherence = sample_distribution(adherence_params, n)
+        adherence = np.clip(adherence, 0, 1)  # keep in [0,1]
+    else:
+        adherence = np.full(n, uniform_adherence)
+
+    # Generate DM_DELTA
+    if dm_delta_mode == "sample":
+        dm_delta = sample_distribution(dm_delta_params, n)
+        dm_delta = np.clip(dm_delta, 0, None)  # ensure non-negative
+    else:
+        dm_delta = np.full(n, uniform_dm_delta)
+
+    df = pd.DataFrame({
+        "PROTOCOL_ID": protocol_ids,
+        "ADHERENCE": np.round(adherence, 6),
+        "DM_DELTA": np.round(dm_delta, 10)
+    })
+
+    return df

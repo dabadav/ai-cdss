@@ -5,7 +5,20 @@ import pandera as pa
 from pandera.typing import DataFrame
 
 from ai_cdss.models import ScoringSchema, PPFSchema, SessionSchema, TimeseriesSchema
-
+from ai_cdss.constants import (
+    BY_PP, BY_PPS, BY_PPST, 
+    PROTOCOL_ID, 
+    SESSION_ID,
+    DM_KEY, PE_KEY,
+    DM_VALUE, PE_VALUE,
+    ADHERENCE, 
+    USAGE,
+    DAYS,
+    WEEKDAY_INDEX,
+    PRESCRIPTION_ENDING_DATE,
+    PRESCRIPTION_ACTIVE,
+    FINAL_METRICS
+)
 import logging
 
 # Set up logging
@@ -40,7 +53,11 @@ class DataProcessor:
     alpha : float
         The smoothing factor for EWMA, controlling how much past values influence the trend.
     """
-    def __init__(self, weights: List[float] = [1,1,1], alpha: float = 0.5):
+    def __init__(
+        self,
+        weights: List[float] = [1,1,1], 
+        alpha: float = 0.5
+    ):
         """
         Initialize the data processor with optional weights for scoring.
         """
@@ -48,7 +65,13 @@ class DataProcessor:
         self.alpha = alpha
 
     @pa.check_types
-    def process_data(self, session_data: DataFrame[SessionSchema], timeseries_data: DataFrame[TimeseriesSchema], ppf_data: DataFrame[PPFSchema]) -> DataFrame[ScoringSchema]:
+    def process_data(
+        self, 
+        session_data: DataFrame[SessionSchema], 
+        timeseries_data: DataFrame[TimeseriesSchema], 
+        ppf_data: DataFrame[PPFSchema], 
+        init_data: pd.DataFrame
+    ) -> DataFrame[ScoringSchema]:
         """
         Process and score patient-protocol combinations using session, timeseries, and PPF data.
 
@@ -69,79 +92,82 @@ class DataProcessor:
         DataFrame[ScoringSchema]
             Final scored dataframe with protocol recommendations.
         """
-        data = self.merge_session_and_timeseries(session_data=session_data, timeseries_data=timeseries_data)
-        score = self.compute_patient_protocol_scores(data, ppf_data)
-        score.attrs = ppf_data.attrs # Propagate attrs
-        return score
 
-    def merge_session_and_timeseries(self, session_data: DataFrame[SessionSchema], timeseries_data: DataFrame[TimeseriesSchema]):
-        """
-        Merge and align session and timeseries data for each patient and protocol.
+        # 1. Preprocess time series
+        ts_processed = self.preprocess_timeseries(timeseries_data)
+        # 2. Preprocess session data
+        ss_processed = self.preprocess_sessions(session_data)
+        # 3.1 Merge session and timeseries data
+        merged_data = ss_processed.merge(ts_processed, on=BY_PPS, how="left")
+        # 3.2 Aggregate metrics per protocol
+        data = merged_data.groupby(by=BY_PP)[FINAL_METRICS].last()
+        # 3.3 Merge session, timeseries, and ppf
+        data = ppf_data.merge(data, on=BY_PP, how="left")
+        # 4. Compute scores
+        scored_data = self.compute_score(data, init_data)
+        # 5. Propagate metadata
+        scored_data.attrs = ppf_data.attrs
 
-        Applies EWMA to adherence, DMs, and performance values, and joins the
-        processed timeseries with session-level info.
+        return scored_data
 
-        Parameters
-        ----------
-        session_data : DataFrame[SessionSchema]
-            The session metadata per patient and protocol.
-        timeseries_data : DataFrame[TimeseriesSchema]
-            Detailed timepoint observations for difficulty and performance.
-
-        Returns
-        -------
-        pd.DataFrame
-            Merged and preprocessed dataset ready for protocol-level aggregation.
-        """
-        # Aggregate timeseries by session
-        timeseries = (
-            timeseries_data
-            .pipe(self.aggregate_dms_by_time) # Merge same timepoint DMs
-            .sort_values(by=["PATIENT_ID", "SESSION_ID", "SECONDS_FROM_START"]) # Sort df by time
-            .pipe(self.compute_ewma, value_col="DM_VALUE", group_cols=["PATIENT_ID", "PROTOCOL_ID"]) # Compute DM EWMA
-            .pipe(self.compute_ewma, value_col="PE_VALUE", group_cols=["PATIENT_ID", "PROTOCOL_ID"]) # Compute PE EWMA
-        )
+    def preprocess_timeseries(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
+        ts = self.aggregate_dms_by_time(timeseries_data)
+        ts = ts.sort_values(by=BY_PPST)
         
-        # Compute ewma adherence
-        session = (
-            session_data
-            .sort_values(by=["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID"]) # Sort df by protocol, session
-            .pipe(self.compute_ewma, value_col="ADHERENCE", group_cols=["PATIENT_ID", "PROTOCOL_ID"]) # Compute Adherence EWMA
-        )
+        # Compute delta
+        ts[DM_VALUE] = ts.groupby(by=BY_PP)[DM_VALUE].diff().fillna(0)
+        ts[PE_VALUE] = ts.groupby(by=BY_PP)[PE_VALUE].diff().fillna(0)
+
+        # Compute ewma
+        ts = self._compute_ewma(ts, DM_VALUE, BY_PP)
+        ts = self._compute_ewma(ts, PE_VALUE, BY_PP)
+
+        return ts
+
+    def preprocess_sessions(self, session_data: pd.DataFrame) -> pd.DataFrame:
+        session = session_data.sort_values(by=BY_PPS)
         
-        # Merge session and timeseries data and compute protocol metrics ADHERENCE and ACTIVE PRESCRIPTIONS
-        data = session.merge(timeseries, on=["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID"], how="left")
+        # Compute ewma
+        session = self._compute_ewma(session, ADHERENCE, BY_PP)
 
-        return data
+        # Compute usage
+        session[USAGE] = session.groupby(BY_PP)[SESSION_ID].transform("nunique").astype("Int64")
+        
+        # Compute days
+        prescribed_days = (
+            session[session[PRESCRIPTION_ENDING_DATE] == PRESCRIPTION_ACTIVE]
+            .groupby(BY_PP)[WEEKDAY_INDEX]
+            .agg(lambda x: sorted(x.unique()))
+            .rename(DAYS)
+        )
 
-    def compute_patient_protocol_scores(self, data, ppf_data):
+        # Merge days into session DataFrame
+        session = session.merge(prescribed_days, on=BY_PP, how="left")
+
+        return session
+
+    def compute_score(self, data, protocol_metrics):
         """
-        Combine protocol-level metrics and PPF values to compute a final score.
-
-        Merges adherence, DM, and PPF features and applies the scoring formula.
+        Initializes metrics based on legacy data and computes score
 
         Parameters
         ----------
         data : pd.DataFrame
             Aggregated session and timeseries data per patient-protocol.
-        ppf_data : DataFrame[PPFSchema]
-            Patient-Protocol Fitness dataframe with global and feature-level scores.
 
         Returns
         -------
         pd.DataFrame
             Scored DataFrame sorted by patient and protocol.
         """
-        # Aggregate metrics per protocol
-        data = self.aggregate_metrics_per_protocol(data)
-        # Merge session, timeseries, and ppf
-        data = ppf_data.merge(data, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
         # Initialize missing values
-        data = self.initialize_missing_metrics(data)
+        data = self._init_metrics(data, protocol_metrics)
         # Compute objective function score alpha*Adherence + beta*DM + gamma*PPF
-        score = self.compute_score(data)
+        score = self._compute_score(data)
+        
         # Sort the output dataframe
-        score.sort_values(by=["PATIENT_ID", "PROTOCOL_ID"], inplace=True)
+        score.sort_values(by=BY_PP, inplace=True)
+
         return score
 
     def aggregate_dms_by_time(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
@@ -162,47 +188,18 @@ class DataProcessor:
         """
         return (
             timeseries_data
-            .sort_values(by=["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID", "SECONDS_FROM_START"]) # Sort df by time
-            .groupby(["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID", "GAME_MODE", "SECONDS_FROM_START"])
+            .sort_values(by=BY_PPST) # Sort df by time
+            .groupby(BY_PPST)
             .agg({
-                "DM_KEY": lambda x: tuple(set(x)),  # Unique parameters at this time
-                "DM_VALUE": "mean",               # Average parameter value
-                "PE_KEY": "first",                # Assume same performance key per time, take first
-                "PE_VALUE": "mean"                # Average performance value (usually only one)
+                DM_KEY: lambda x: tuple(set(x)),  # Unique parameters at this time
+                DM_VALUE: "mean",               # Average parameter value
+                PE_KEY: "first",                # Assume same performance key per time, take first
+                PE_VALUE: "mean"                # Average performance value (usually only one)
             })
             .reset_index()
         )
 
-    def aggregate_metrics_per_protocol(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Aggregate EWMA values and adherence metrics at the protocol level.
-
-        Also computes usage frequency and determines recommended weekdays.
-
-        Parameters
-        ----------
-        data : pd.DataFrame
-            Merged session-timeseries data.
-
-        Returns
-        -------
-        pd.DataFrame
-            Aggregated features per (PATIENT_ID, PROTOCOL_ID).
-        """
-        return (
-            data
-            .sort_values(["PATIENT_ID", "PROTOCOL_ID", "SESSION_ID", "SECONDS_FROM_START"])
-            .groupby(["PATIENT_ID", "PROTOCOL_ID"])
-            .agg(
-                ADHERENCE=("ADHERENCE", "last"),
-                DM_VALUE=("DM_VALUE", "last"),
-                PE_VALUE=("PE_VALUE", "last"),
-                USAGE=("SESSION_ID", "count"),
-                DAYS=("WEEKDAY_INDEX", lambda x: sorted(x[data.loc[x.index, "PRESCRIPTION_ENDING_DATE"] == "2100-01-01"].unique())),
-            )
-        )
-
-    def initialize_missing_metrics(self, data: pd.DataFrame) -> pd.DataFrame:
+    def _init_metrics(self, data: pd.DataFrame, protocol_metrics: pd.DataFrame) -> pd.DataFrame:
         """
         Fill missing protocol-level metrics with zeros.
 
@@ -216,10 +213,21 @@ class DataProcessor:
         pd.DataFrame
             Safe dataframe with no NaNs.
         """
+        # data = data.fillna(0)
+
+        # Make sure protocol_metrics has PROTOCOL_ID as index
+        protocol_metrics = protocol_metrics.set_index(PROTOCOL_ID)
+
+        # Only fill NaNs using map for matching PROTOCOL_IDs
+        data[ADHERENCE] = data[ADHERENCE].fillna(data[PROTOCOL_ID].map(protocol_metrics[ADHERENCE]))
+        data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics["DM_DELTA"]))
+        data[PE_VALUE] = data[PE_VALUE].fillna(0)
+        data[DAYS]  = data[DAYS].fillna(0)
+        data[USAGE] = data[USAGE].fillna(0)
         data = data.fillna(0)
         return data
     
-    def compute_ewma(self, df, value_col, group_cols):
+    def _compute_ewma(self, df, value_col, group_cols):
         """
         Compute Exponential Weighted Moving Average (EWMA) over grouped time series.
 
@@ -238,10 +246,10 @@ class DataProcessor:
             DataFrame with EWMA column replacing the original.
         """
         return df.assign(
-            **{f"{value_col}": df.groupby(group_cols)[value_col].transform(lambda x: x.ewm(alpha=self.alpha, adjust=True).mean())}
+            **{f"{value_col}": df.groupby(by=group_cols)[value_col].transform(lambda x: x.ewm(alpha=self.alpha, adjust=True).mean())}
         )
 
-    def compute_score(self, scoring: pd.DataFrame) -> pd.DataFrame:
+    def _compute_score(self, scoring: pd.DataFrame) -> pd.DataFrame:
         """
         Compute the final score based on adherence, DM, and PPF values.
 

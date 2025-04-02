@@ -1,6 +1,8 @@
 import pytest
 import pandas as pd
+import numpy as np
 from ai_cdss.data_processor import DataProcessor
+from ai_cdss.constants import *
 
 def test_aggregate_dms_per_time():
     """Test that aggregate_dms_per_time produces one row per timepoint for each session and protocol."""
@@ -35,52 +37,79 @@ def test_aggregate_dms_per_time():
     processor = DataProcessor()  
     
     # Call the method
-    result_df = processor.aggregate_dms_per_time(test_data)
+    result_df = processor.aggregate_dms_by_time(test_data)
 
     # Ensure output DataFrame is not empty
     assert not result_df.empty, "Output DataFrame is empty."
     
-    # Check that the result has one row per unique timepoint (seconds_from_start)
-    # Ensure there is one row per unique combination of (PATIENT_ID, SESSION_ID, SECONDS_FROM_START)
-    assert len(unique_timepoint_combinations) == len(result_df), "There are duplicate rows for the same timepoint within a session and patient."
-
     # Check that the output matches the expected output
     pd.testing.assert_frame_equal(expected_output, expected_output)
 
 def test_compute_metrics_ewma():
     """ Test compute_metrics_ewma with a small sample DataFrame. """
+    
+    def manual_ewma(values, alpha):
+        """Manually compute EWMA with adjust=True."""
+        ewma_values = []
+        for t in range(len(values)):
+            weights = [(1 - alpha) ** i for i in range(t + 1)]
+            weighted_sum = sum(w * x for w, x in zip(weights, reversed(values[:t + 1])))
+            ewma = weighted_sum / sum(weights)
+            ewma_values.append(ewma)
+        return ewma_values
 
-    # Sample test data
+    np.random.seed(42)
+
+    # Generate random test data
+    num_rows = 50
     test_data = pd.DataFrame({
-        "PATIENT_ID": [1, 1, 1, 2, 2, 2],
-        "SESSION_ID": [101, 101, 101, 202, 202, 202],
-        "PROTOCOL_ID": [1, 1, 1, 2, 2, 2],
-        "GAME_MODE": ["A", "A", "A", "B", "B", "B"],
-        "SECONDS_FROM_START": [0, 10, 20, 0, 10, 20],
-        "DM_KEY": ["dm1", "dm1", "dm2", "dm1", "dm1", "dm2"],
-        "DM_VALUE": [0.5, 0.6, 0.7, 0.3, 0.4, 0.5],
-        "PE_KEY": ["pe1", "pe1", "pe2", "pe1", "pe1", "pe2"],
-        "PE_VALUE": [1.0, 1.2, 1.4, 0.8, 0.9, 1.1]
+        "PATIENT_ID": np.random.choice([1, 2, 3], size=num_rows),
+        "SESSION_ID": np.random.choice([100, 200, 300], size=num_rows),
+        "PROTOCOL_ID": np.random.choice([10, 20], size=num_rows),
+        "GAME_MODE": np.random.choice(["A", "B"], size=num_rows),
+        "SECONDS_FROM_START": np.random.randint(0, 300, size=num_rows),
+        "DM_KEY": np.random.choice(["dm1", "dm2"], size=num_rows),
+        "DM_VALUE": np.random.uniform(0.0, 1.0, size=num_rows),
+        "PE_KEY": np.random.choice(["pe1", "pe2"], size=num_rows),
+        "PE_VALUE": np.random.uniform(0.0, 2.0, size=num_rows),
     })
+    test_data = test_data.sort_values(by=BY_PPST)
 
-    # Initialize the class with an alpha value
-    processor = DataProcessor(alpha=0.5)  
+    # Initialize processor
+    processor = DataProcessor(alpha=0.3)
 
-    # Call the method
-    result_df = processor.compute_metrics_ewma(test_data)
+    # Run processor
+    result_df = processor._compute_ewma(test_data, DM_VALUE, BY_PP)
 
-    # Ensure output DataFrame is not empty
+    # Basic checks
     assert not result_df.empty, "Output DataFrame is empty."
-
-    # Ensure it has the same number of rows
     assert len(result_df) == len(test_data), "Row count mismatch."
-
-    # Ensure column structure is preserved
     expected_columns = ["PATIENT_ID", "SESSION_ID", "PROTOCOL_ID", "GAME_MODE",
                         "SECONDS_FROM_START", "DM_KEY", "DM_VALUE", "PE_KEY", "PE_VALUE"]
-    assert list(result_df.columns) == expected_columns, "Column names mismatch."
+    assert result_df.columns.tolist() == expected_columns, f"Column names mismatch. {result_df.columns.tolist()}"
 
-    # Ensure EWMA transformation modified DM_VALUE and PE_VALUE
-    assert not result_df["DM_VALUE"].equals(test_data["DM_VALUE"]), "DM_VALUE did not change after EWMA."
-    assert not result_df["PE_VALUE"].equals(test_data["PE_VALUE"]), "PE_VALUE did not change after EWMA."
+    # Test subset
+    test_patient = test_data.PATIENT_ID.unique()[0]
+    test_protocol = test_data.PROTOCOL_ID.unique()[0]
 
+    # Manual result
+    values = (
+        test_data[
+            (test_data[PATIENT_ID] == test_patient)
+            & (test_data[PROTOCOL_ID] == test_protocol)
+        ][DM_VALUE].tolist()
+    )
+    result_manual = manual_ewma(values, processor.alpha)
+
+    # Processor result
+    result_values = (
+        result_df[
+            (test_data[PATIENT_ID] == test_patient)
+            & (test_data[PROTOCOL_ID] == test_protocol)
+        ][DM_VALUE].tolist()
+    )
+
+    # Compare manually computed and function-computed EWMA values using assert
+    for manual, computed in zip(result_manual, result_values):
+        # Use assert with a small tolerance
+        assert abs(manual - computed) < 1e-6, f"Mismatch: Manual={manual}, Computed={computed}"

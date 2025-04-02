@@ -9,7 +9,14 @@ from pandera.errors import SchemaError
 from pandera.typing import DataFrame
 
 from ai_cdss.models import SessionSchema, TimeseriesSchema, PPFSchema, PCMSchema, safe_check_types
-from ai_cdss.evaluation.synthetic import generate_synthetic_session_data, generate_synthetic_protocol_similarity, generate_synthetic_timeseries_data, generate_synthetic_ppf_data, generate_synthetic_ids
+from ai_cdss.evaluation.synthetic import (
+    generate_synthetic_session_data,
+    generate_synthetic_protocol_similarity,
+    generate_synthetic_timeseries_data,
+    generate_synthetic_ppf_data,
+    generate_synthetic_ids,
+    generate_synthetic_protocol_metric
+)
 from rgs_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
 
 import logging
@@ -36,6 +43,10 @@ class DataLoaderBase(ABC):
 
     @abstractmethod
     def load_ppf_data(self) -> DataFrame[PCMSchema]:
+        pass
+
+    @abstractmethod
+    def load_protocol_init(self) -> pd.DataFrame:
         pass
 
 # ---------------------------------------------------------------------
@@ -183,6 +194,27 @@ class DataLoader(DataLoaderBase):
             logger.error(f"Failed to load protocol similarity data: {e}")
             raise
 
+    @pa.check_types
+    def load_protocol_init(self) -> pd.DataFrame:
+        try:
+            output_dir = Path.home() / ".ai_cdss" / "output"
+            csv_file = output_dir / "init_metrics.csv"
+
+            if csv_file.exists():
+                protocol_metrics = pd.read_csv(csv_file, index_col=0)
+            else:
+                raise FileNotFoundError(
+                    "No protocol metrics file found in ~/.ai_cdss/output. "
+                    "Expected protocol_metrics.csv."
+                )
+            logger.info("Protocol similarity data loaded successfully.")
+            return protocol_metrics
+
+        except Exception as e:
+            logger.error(f"Failed to load protocol metrics data: {e}")
+            raise
+
+
 # ---------------------------------------------------------------------
 # Synthetic Data Loader
 
@@ -198,17 +230,20 @@ class DataLoaderMock(DataLoaderBase):
         self.num_protocols = num_protocols
 
     @safe_check_types(SessionSchema)
-    def load_session_data(self, patient_list: List[int]) -> DataFrame[SessionSchema]:
+    def load_session_data(self, patient_list: List[int] = []) -> DataFrame[SessionSchema]:
         return generate_synthetic_session_data(shared_ids=self.ids)
 
     @safe_check_types(TimeseriesSchema)
-    def load_timeseries_data(self, patient_list: List[int]) -> DataFrame[TimeseriesSchema]:
+    def load_timeseries_data(self, patient_list: List[int] = []) -> DataFrame[TimeseriesSchema]:
         return generate_synthetic_timeseries_data(shared_ids=self.ids)
 
     @pa.check_types
-    def load_ppf_data(self, patient_list: List[int]) -> DataFrame[PPFSchema]:
+    def load_ppf_data(self, patient_list: List[int] = []) -> DataFrame[PPFSchema]:
         return generate_synthetic_ppf_data(shared_ids=self.ids)
     
     @pa.check_types
     def load_protocol_similarity(self) -> DataFrame[PCMSchema]:
         return generate_synthetic_protocol_similarity(num_protocols=self.num_protocols)
+
+    def load_protocol_init(self) -> pd.DataFrame:
+        return generate_synthetic_protocol_metric(num_protocols=self.num_protocols)

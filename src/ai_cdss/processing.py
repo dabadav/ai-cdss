@@ -187,19 +187,6 @@ def expand_session_batch(session: pd.DataFrame):
         
     return sessions_df
 
-def map_latent_to_clinical(protocol_attributes, mapping_dict, agg_func=np.mean):
-    """We need to collapse the protocol feature space into the clinical feature space.
-    """
-    df_clinical = pd.DataFrame(index=protocol_attributes.index)
-
-    # Collapse using agg_func the protocol latent attributes    
-    for clinical_scale, features in mapping_dict.items():
-        df_clinical[clinical_scale] = protocol_attributes[features].apply(agg_func, axis=1)
-
-    df_clinical.index = protocol_attributes["PROTOCOL_ID"]
-
-    return df_clinical
-
 def generate_expected_sessions(start_date, end_date, target_weekday):
     """
     Generate all expected session dates between start_date and end_date for the given target weekday.
