@@ -1,0 +1,13 @@
+﻿ai\_cdss.models.PCMSchema
+=========================
+
+.. currentmodule:: ai_cdss.models
+
+.. autoclass:: PCMSchema
+   :members: __doc__
+   :no-inherited-members:
+
+.. _sphx_glr_backreferences_ai_cdss.models.PCMSchema:
+
+.. minigallery:: ai_cdss.models.PCMSchema
+    :add-heading:
