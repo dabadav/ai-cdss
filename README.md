@@ -5,7 +5,7 @@
     <a href="https://dabadav.github.io/ai-cdss/index.html">
         <img src="https://img.shields.io/badge/Docs-online-green?label=Documentation" alt="Docs"/>
     </a>
-    <a href="https://github.com/dabadav/ai-cdss/actions/workflows/tests.yml">
+    <a href="https://github.com/dabadav/ai-cdss/actions/workflows/test.yml">
         <img src="https://github.com/dabadav/ai-cdss/actions/workflows/test.yml/badge.svg" alt="CI - Test"/>
     </a>
     <a href="https://github.com/dabadav/ai-cdss/releases/latest">
