@@ -364,6 +364,7 @@ window.addEventListener("load", () => mermaid.run());
     <span class="n">generate_synthetic_ids</span><span class="p">,</span>
     <span class="n">generate_synthetic_protocol_metric</span>
 <span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_session</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">rgs_interface.data.interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">fetch_rgs_data</span><span class="p">,</span> <span class="n">fetch_timeseries_data</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
@@ -430,7 +431,7 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">            Session data for the specified patients.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">session</span> <span class="o">=</span> <span class="n">fetch_rgs_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">,</span> <span class="n">rgs_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rgs_mode</span><span class="p">)</span>
+            <span class="n">session</span> <span class="o">=</span> <span class="n">check_session</span><span class="p">(</span><span class="n">fetch_rgs_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">,</span> <span class="n">rgs_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rgs_mode</span><span class="p">))</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Session data loaded successfully.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">session</span>
         <span class="k">except</span> <span class="n">SchemaError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
@@ -559,7 +560,7 @@ window.addEventListener("load", () => mermaid.run());
     <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_init</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;.ai_cdss&quot;</span> <span class="o">/</span> <span class="s2">&quot;output&quot;</span>
-            <span class="n">csv_file</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;init_metrics.csv&quot;</span>
+            <span class="n">csv_file</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;protocol_metrics.csv&quot;</span>
 
             <span class="k">if</span> <span class="n">csv_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
                 <span class="n">protocol_metrics</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">csv_file</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -568,7 +569,7 @@ window.addEventListener("load", () => mermaid.run());
                     <span class="s2">&quot;No protocol metrics file found in ~/.ai_cdss/output. &quot;</span>
                     <span class="s2">&quot;Expected protocol_metrics.csv.&quot;</span>
                 <span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Protocol similarity data loaded successfully.&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Protocol initialization data loaded successfully.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">protocol_metrics</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>

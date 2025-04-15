@@ -350,8 +350,10 @@ window.addEventListener("load", () => mermaid.run());
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pandera.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">signal</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringSchema</span><span class="p">,</span> <span class="n">PPFSchema</span><span class="p">,</span> <span class="n">SessionSchema</span><span class="p">,</span> <span class="n">TimeseriesSchema</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">safe_merge</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">BY_PP</span><span class="p">,</span> <span class="n">BY_PPS</span><span class="p">,</span> <span class="n">BY_PPST</span><span class="p">,</span> 
     <span class="n">PROTOCOL_ID</span><span class="p">,</span> 
@@ -367,6 +369,7 @@ window.addEventListener("load", () => mermaid.run());
     <span class="n">FINAL_METRICS</span>
 <span class="p">)</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
 
 <span class="c1"># Set up logging</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
@@ -449,7 +452,7 @@ window.addEventListener("load", () => mermaid.run());
         <span class="c1"># 2. Preprocess session data</span>
         <span class="n">ss_processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_sessions</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
         <span class="c1"># 3.1 Merge session and timeseries data</span>
-        <span class="n">merged_data</span> <span class="o">=</span> <span class="n">ss_processed</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">ts_processed</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+        <span class="n">merged_data</span> <span class="o">=</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">ss_processed</span><span class="p">,</span> <span class="n">ts_processed</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;inner&quot;</span><span class="p">,</span> <span class="n">left_name</span><span class="o">=</span><span class="s2">&quot;session&quot;</span><span class="p">,</span> <span class="n">right_name</span><span class="o">=</span><span class="s2">&quot;ts&quot;</span><span class="p">)</span>
         <span class="c1"># 3.2 Aggregate metrics per protocol</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">merged_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">FINAL_METRICS</span><span class="p">]</span><span class="o">.</span><span class="n">last</span><span class="p">()</span>
         <span class="c1"># 3.3 Merge session, timeseries, and ppf</span>
@@ -463,12 +466,16 @@ window.addEventListener("load", () => mermaid.run());
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">preprocess_timeseries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeseries_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="c1"># TODO: check new rolling avg logic</span>
         <span class="n">ts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate_dms_by_time</span><span class="p">(</span><span class="n">timeseries_data</span><span class="p">)</span>
         <span class="n">ts</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PPST</span><span class="p">)</span>
         
+        <span class="n">dm_roll</span> <span class="o">=</span> <span class="n">ts</span><span class="p">[</span><span class="n">DM_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">rolling</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">step</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="n">ts</span><span class="p">[</span><span class="n">DM_VALUE</span><span class="p">]</span> <span class="o">=</span> <span class="n">signal</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">dm_roll</span><span class="p">)</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">ts</span><span class="p">[</span><span class="n">DM_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+
         <span class="c1"># Compute delta</span>
-        <span class="n">ts</span><span class="p">[</span><span class="n">DM_VALUE</span><span class="p">]</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">DM_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">ts</span><span class="p">[</span><span class="n">PE_VALUE</span><span class="p">]</span> <span class="o">=</span> <span class="n">ts</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">PE_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">diff</span><span class="p">()</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># ts[DM_VALUE] = ts.groupby(by=BY_PP)[DM_VALUE].diff().fillna(0)</span>
+        <span class="c1"># ts[PE_VALUE] = ts.groupby(by=BY_PP)[PE_VALUE].diff().fillna(0)</span>
 
         <span class="c1"># Compute ewma</span>
         <span class="n">ts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_ewma</span><span class="p">(</span><span class="n">ts</span><span class="p">,</span> <span class="n">DM_VALUE</span><span class="p">,</span> <span class="n">BY_PP</span><span class="p">)</span>
@@ -485,7 +492,8 @@ window.addEventListener("load", () => mermaid.run());
         <span class="c1"># Compute usage</span>
         <span class="n">session</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">SESSION_ID</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="s2">&quot;nunique&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span>
         
-        <span class="c1"># Compute days</span>
+        <span class="c1"># Compute prescription days</span>
+        <span class="c1"># TODO: Improve to get prescriptions days for all weeks not just last prescriptions</span>
         <span class="n">prescribed_days</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">]</span> <span class="o">==</span> <span class="n">PRESCRIPTION_ACTIVE</span><span class="p">]</span>
             <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">WEEKDAY_INDEX</span><span class="p">]</span>
@@ -516,6 +524,7 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Initialize missing values</span>
         <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_metrics</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">protocol_metrics</span><span class="p">)</span>
+        
         <span class="c1"># Compute objective function score alpha*Adherence + beta*DM + gamma*PPF</span>
         <span class="n">score</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_score</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
         
@@ -573,9 +582,6 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># data = data.fillna(0)</span>
 
-        <span class="c1"># Make sure protocol_metrics has PROTOCOL_ID as index</span>
-        <span class="n">protocol_metrics</span> <span class="o">=</span> <span class="n">protocol_metrics</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="n">PROTOCOL_ID</span><span class="p">)</span>
-
         <span class="c1"># Only fill NaNs using map for matching PROTOCOL_IDs</span>
         <span class="n">data</span><span class="p">[</span><span class="n">ADHERENCE</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">ADHERENCE</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">protocol_metrics</span><span class="p">[</span><span class="n">ADHERENCE</span><span class="p">]))</span>
         <span class="n">data</span><span class="p">[</span><span class="n">DM_VALUE</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">DM_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">protocol_metrics</span><span class="p">[</span><span class="s2">&quot;DM_DELTA&quot;</span><span class="p">]))</span>
@@ -585,7 +591,7 @@ window.addEventListener("load", () => mermaid.run());
         <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">data</span>
     
-    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_ewma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">value_col</span><span class="p">,</span> <span class="n">group_cols</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_ewma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">value_col</span><span class="p">,</span> <span class="n">group_cols</span><span class="p">,</span> <span class="n">sufix</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute Exponential Weighted Moving Average (EWMA) over grouped time series.</span>
 
@@ -604,7 +610,7 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">            DataFrame with EWMA column replacing the original.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span>
-            <span class="o">**</span><span class="p">{</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value_col</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">group_cols</span><span class="p">)[</span><span class="n">value_col</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">ewm</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">adjust</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">())}</span>
+            <span class="o">**</span><span class="p">{</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value_col</span><span class="si">}{</span><span class="n">sufix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">:</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">group_cols</span><span class="p">)[</span><span class="n">value_col</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">ewm</span><span class="p">(</span><span class="n">alpha</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">,</span> <span class="n">adjust</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">())}</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_compute_score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scoring</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
