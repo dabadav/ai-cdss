@@ -113,3 +113,50 @@ def test_compute_metrics_ewma():
     for manual, computed in zip(result_manual, result_values):
         # Use assert with a small tolerance
         assert abs(manual - computed) < 1e-6, f"Mismatch: Manual={manual}, Computed={computed}"
+
+def test_session_timeseries_merge():
+    """Test merging session and timeseries data."""
+    
+    # Sample session data
+    session_data = pd.DataFrame({
+        "PATIENT_ID": [1, 1, 2],
+        "SESSION_ID": [101, 101, 202],
+        "PROTOCOL_ID": [1, 1, 2],
+        "GAME_MODE": ["A", "A", "B"],
+        "SECONDS_FROM_START": [0, 10, 20],
+        "ADHERENCE": [0.8, 0.9, 0.7]
+    })
+    
+    # Sample timeseries data
+    timeseries_data = pd.DataFrame({
+        "PATIENT_ID": [1, 1, 2],
+        "SESSION_ID": [101, 101, 202],
+        "PROTOCOL_ID": [1, 1, 2],
+        "GAME_MODE": ["A", "A", "B"],
+        "SECONDS_FROM_START": [0, 10, 20],
+        "DM_KEY": ["dm1", "dm2", "dm1"],
+        "DM_VALUE": [0.5, 0.6, 0.7]
+    })
+    
+    # Expected merged output
+    expected_output = pd.DataFrame({
+        "PATIENT_ID": [1, 1, 2],
+        "SESSION_ID": [101, 101, 202],
+        "PROTOCOL_ID": [1, 1, 2],
+        "GAME_MODE_x": ["A", "A", "B"],
+        "SECONDS_FROM_START_x": [0, 10, 20],
+        "ADHERENCE": [0.8, 0.9, np.nan], # NaN for missing adherence in timeseries
+        "DM_KEY": ["dm1", "dm2", None], # None for missing DM_KEY in session
+        "DM_VALUE": [0.5, 0.6, None] # None for missing DM_VALUE in session
+    })
+
+    # Merge session and timeseries data
+    merged_data = session_data.merge(timeseries_data,
+                                      on=BY_PPST, 
+                                      how="left")
+
+    # Ensure output DataFrame is not empty
+    assert not merged_data.empty, "Output DataFrame is empty."
+    
+    # Check that the output matches the expected output
+    # pd.testing.assert_frame_equal(merged)

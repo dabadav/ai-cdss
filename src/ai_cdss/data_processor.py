@@ -3,8 +3,10 @@ from typing import List
 import pandas as pd
 import pandera as pa
 from pandera.typing import DataFrame
+from scipy import signal
 
 from ai_cdss.models import ScoringSchema, PPFSchema, SessionSchema, TimeseriesSchema
+from ai_cdss.processing import safe_merge
 from ai_cdss.constants import (
     BY_PP, BY_PPS, BY_PPST, 
     PROTOCOL_ID, 
@@ -20,6 +22,7 @@ from ai_cdss.constants import (
     FINAL_METRICS
 )
 import logging
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -98,7 +101,7 @@ class DataProcessor:
         # 2. Preprocess session data
         ss_processed = self.preprocess_sessions(session_data)
         # 3.1 Merge session and timeseries data
-        merged_data = ss_processed.merge(ts_processed, on=BY_PPS, how="left")
+        merged_data = safe_merge(ss_processed, ts_processed, on=BY_PPS, how="inner", left_name="session", right_name="ts")
         # 3.2 Aggregate metrics per protocol
         data = merged_data.groupby(by=BY_PP)[FINAL_METRICS].last()
         # 3.3 Merge session, timeseries, and ppf
@@ -111,12 +114,16 @@ class DataProcessor:
         return scored_data
 
     def preprocess_timeseries(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
+        # TODO: check new rolling avg logic
         ts = self.aggregate_dms_by_time(timeseries_data)
         ts = ts.sort_values(by=BY_PPST)
         
+        dm_roll = ts[DM_VALUE].rolling(window=10, step=10).mean()
+        ts[DM_VALUE] = signal.resample(pd.Series(dm_roll).diff().fillna(0), ts[DM_VALUE].size)
+
         # Compute delta
-        ts[DM_VALUE] = ts.groupby(by=BY_PP)[DM_VALUE].diff().fillna(0)
-        ts[PE_VALUE] = ts.groupby(by=BY_PP)[PE_VALUE].diff().fillna(0)
+        # ts[DM_VALUE] = ts.groupby(by=BY_PP)[DM_VALUE].diff().fillna(0)
+        # ts[PE_VALUE] = ts.groupby(by=BY_PP)[PE_VALUE].diff().fillna(0)
 
         # Compute ewma
         ts = self._compute_ewma(ts, DM_VALUE, BY_PP)
@@ -133,7 +140,8 @@ class DataProcessor:
         # Compute usage
         session[USAGE] = session.groupby(BY_PP)[SESSION_ID].transform("nunique").astype("Int64")
         
-        # Compute days
+        # Compute prescription days
+        # TODO: Improve to get prescriptions days for all weeks not just last prescriptions
         prescribed_days = (
             session[session[PRESCRIPTION_ENDING_DATE] == PRESCRIPTION_ACTIVE]
             .groupby(BY_PP)[WEEKDAY_INDEX]
@@ -162,6 +170,7 @@ class DataProcessor:
         """
         # Initialize missing values
         data = self._init_metrics(data, protocol_metrics)
+        
         # Compute objective function score alpha*Adherence + beta*DM + gamma*PPF
         score = self._compute_score(data)
         
@@ -215,9 +224,6 @@ class DataProcessor:
         """
         # data = data.fillna(0)
 
-        # Make sure protocol_metrics has PROTOCOL_ID as index
-        protocol_metrics = protocol_metrics.set_index(PROTOCOL_ID)
-
         # Only fill NaNs using map for matching PROTOCOL_IDs
         data[ADHERENCE] = data[ADHERENCE].fillna(data[PROTOCOL_ID].map(protocol_metrics[ADHERENCE]))
         data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics["DM_DELTA"]))
@@ -227,7 +233,7 @@ class DataProcessor:
         data = data.fillna(0)
         return data
     
-    def _compute_ewma(self, df, value_col, group_cols):
+    def _compute_ewma(self, df, value_col, group_cols, sufix=""):
         """
         Compute Exponential Weighted Moving Average (EWMA) over grouped time series.
 
@@ -246,7 +252,7 @@ class DataProcessor:
             DataFrame with EWMA column replacing the original.
         """
         return df.assign(
-            **{f"{value_col}": df.groupby(by=group_cols)[value_col].transform(lambda x: x.ewm(alpha=self.alpha, adjust=True).mean())}
+            **{f"{value_col}{sufix}": df.groupby(by=group_cols)[value_col].transform(lambda x: x.ewm(alpha=self.alpha, adjust=True).mean())}
         )
 
     def _compute_score(self, scoring: pd.DataFrame) -> pd.DataFrame:

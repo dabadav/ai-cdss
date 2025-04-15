@@ -17,6 +17,7 @@ from ai_cdss.evaluation.synthetic import (
     generate_synthetic_ids,
     generate_synthetic_protocol_metric
 )
+from ai_cdss.processing import check_session
 from rgs_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
 
 import logging
@@ -79,7 +80,7 @@ class DataLoader(DataLoaderBase):
             Session data for the specified patients.
         """
         try:
-            session = fetch_rgs_data(patient_list, rgs_mode=self.rgs_mode)
+            session = check_session(fetch_rgs_data(patient_list, rgs_mode=self.rgs_mode))
             logger.info("Session data loaded successfully.")
             return session
         except SchemaError as e:
@@ -198,7 +199,7 @@ class DataLoader(DataLoaderBase):
     def load_protocol_init(self) -> pd.DataFrame:
         try:
             output_dir = Path.home() / ".ai_cdss" / "output"
-            csv_file = output_dir / "init_metrics.csv"
+            csv_file = output_dir / "protocol_metrics.csv"
 
             if csv_file.exists():
                 protocol_metrics = pd.read_csv(csv_file, index_col=0)
@@ -207,7 +208,7 @@ class DataLoader(DataLoaderBase):
                     "No protocol metrics file found in ~/.ai_cdss/output. "
                     "Expected protocol_metrics.csv."
                 )
-            logger.info("Protocol similarity data loaded successfully.")
+            logger.info("Protocol initialization data loaded successfully.")
             return protocol_metrics
 
         except Exception as e:

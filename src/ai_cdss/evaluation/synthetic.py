@@ -9,8 +9,8 @@ def generate_synthetic_data(
     num_protocols=2,
     num_sessions=3,
     timepoints=10,
-    null_cols_session=None,
-    null_cols_timeseries=None,
+    null_cols_session=[],
+    null_cols_timeseries=[],
     test_discrepancies=False 
 ):
     shared_ids = generate_synthetic_ids(
@@ -50,6 +50,7 @@ def generate_synthetic_session_data(shared_ids, columns_with_nulls=[]):
     """
     Generates structured synthetic session data using default shared IDs.
     """
+    
     np.random.seed(42)
     data = []
     columns_with_nulls = columns_with_nulls or []
@@ -100,30 +101,69 @@ def generate_synthetic_session_data(shared_ids, columns_with_nulls=[]):
     df = pd.DataFrame(data)
     return SessionSchema.validate(df)
 
-def generate_synthetic_timeseries_data(shared_ids, num_timepoints=10, columns_with_nulls=[], test_discrepancies=False):
+def generate_synthetic_timeseries_data(shared_ids, num_timepoints=10, total_curve_points=100, noise=0.2, columns_with_nulls=[], test_discrepancies=False):
     """
     Generates structured synthetic timeseries data using default shared IDs.
+    DM_VALUE and PE_VALUE follow noisy logarithmic curves that extend across sessions,
+    with each session observing a slice of the curve.
     """
     np.random.seed(42)
-    
     data = []
 
+    # One long curve per (PATIENT_ID, PROTOCOL_ID)
+    curve_cache = {}
+
     for patient_id, protocol_id, session_id in shared_ids:
+        original_patient_id = patient_id
+
         if test_discrepancies and np.random.rand() < 0.2:
             session_id += 10000
             patient_id += 50
 
-        for timepoint in range(1, num_timepoints + 1):
+        key = (original_patient_id, protocol_id)
+
+        # Generate full-length curve for this patient-protocol if not already present
+        if key not in curve_cache:
+            full_time = np.cumsum(np.random.randint(1000, 5000, size=total_curve_points))
+            base_log = np.log(full_time + 1)
+            dm_curve = np.clip(base_log + np.random.normal(0, noise, size=total_curve_points), 0, None)
+            pe_curve = np.clip(base_log + np.random.normal(0, noise, size=total_curve_points), 0, None)
+
+            # Normalize to [0, 1]
+            dm_curve = (dm_curve - dm_curve.min()) / (dm_curve.max() - dm_curve.min())
+            pe_curve = (pe_curve - pe_curve.min()) / (pe_curve.max() - pe_curve.min())
+
+            curve_cache[key] = {
+                "time": full_time,
+                "dm": dm_curve,
+                "pe": pe_curve,
+                "used_indices": 0  # Track how far we've used the curve
+            }
+
+        # Extract next chunk of the curve for this session
+        start_idx = curve_cache[key]["used_indices"]
+        end_idx = start_idx + num_timepoints
+        if end_idx > total_curve_points:
+            # Restart from beginning or truncate if out of bounds
+            start_idx = 0
+            end_idx = num_timepoints
+
+        time_chunk = curve_cache[key]["time"][start_idx:end_idx]
+        dm_chunk = curve_cache[key]["dm"][start_idx:end_idx]
+        pe_chunk = curve_cache[key]["pe"][start_idx:end_idx]
+        curve_cache[key]["used_indices"] = end_idx  # Advance for next session
+
+        for i in range(num_timepoints):
             row = {
                 "PATIENT_ID": patient_id,
                 "SESSION_ID": session_id,
                 "PROTOCOL_ID": protocol_id,
                 "GAME_MODE": np.random.choice(["STANDARD", "PAY", "SPELL_WORDS"]),
-                "SECONDS_FROM_START": timepoint * np.random.randint(1000, 5000),
+                "SECONDS_FROM_START": int(time_chunk[i]),
                 "DM_KEY": f"param_{np.random.randint(1, 5)}",
-                "DM_VALUE": np.round(np.random.uniform(0, 1), 2),
+                "DM_VALUE": np.round(dm_chunk[i], 2),
                 "PE_KEY": f"metric_{np.random.randint(1, 3)}",
-                "PE_VALUE": np.round(np.random.uniform(0, 1), 2)
+                "PE_VALUE": np.round(pe_chunk[i], 2)
             }
 
             for col in columns_with_nulls:
