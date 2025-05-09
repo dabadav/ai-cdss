@@ -8,6 +8,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import TheilSenRegressor
+from scipy.signal import savgol_filter
+
 
 from ai_cdss import config
 from ai_cdss.utils import MultiKeyDict
@@ -391,4 +394,39 @@ def generate_expected_sessions(start_date, end_date, target_weekday):
         current_date += pd.Timedelta(days=7)
     
     return expected_dates
+
+def apply_savgol_filter_groupwise(series, window_size, polyorder):
+    series_len = len(series)
+    if series_len < polyorder + 1: return series
+    window = min(window_size, series_len)
+    if window <= polyorder: window = polyorder + 1
+    if window > series_len: return series
+    if window % 2 == 0: window -= 1
+    if window <= polyorder : return series
+    try:
+        return savgol_filter(series, window_length=window, polyorder=polyorder)
+    except ValueError:
+        return series
+
+
+def get_rolling_theilsen_slope(series_y, series_x, window_size):
+    slopes = pd.Series([np.nan] * len(series_y), index=series_y.index)
+    if len(series_y) < 2 : return slopes
+    regressor = TheilSenRegressor(random_state=42, max_subpopulation=1000)
+    for i in range(len(series_y)):
+        start_index = max(0, i - window_size + 1)
+        window_y = series_y.iloc[start_index : i + 1]
+        window_x = series_x.iloc[start_index : i + 1]
+        if len(window_y) < 2:
+            slopes.iloc[i] = 0.0 if len(window_y) == 1 else np.nan; continue
+        if len(window_x.unique()) == 1 and len(window_y.unique()) > 1:
+            slopes.iloc[i] = np.nan; continue
+        if len(window_y.unique()) == 1:
+             slopes.iloc[i] = 0.0; continue
+        X_reshaped = window_x.values.reshape(-1, 1)
+        try:
+            regressor.fit(X_reshaped, window_y.values)
+            slopes.iloc[i] = regressor.coef_[0]
+        except Exception: slopes.iloc[i] = np.nan
+    return slopes
 
