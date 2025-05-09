@@ -6,7 +6,7 @@ from pandera.typing import DataFrame
 from scipy import signal
 
 from ai_cdss.models import ScoringSchema, PPFSchema, SessionSchema, TimeseriesSchema
-from ai_cdss.processing import safe_merge
+from ai_cdss.processing import safe_merge, apply_savgol_filter_groupwise, get_rolling_theilsen_slope
 from ai_cdss.constants import (
     BY_PP, BY_PPS, BY_PPST, 
     PROTOCOL_ID, 
@@ -19,7 +19,10 @@ from ai_cdss.constants import (
     WEEKDAY_INDEX,
     PRESCRIPTION_ENDING_DATE,
     PRESCRIPTION_ACTIVE,
-    FINAL_METRICS
+    FINAL_METRICS, 
+    SAVGOL_WINDOW_SIZE,
+    SAVGOL_POLY_ORDER,
+    THEILSON_REGRESSION_WINDOW_SIZE
 )
 import logging
 
@@ -112,22 +115,30 @@ class DataProcessor:
         scored_data.attrs = ppf_data.attrs
 
         return scored_data
-
+    
+    # TODO: implement the delta dm algo
     def preprocess_timeseries(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
+
+        timeseries_data = timeseries_data.groupby(BY_PPS).agg({DM_VALUE:"mean", PE_VALUE:"mean"}).reset_index()
+        timeseries_data['DM_SMOOTH'] = timeseries_data.groupby(['PATIENT_ID', 'PROTOCOL_ID'])['DM_VALUE'].transform(apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER)
+        timeseries_data['DM_VALUE'] = timeseries_data.groupby(['PATIENT_ID', 'PROTOCOL_ID'], group_keys=False).apply(
+            lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g['session_index'], THEILSON_REGRESSION_WINDOW_SIZE)
+        ).fillna(0)
+    
         # TODO: check new rolling avg logic
-        ts = self.aggregate_dms_by_time(timeseries_data)
-        ts = ts.sort_values(by=BY_PPST)
+        #ts = self.aggregate_dms_by_time(timeseries_data)
+        ts = timeseries_data.sort_values(by=BY_PPST)
         
-        dm_roll = ts[DM_VALUE].rolling(window=10, step=10).mean()
-        ts[DM_VALUE] = signal.resample(pd.Series(dm_roll).diff().fillna(0), ts[DM_VALUE].size)
+        #dm_roll = ts[DM_VALUE].rolling(window=10, step=10).mean()
+        #ts[DM_VALUE] = signal.resample(pd.Series(dm_roll).diff().fillna(0), ts[DM_VALUE].size)
 
         # Compute delta
         # ts[DM_VALUE] = ts.groupby(by=BY_PP)[DM_VALUE].diff().fillna(0)
         # ts[PE_VALUE] = ts.groupby(by=BY_PP)[PE_VALUE].diff().fillna(0)
 
         # Compute ewma
-        ts = self._compute_ewma(ts, DM_VALUE, BY_PP)
-        ts = self._compute_ewma(ts, PE_VALUE, BY_PP)
+        # ts = self._compute_ewma(ts, DM_VALUE, BY_PP)
+        # ts = self._compute_ewma(ts, PE_VALUE, BY_PP)
 
         return ts
 
