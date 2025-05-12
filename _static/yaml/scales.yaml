@@ -1,0 +1,19 @@
+data:
+  ACT_AU: 10
+  ACT_QOM: 10
+  ASH_PROXIMAL: 4
+  BARTHEL: 100
+  FATIGUE: 63
+  FM_A: 36
+  FM_B: 10
+  FM_C: 14
+  FM_D: 6
+  FM_TOTAL: 66
+  MA_DISTAL: 4
+  VAS: 10
+keys:
+  BARTHEL:
+  - Barthel Index
+  - BI
+  VAS:
+  - Visual Analog Scale
