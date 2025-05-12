@@ -12,7 +12,9 @@ dependencies = [
     "pandera (>=0.23.1,<0.24.0)",
     "gower (>=0.1.2,<0.2.0)",
     "rgs_interface @ git+https://github.com/dabadav/rgs-interface.git@v0.2.2",
-    "pandas[parquet] (>=2.2.3,<3.0.0)"
+    "pandas[parquet] (>=2.2.3,<3.0.0)",
+    "scipy (>=1.15.3,<2.0.0)",
+    "scikit-learn (>=1.6.1,<2.0.0)"
 ]
 packages = [{ include = "ai_cdss", from = "src" }]
 

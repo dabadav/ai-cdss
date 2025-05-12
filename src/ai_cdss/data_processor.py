@@ -120,26 +120,15 @@ class DataProcessor:
     def preprocess_timeseries(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
 
         timeseries_data = timeseries_data.groupby(BY_PPS).agg({DM_VALUE:"mean", PE_VALUE:"mean"}).reset_index()
-        timeseries_data['DM_SMOOTH'] = timeseries_data.groupby(['PATIENT_ID', 'PROTOCOL_ID'])['DM_VALUE'].transform(apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER)
-        timeseries_data['DM_VALUE'] = timeseries_data.groupby(['PATIENT_ID', 'PROTOCOL_ID'], group_keys=False).apply(
-            lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g['session_index'], THEILSON_REGRESSION_WINDOW_SIZE)
+        timeseries_data['DM_SMOOTH'] = timeseries_data.groupby(by=BY_PP)[DM_VALUE].transform(apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER)
+        timeseries_data['DM_VALUE'] = timeseries_data.groupby(by=BY_PP, group_keys=False).apply(
+            lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g[SESSION_ID], THEILSON_REGRESSION_WINDOW_SIZE)
         ).fillna(0)
     
-        # TODO: check new rolling avg logic
-        #ts = self.aggregate_dms_by_time(timeseries_data)
-        ts = timeseries_data.sort_values(by=BY_PPST)
+        # Drop DM_SMOOTH column
+        timeseries_data = timeseries_data.drop(columns='DM_SMOOTH')
+        ts = timeseries_data.sort_values(by=BY_PPS)
         
-        #dm_roll = ts[DM_VALUE].rolling(window=10, step=10).mean()
-        #ts[DM_VALUE] = signal.resample(pd.Series(dm_roll).diff().fillna(0), ts[DM_VALUE].size)
-
-        # Compute delta
-        # ts[DM_VALUE] = ts.groupby(by=BY_PP)[DM_VALUE].diff().fillna(0)
-        # ts[PE_VALUE] = ts.groupby(by=BY_PP)[PE_VALUE].diff().fillna(0)
-
-        # Compute ewma
-        # ts = self._compute_ewma(ts, DM_VALUE, BY_PP)
-        # ts = self._compute_ewma(ts, PE_VALUE, BY_PP)
-
         return ts
 
     def preprocess_sessions(self, session_data: pd.DataFrame) -> pd.DataFrame:
