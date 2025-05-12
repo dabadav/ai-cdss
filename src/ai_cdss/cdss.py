@@ -101,7 +101,9 @@ class CDSS:
             rows.extend(seen.values())
 
         # Convert to DataFrame
-        return pd.DataFrame(rows).sort_values(by="PROTOCOL_ID").reset_index(drop=True)
+        recommendations = pd.DataFrame(rows).sort_values(by="PROTOCOL_ID").reset_index(drop=True)
+        recommendations.attrs = self.scoring.attrs
+        return recommendations
 
     def schedule_protocols(self, protocols: List[int]):
         """

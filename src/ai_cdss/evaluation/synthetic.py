@@ -224,6 +224,8 @@ def generate_synthetic_ppf_data(shared_ids, num_features=5):
         })
 
     df = pd.DataFrame(data)
+    df.attrs["SUBSCALES"] = [f"Subscale_{i+1}" for i in range(num_features)]
+
     return PPFSchema.validate(df)
 
 # -- Synthetic Protocol Similarity
