@@ -119,14 +119,18 @@ class DataProcessor:
     # TODO: implement the delta dm algo
     def preprocess_timeseries(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
 
+        # DMs Session Mean
         timeseries_data = timeseries_data.groupby(BY_PPS).agg({DM_VALUE:"mean", PE_VALUE:"mean"}).reset_index()
+        
+        # Compute delta metric (smoothing + delta)
+        timeseries_data['SESSION_INDEX'] = timeseries_data.groupby(BY_PP).cumcount() + 1
         timeseries_data['DM_SMOOTH'] = timeseries_data.groupby(by=BY_PP)[DM_VALUE].transform(apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER)
         timeseries_data['DM_VALUE'] = timeseries_data.groupby(by=BY_PP, group_keys=False).apply(
-            lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g[SESSION_ID], THEILSON_REGRESSION_WINDOW_SIZE)
+            lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g['SESSION_INDEX'], THEILSON_REGRESSION_WINDOW_SIZE)
         ).fillna(0)
     
-        # Drop DM_SMOOTH column
-        timeseries_data = timeseries_data.drop(columns='DM_SMOOTH')
+        # Drop columns
+        timeseries_data = timeseries_data.drop(columns=['SESSION_INDEX','DM_SMOOTH'])
         ts = timeseries_data.sort_values(by=BY_PPS)
         
         return ts
@@ -222,15 +226,17 @@ class DataProcessor:
         pd.DataFrame
             Safe dataframe with no NaNs.
         """
-        # data = data.fillna(0)
-
-        # Only fill NaNs using map for matching PROTOCOL_IDs
-        data[ADHERENCE] = data[ADHERENCE].fillna(data[PROTOCOL_ID].map(protocol_metrics[ADHERENCE]))
-        data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics["DM_DELTA"]))
-        data[PE_VALUE] = data[PE_VALUE].fillna(0)
-        data[DAYS]  = data[DAYS].fillna(0)
-        data[USAGE] = data[USAGE].fillna(0)
         data = data.fillna(0)
+
+        # # Only fill NaNs using map for matching PROTOCOL_IDs
+        # data[ADHERENCE] = data[ADHERENCE].fillna(0)
+        # # data[ADHERENCE] = data[ADHERENCE].fillna(data[PROTOCOL_ID].map(protocol_metrics[ADHERENCE]))
+        # data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics["DM_DELTA"]))
+        # # data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics["DM_DELTA"]))
+        # data[PE_VALUE] = data[PE_VALUE].fillna(0)
+        # data[DAYS]  = data[DAYS].fillna(0)
+        # data[USAGE] = data[USAGE].fillna(0)
+        # data = data.fillna(0)
         return data
     
     def _compute_ewma(self, df, value_col, group_cols, sufix=""):
