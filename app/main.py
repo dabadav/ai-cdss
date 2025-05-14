@@ -57,7 +57,7 @@ def recommend(
     timeseries = loader.load_timeseries_data(patient_list=request.patient_list)
     ppf = loader.load_ppf_data(patient_list=request.patient_list)
     protocol_similarity = loader.load_protocol_similarity()
-    scores = processor.process_data(session, timeseries, ppf)
+    scores = processor.process_data(session, timeseries, ppf, None)
     
     cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
