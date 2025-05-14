@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Depends
 from typing import List
-from .config import Settings
-from .dependencies import get_settings
-from .schemas import RecommendationRequest, RecommendationsResponse, RecommendationOut, RGSMode
+from config import Settings
+from dependencies import get_settings
+from schemas import RecommendationRequest, RecommendationsResponse, RecommendationOut, RGSMode
 from ai_cdss.cdss import CDSS
 from ai_cdss.data_loader import DataLoader
 from ai_cdss.data_processor import DataProcessor
