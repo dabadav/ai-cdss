@@ -373,11 +373,9 @@ window.addEventListener("load", () => mermaid.run());
 <span class="p">)</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
-
 <span class="c1"># Set up logging</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-
 
 <span class="c1"># ---------------------------------------------------------------------</span>
 <span class="c1"># Data Processor Class</span>
@@ -386,8 +384,7 @@ window.addEventListener("load", () => mermaid.run());
 <a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">DataProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A class for processing patient session data, applying Exponential Weighted </span>
-<span class="sd">    Moving Average (EWMA) and computing a final weighted score.</span>
+<span class="sd">    A class for processing data and computing a final weighted score.</span>
 
 <span class="sd">    The final score is computed as:</span>
 
@@ -450,38 +447,50 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">            Final scored dataframe with protocol recommendations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># 1. Preprocess time series</span>
+        <span class="c1"># Preprocessing</span>
         <span class="n">ts_processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_timeseries</span><span class="p">(</span><span class="n">timeseries_data</span><span class="p">)</span>
-        <span class="c1"># 2. Preprocess session data</span>
         <span class="n">ss_processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_sessions</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
-        <span class="c1"># 3.1 Merge session and timeseries data</span>
+        
+        <span class="c1"># Merging</span>
         <span class="n">merged_data</span> <span class="o">=</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">ss_processed</span><span class="p">,</span> <span class="n">ts_processed</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;inner&quot;</span><span class="p">,</span> <span class="n">left_name</span><span class="o">=</span><span class="s2">&quot;session&quot;</span><span class="p">,</span> <span class="n">right_name</span><span class="o">=</span><span class="s2">&quot;ts&quot;</span><span class="p">)</span>
-        <span class="c1"># 3.2 Aggregate metrics per protocol</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">merged_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">FINAL_METRICS</span><span class="p">]</span><span class="o">.</span><span class="n">last</span><span class="p">()</span>
-        <span class="c1"># 3.3 Merge session, timeseries, and ppf</span>
         <span class="n">data</span> <span class="o">=</span> <span class="n">ppf_data</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
-        <span class="c1"># 4. Compute scores</span>
+
+        <span class="c1"># Scoring</span>
         <span class="n">scored_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_score</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">init_data</span><span class="p">)</span>
-        <span class="c1"># 5. Propagate metadata</span>
         <span class="n">scored_data</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="n">ppf_data</span><span class="o">.</span><span class="n">attrs</span>
 
         <span class="k">return</span> <span class="n">scored_data</span></div>
 
     
-    <span class="k">def</span><span class="w"> </span><span class="nf">preprocess_timeseries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeseries_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-
+    <span class="k">def</span><span class="w"> </span><span class="nf">preprocess_timeseries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeseries_data</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
         <span class="c1"># DMs Session Mean</span>
-        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PPS</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="n">DM_VALUE</span><span class="p">:</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">PE_VALUE</span><span class="p">:</span><span class="s2">&quot;mean&quot;</span><span class="p">})</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">timeseries_data</span>
+            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PPS</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="n">DM_VALUE</span><span class="p">:</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">PE_VALUE</span><span class="p">:</span><span class="s2">&quot;mean&quot;</span><span class="p">})</span>
+            <span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="p">)</span>
         
-        <span class="c1"># Compute delta metric (smoothing + delta)</span>
+        <span class="c1"># Compute learning metric (smoothing + delta)</span>
         <span class="n">timeseries_data</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">cumcount</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
-        <span class="n">timeseries_data</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">DM_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">apply_savgol_filter_groupwise</span><span class="p">,</span> <span class="n">SAVGOL_WINDOW_SIZE</span><span class="p">,</span> <span class="n">SAVGOL_POLY_ORDER</span><span class="p">)</span>
-        <span class="n">timeseries_data</span><span class="p">[</span><span class="s1">&#39;DM_VALUE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">get_rolling_theilsen_slope</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">],</span> <span class="n">g</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">],</span> <span class="n">THEILSON_REGRESSION_WINDOW_SIZE</span><span class="p">)</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-    
+        <span class="n">timeseries_data</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">timeseries_data</span>
+            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">DM_VALUE</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">apply_savgol_filter_groupwise</span><span class="p">,</span> <span class="n">SAVGOL_WINDOW_SIZE</span><span class="p">,</span> <span class="n">SAVGOL_POLY_ORDER</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">timeseries_data</span><span class="p">[</span><span class="n">DM_VALUE</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">timeseries_data</span>
+            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">get_rolling_theilsen_slope</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">],</span> <span class="n">g</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">],</span> <span class="n">THEILSON_REGRESSION_WINDOW_SIZE</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="p">)</span>
+
         <span class="c1"># Drop columns</span>
-        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">,</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">])</span>
+        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">,</span> <span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">])</span>
         <span class="n">ts</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">)</span>
         
         <span class="k">return</span> <span class="n">ts</span>
@@ -491,12 +500,10 @@ window.addEventListener("load", () => mermaid.run());
         
         <span class="c1"># Compute ewma</span>
         <span class="n">session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_ewma</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">ADHERENCE</span><span class="p">,</span> <span class="n">BY_PP</span><span class="p">)</span>
-
         <span class="c1"># Compute usage</span>
         <span class="n">session</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">SESSION_ID</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="s2">&quot;nunique&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span>
         
         <span class="c1"># Compute prescription days</span>
-        <span class="c1"># TODO: Improve to get prescriptions days for all weeks not just last prescriptions</span>
         <span class="n">prescribed_days</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">]</span> <span class="o">==</span> <span class="n">PRESCRIPTION_ACTIVE</span><span class="p">]</span>
             <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">WEEKDAY_INDEX</span><span class="p">]</span>

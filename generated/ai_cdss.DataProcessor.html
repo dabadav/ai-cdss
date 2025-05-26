@@ -371,8 +371,7 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="ai_cdss.DataProcessor">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ai_cdss.</span></span><span class="sig-name descname"><span class="pre">DataProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1,</span> <span class="pre">1,</span> <span class="pre">1]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor" title="Link to this definition">#</a></dt>
-<dd><p>A class for processing patient session data, applying Exponential Weighted 
-Moving Average (EWMA) and computing a final weighted score.</p>
+<dd><p>A class for processing data and computing a final weighted score.</p>
 <p>The final score is computed as:</p>
 <div class="math notranslate nohighlight">
 \[S = \alpha \cdot A + \beta \cdot DM + \gamma \cdot PPF\]</div>

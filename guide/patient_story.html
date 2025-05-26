@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Prototypical User: Elena &#8212; CDSS</title>
+    <title>Patient Data &#8212; CDSS</title>
   
   
   
@@ -289,7 +289,7 @@
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Overview</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Prototypical User: Elena</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Patient Data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decision_process.html">Step-by-Step Decision Process (Using Elena)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="justification.html">Justification of System Design</a></li>
 <li class="toctree-l1"><a class="reference internal" href="interpretation.html">Interpreting the Recommendation</a></li>
@@ -337,7 +337,7 @@
     
     <li class="breadcrumb-item"><a href="index.html" class="nav-link">CDSS User Guide</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Prototypical User: Elena</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">Patient Data</span></li>
   </ul>
 </nav>
 </div>
@@ -354,20 +354,17 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="prototypical-user-elena">
-<h1>Prototypical User: Elena<a class="headerlink" href="#prototypical-user-elena" title="Link to this heading">#</a></h1>
-<p>Elena is a 63-year-old stroke patient experiencing moderate motor impairment and mild cognitive deficits. She has limited digital literacy but high motivation to recover.</p>
-<p>At her first clinical session, the therapist enters the following data into the system:</p>
+  <section id="patient-data">
+<h1>Patient Data<a class="headerlink" href="#patient-data" title="Link to this heading">#</a></h1>
+<p>Clinician enters the patient details (<a class="reference internal" href="../generated/ai_cdss.models.SessionSchema.html#ai_cdss.models.SessionSchema" title="ai_cdss.models.SessionSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">ai_cdss.models.SessionSchema</span></code></a>) through the Medical Information Management System (MIMS), which serves as prior information of the patient.</p>
+<p>Included information:</p>
 <ul class="simple">
-<li><p>Age: 63</p></li>
-<li><p>Paretic Side: Left</p></li>
-<li><p>Stroke Date: 4 months ago</p></li>
-<li><p>MoCA Score: 23 (mild cognitive impairment)</p></li>
-<li><p>Motor scores: Moderate shoulder and elbow deficit</p></li>
-<li><p>Motivation: High</p></li>
-<li><p>Digital Literacy: Low</p></li>
+<li><p><strong>Stroke-related condition</strong>: the paretic side (e.g., Left), the upper extremity to train (e.g., Left Arm), and the patient’s hand-raising capacity (e.g., Partial). Cognitive function level (e.g., Moderate Impairment), and whether the patient has hemineglect (e.g., Yes), both of which inform cognitive rehabilitation needs.</p></li>
+<li><p><strong>Demographics</strong>: gender (e.g., Female), skin color (e.g., Light Brown), and age (e.g., 72), which can influence treatment planning and outcomes.</p></li>
+<li><p><strong>Digital literacy</strong>: patient’s experience with video games (e.g., 0, indicating none) and computer usage (e.g., 2, indicating moderate familiarity), which help determine the suitability of digital therapy interfaces. Clinicians can include comments (e.g., “Patient fatigues quickly; prefers afternoon sessions”) to record relevant observations. Finally, physical measures such as height (e.g., 165 cm) and arm size (e.g., 32 cm) ensure proper setup and adjustment of rehabilitation equipment.</p></li>
+<li><p><strong>Clinical observations and physical measures</strong>: comments (e.g., “Patient fatigues quickly; prefers afternoon sessions”), height (e.g., 165 cm), and arm size (e.g., 32 cm) to support tailored equipment setup and session planning.</p></li>
 </ul>
-<p>The CDSS uses this profile to generate a first-week training prescription. Let’s explore how.</p>
+<p>At the first clinical session, the therapist enters the patient’s baseline data into the system. If a clinical assessment is performed, standardized scales such as the ARAT (for motor function) and MoCA (for cognitive status) are also provided.</p>
 </section>
 
 
