@@ -47,7 +47,6 @@ timeseries = loader.load_timeseries_data(patient_list=PATIENT_LIST)
 ppf = loader.load_ppf_data(patient_list=PATIENT_LIST)
 init_metrics = loader.load_protocol_init()
 
-
 protocol_similarity = loader.load_protocol_similarity()
 
 scores = processor.process_data(
@@ -69,6 +68,7 @@ cdss = CDSS(
 patient_id = 1
 
 recommendation = cdss.recommend(patient_id=patient_id, protocol_similarity=protocol_similarity)
-print(recommendation)
+recommendation.to_csv(f"recommendation_{patient_id}_new.csv", index=False)
+display(recommendation)
 
 # %%

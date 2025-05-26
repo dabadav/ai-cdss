@@ -128,11 +128,13 @@ class ScoringSchema(pa.DataFrameModel):
     
     patient_id: int = pa.Field(alias="PATIENT_ID", gt=0, description="Must be a positive integer.")
     protocol_id: int = pa.Field(alias="PROTOCOL_ID", gt=0, description="Must be a positive integer.")
+    adherence: float = pa.Field(alias="ADHERENCE_RECENT", ge=0, le=1, description="Must be a probability (0-1).")
+    dm: float = pa.Field(alias="DELTA_DM") # , ge=-1, le=1, description="Must be between (-1, 1).")
     ppf: float = pa.Field(alias="PPF", ge=0, le=1, description="Must be a probability (0-1).")
-    adherence: float = pa.Field(alias="ADHERENCE", ge=0, le=1, description="Must be a probability (0-1).")
-    dm: float = pa.Field(alias="DM_VALUE") # , ge=-1, le=1, description="Must be between (-1, 1).")
     contrib: List[float] = pa.Field(alias="CONTRIB", nullable=False, coerce=True)
     score: float = pa.Field(alias="SCORE", ge=0, description="Score must be a positive float.")
+    usage: int = pa.Field(alias="USAGE", ge=0, description="Usage count must be a non-negative integer.")
+    days: List[int] = pa.Field(alias="DAYS", description="Days of the week the protocol is prescribed.")
 
 # ---------------------------------------------------------------------
 # Validation Decorator

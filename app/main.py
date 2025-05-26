@@ -50,29 +50,43 @@ def recommend(
     days = request.days or settings.DAYS
     protocols_per_day = request.protocols_per_day or settings.PROTOCOLS_PER_DAY
 
+    # loading / processing code
     loader = DataLoader(rgs_mode=rgs_mode.value)
     processor = DataProcessor(weights=weights, alpha=alpha)
 
+    # study_id -> patient_list
+
+    # ** LOADING ERROR HANDLING ** #
     session = loader.load_session_data(patient_list=request.patient_list)
     timeseries = loader.load_timeseries_data(patient_list=request.patient_list)
     ppf = loader.load_ppf_data(patient_list=request.patient_list)
     protocol_similarity = loader.load_protocol_similarity()
-    scores = processor.process_data(session, timeseries, ppf, None)
     
+    # ** PROCESSING ERROR HANDLING ** #
+    scores = processor.process_data(session, timeseries, ppf, None) # SessionSchema, TimeseriesSchema, PPFSchema -> ScoringSchema
+    
+    # business logic
+
+    # ** BUSINESS LOGIC ERROR HANDLING ** #
     cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
-    return RecommendationsResponse(
-        root={
-            patient: [
-                RecommendationOut(
-                    **row,
-                    EXPLANATION=get_top_contributing_features(row["CONTRIB"], scores.attrs.get("SUBSCALES"))
-                )
-                for row in cdss.recommend(patient, protocol_similarity).to_dict(orient="records")
-            ]
-            for patient in request.patient_list
-        }
-    )
+
+    # write operations
+
+
+    # return interface
+    # return RecommendationsResponse(
+    #     root={
+    #         patient: [
+    #             RecommendationOut(
+    #                 **row,
+    #                 EXPLANATION=get_top_contributing_features(row["CONTRIB"], scores.attrs.get("SUBSCALES"))
+    #             )
+    #             for row in cdss.recommend(patient, protocol_similarity).to_dict(orient="records")
+    #         ]
+    #         for patient in request.patient_list
+    #     }
+    # )
 
 
 ###

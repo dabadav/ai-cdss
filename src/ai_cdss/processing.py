@@ -76,69 +76,6 @@ class ProtocolToClinicalMapper:
 # ---------------------------------------------------------------
 # Data Utilities
 
-# %%
-def feature_contributions(df_A, df_B):
-    # Convert to numpy   
-    A = df_A.to_numpy() # (patients, subscales)
-    B = df_B.to_numpy() # (protocols, subscales)
-
-    # Compute row-wise norms
-    A_norms = np.linalg.norm(A, axis=1, keepdims=True) # (patients, 1)
-    B_norms = np.linalg.norm(B, axis=1, keepdims=True) # (protocols, 1)
-    
-    # Replace zero norms with a small value to avoid NaN (division by zero)
-    A_norms[A_norms == 0] = 1e-10
-    B_norms[B_norms == 0] = 1e-10
-
-    # Normalize each row to unit vectors
-    A_norm = A / A_norms # (patient, subscales)
-    B_norm = B / B_norms # (protocol, subscales)
-
-    # Compute feature contributions
-    contributions = A_norm[:, np.newaxis, :] * B_norm[np.newaxis, :, :] # (patient, dim, subscales) * (dim, protocol, subscales)
-
-    return contributions # (patients, protocols, subscales_sim)
-
-def compute_ppf(patient_deficiency, protocol_mapped):
-    """ Compute the patient-protocol feature matrix (PPF) and feature contributions.
-    """
-    contributions = feature_contributions(patient_deficiency, protocol_mapped)
-    ppf = np.sum(contributions, axis=2) # (patients, protocols, cosine)
-    ppf = pd.DataFrame(ppf, index=patient_deficiency.index, columns=protocol_mapped.index)
-    contributions = pd.DataFrame(contributions.tolist(), index=patient_deficiency.index, columns=protocol_mapped.index)
-    
-    ppf_long = ppf.stack().reset_index()
-    ppf_long.columns = ["PATIENT_ID", "PROTOCOL_ID", "PPF"]
-
-    contrib_long = contributions.stack().reset_index()
-    contrib_long.columns = ["PATIENT_ID", "PROTOCOL_ID", "CONTRIB"]
-
-    return ppf_long, contrib_long
-
-# %% 
-def compute_protocol_similarity(protocol_mapped):
-    """ Compute protocol similarity.
-    """
-    import gower
-
-    protocol_attributes = protocol_mapped.copy()
-    protocol_ids = protocol_attributes.PROTOCOL_ID
-    protocol_attributes.drop(columns="PROTOCOL_ID", inplace=True)
-
-    hot_encoded_cols = protocol_attributes.columns.str.startswith("BODY_PART")
-    weights = np.ones(len(protocol_attributes.columns))
-    weights[hot_encoded_cols] = weights[hot_encoded_cols] / hot_encoded_cols.sum()
-    protocol_attributes = protocol_attributes.astype(float)
-
-    gower_sim_matrix = gower.gower_matrix(protocol_attributes, weight=weights)
-    gower_sim_matrix = pd.DataFrame(1- gower_sim_matrix, index=protocol_ids, columns=protocol_ids)
-    gower_sim_matrix.columns.name = "PROTOCOL_SIM"
-
-    gower_sim_matrix = gower_sim_matrix.stack().reset_index()
-    gower_sim_matrix.columns = ["PROTOCOL_A", "PROTOCOL_B", "SIMILARITY"]
-
-    return gower_sim_matrix
-
 def check_session(session: pd.DataFrame) -> pd.DataFrame:
     """
     Check for data discrepancies in session DataFrame, export findings to ~/.ai_cdss/logs/,
@@ -248,7 +185,7 @@ def safe_merge(
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     log_file = os.path.join(export_dir, "data_check.log")
 
-    # Setup logger — clean, no extra clutter
+    # Setup logger
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(levelname)s - %(message)s',
@@ -259,14 +196,13 @@ def safe_merge(
     )
     logger = logging.getLogger(__name__)
 
-    # Step 1: Outer merge for discrepancy check
+    # Outer merge for discrepancy check
     discrepancy_check = left.merge(right, on=on, how="outer", indicator=True)
 
     left_only = discrepancy_check[discrepancy_check["_merge"] == "left_only"]
     right_only = discrepancy_check[discrepancy_check["_merge"] == "right_only"]
 
-    # Step 2: Export and log discrepancies if found
-
+    # Export and log discrepancies if found
     if not left_only.empty:
         export_file = os.path.join(export_dir, f"{left_name}_only_{timestamp}.csv")
         try:
@@ -295,11 +231,11 @@ def safe_merge(
 
     return merged
 
-
 #################################
 # ------ Data Processing ------ #
 #################################
 
+# %%
 def expand_session(session: pd.DataFrame):
     """
     For each prescription, generate expected sessions and merge with actual performed sessions.
@@ -409,7 +345,6 @@ def apply_savgol_filter_groupwise(series, window_size, polyorder):
         return savgol_filter(series, window_length=window, polyorder=polyorder)
     except ValueError:
         return series
-
 
 def get_rolling_theilsen_slope(series_y, series_x, window_size):
     slopes = pd.Series([np.nan] * len(series_y), index=series_y.index)
