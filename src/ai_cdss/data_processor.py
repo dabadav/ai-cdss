@@ -134,7 +134,7 @@ class DataProcessor:
         scored_df = self.compute_score(scoring_input, init_data)
         scored_df.attrs = ppf_data.attrs
         
-        return scored_df
+        return scored_df[BY_PP + FINAL_METRICS]
 
     def compute_score(self, data, protocol_metrics):
         """
