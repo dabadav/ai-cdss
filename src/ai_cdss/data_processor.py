@@ -120,7 +120,9 @@ class DataProcessor:
         # --- Combine Session Features ---
         feat_df = reduce(lambda l, r: safe_merge(l, r, on=BY_PPS), [ts_feat_df, adherence_df, usage_df, days_df])
         # Store the whole scored DataFrame as a csv
-    
+        # TODO: Log function util to save to hidden directory
+        feat_df.to_csv("scored_features.csv", index=False)   
+
         # --- Aggregation ---
         feat_agg = feat_df.groupby(BY_PP).agg("last").reset_index()
 

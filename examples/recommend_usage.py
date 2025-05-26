@@ -33,7 +33,7 @@ protocols_per_day = 5
 # Services
 loader = DataLoaderMock(
     num_patients=5,
-    num_protocols=4,
+    num_protocols=5,
     num_sessions=10
 )
 processor = DataProcessor(
@@ -46,7 +46,6 @@ session = loader.load_session_data(patient_list=PATIENT_LIST)
 timeseries = loader.load_timeseries_data(patient_list=PATIENT_LIST)
 ppf = loader.load_ppf_data(patient_list=PATIENT_LIST)
 init_metrics = loader.load_protocol_init()
-
 protocol_similarity = loader.load_protocol_similarity()
 
 scores = processor.process_data(
