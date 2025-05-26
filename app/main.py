@@ -36,14 +36,14 @@ def get_top_contributing_features(values: List[float], keys: List[str], top_n: i
     Each recommendation includes a computed PPF score, adherence values, usage history, 
     and an explanation field identifying the top contributing clinical subscales.
     """,
-    tags=["Recommendations"]    
+    tags=["Recommendations"]
     )
 def recommend(
     request: RecommendationRequest,
     rgs_mode: RGSMode = RGSMode.app,
     settings: Settings = Depends(get_settings),
 ):
-    # rgs_mode = request.rgs_mode or settings.RGS_MODE
+    # params
     weights = request.weights or settings.WEIGHTS
     alpha = request.alpha if request.alpha is not None else settings.ALPHA
     n = request.n or settings.N
@@ -75,3 +75,6 @@ def recommend(
     )
 
 
+###
+### Chron -> patient info / study -> fetch_data -> process data -> write data
+###

@@ -76,33 +76,34 @@ class ProtocolToClinicalMapper:
 # ---------------------------------------------------------------
 # Data Utilities
 
+# %%
 def feature_contributions(df_A, df_B):
-    # Convert to numpy
-    A = df_A.to_numpy()
-    B = df_B.to_numpy()
+    # Convert to numpy   
+    A = df_A.to_numpy() # (patients, subscales)
+    B = df_B.to_numpy() # (protocols, subscales)
 
     # Compute row-wise norms
-    A_norms = np.linalg.norm(A, axis=1, keepdims=True)
-    B_norms = np.linalg.norm(B, axis=1, keepdims=True)
+    A_norms = np.linalg.norm(A, axis=1, keepdims=True) # (patients, 1)
+    B_norms = np.linalg.norm(B, axis=1, keepdims=True) # (protocols, 1)
     
     # Replace zero norms with a small value to avoid NaN (division by zero)
     A_norms[A_norms == 0] = 1e-10
     B_norms[B_norms == 0] = 1e-10
 
     # Normalize each row to unit vectors
-    A_norm = A / A_norms
-    B_norm = B / B_norms
+    A_norm = A / A_norms # (patient, subscales)
+    B_norm = B / B_norms # (protocol, subscales)
 
     # Compute feature contributions
-    contributions = A_norm[:, np.newaxis, :] * B_norm[np.newaxis, :, :]
+    contributions = A_norm[:, np.newaxis, :] * B_norm[np.newaxis, :, :] # (patient, dim, subscales) * (dim, protocol, subscales)
 
-    return contributions
+    return contributions # (patients, protocols, subscales_sim)
 
 def compute_ppf(patient_deficiency, protocol_mapped):
     """ Compute the patient-protocol feature matrix (PPF) and feature contributions.
     """
     contributions = feature_contributions(patient_deficiency, protocol_mapped)
-    ppf = np.sum(contributions, axis=2)
+    ppf = np.sum(contributions, axis=2) # (patients, protocols, cosine)
     ppf = pd.DataFrame(ppf, index=patient_deficiency.index, columns=protocol_mapped.index)
     contributions = pd.DataFrame(contributions.tolist(), index=patient_deficiency.index, columns=protocol_mapped.index)
     
@@ -114,6 +115,7 @@ def compute_ppf(patient_deficiency, protocol_mapped):
 
     return ppf_long, contrib_long
 
+# %% 
 def compute_protocol_similarity(protocol_mapped):
     """ Compute protocol similarity.
     """

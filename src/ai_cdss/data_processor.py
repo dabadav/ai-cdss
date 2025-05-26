@@ -26,19 +26,16 @@ from ai_cdss.constants import (
 )
 import logging
 
-
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 # ---------------------------------------------------------------------
 # Data Processor Class
 
 class DataProcessor:
     """
-    A class for processing patient session data, applying Exponential Weighted 
-    Moving Average (EWMA) and computing a final weighted score.
+    A class for processing data and computing a final weighted score.
 
     The final score is computed as:
 
@@ -99,37 +96,49 @@ class DataProcessor:
             Final scored dataframe with protocol recommendations.
         """
 
-        # 1. Preprocess time series
+        # Preprocessing
         ts_processed = self.preprocess_timeseries(timeseries_data)
-        # 2. Preprocess session data
         ss_processed = self.preprocess_sessions(session_data)
-        # 3.1 Merge session and timeseries data
+        
+        # Merging
         merged_data = safe_merge(ss_processed, ts_processed, on=BY_PPS, how="inner", left_name="session", right_name="ts")
-        # 3.2 Aggregate metrics per protocol
         data = merged_data.groupby(by=BY_PP)[FINAL_METRICS].last()
-        # 3.3 Merge session, timeseries, and ppf
         data = ppf_data.merge(data, on=BY_PP, how="left")
-        # 4. Compute scores
+
+        # Scoring
         scored_data = self.compute_score(data, init_data)
-        # 5. Propagate metadata
         scored_data.attrs = ppf_data.attrs
 
         return scored_data
     
-    def preprocess_timeseries(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
-
+    def preprocess_timeseries(self, timeseries_data: DataFrame[TimeseriesSchema]) -> pd.DataFrame:
         # DMs Session Mean
-        timeseries_data = timeseries_data.groupby(BY_PPS).agg({DM_VALUE:"mean", PE_VALUE:"mean"}).reset_index()
+        timeseries_data = (
+            timeseries_data
+            .groupby(BY_PPS)
+            .agg({DM_VALUE:"mean", PE_VALUE:"mean"})
+            .reset_index()
+        )
         
-        # Compute delta metric (smoothing + delta)
+        # Compute learning metric (smoothing + delta)
         timeseries_data['SESSION_INDEX'] = timeseries_data.groupby(BY_PP).cumcount() + 1
-        timeseries_data['DM_SMOOTH'] = timeseries_data.groupby(by=BY_PP)[DM_VALUE].transform(apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER)
-        timeseries_data['DM_VALUE'] = timeseries_data.groupby(by=BY_PP, group_keys=False).apply(
-            lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g['SESSION_INDEX'], THEILSON_REGRESSION_WINDOW_SIZE)
-        ).fillna(0)
-    
+        timeseries_data['DM_SMOOTH'] = (
+            timeseries_data
+            .groupby(by=BY_PP)[DM_VALUE]
+            .transform(apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER)
+        )
+
+        timeseries_data[DM_VALUE] = (
+            timeseries_data
+            .groupby(by=BY_PP, group_keys=False)
+            .apply(
+                lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g['SESSION_INDEX'], THEILSON_REGRESSION_WINDOW_SIZE)
+            )
+            .fillna(0)
+        )
+
         # Drop columns
-        timeseries_data = timeseries_data.drop(columns=['SESSION_INDEX','DM_SMOOTH'])
+        timeseries_data = timeseries_data.drop(columns=['SESSION_INDEX', 'DM_SMOOTH'])
         ts = timeseries_data.sort_values(by=BY_PPS)
         
         return ts
@@ -139,12 +148,10 @@ class DataProcessor:
         
         # Compute ewma
         session = self._compute_ewma(session, ADHERENCE, BY_PP)
-
         # Compute usage
         session[USAGE] = session.groupby(BY_PP)[SESSION_ID].transform("nunique").astype("Int64")
         
         # Compute prescription days
-        # TODO: Improve to get prescriptions days for all weeks not just last prescriptions
         prescribed_days = (
             session[session[PRESCRIPTION_ENDING_DATE] == PRESCRIPTION_ACTIVE]
             .groupby(BY_PP)[WEEKDAY_INDEX]
