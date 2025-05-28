@@ -55,24 +55,27 @@ def recommend(
     processor = DataProcessor(weights=weights, alpha=alpha)
 
     # study_id -> patient_list
+    patient_list = None # retrieve patient_list from patient request.study_id or refactor loader class
 
     # ** LOADING ERROR HANDLING ** #
-    session = loader.load_session_data(patient_list=request.patient_list)
-    timeseries = loader.load_timeseries_data(patient_list=request.patient_list)
-    ppf = loader.load_ppf_data(patient_list=request.patient_list)
+    session = loader.load_session_data(patient_list=patient_list)
+    timeseries = loader.load_timeseries_data(patient_list=patient_list)
+    ppf = loader.load_ppf_data(patient_list=patient_list)
     protocol_similarity = loader.load_protocol_similarity()
     
     # ** PROCESSING ERROR HANDLING ** #
     scores = processor.process_data(session, timeseries, ppf, None) # SessionSchema, TimeseriesSchema, PPFSchema -> ScoringSchema
     
     # business logic
-
     # ** BUSINESS LOGIC ERROR HANDLING ** #
     cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
-
-    # write operations
-
+    # for patient in patient_list:
+    #     for row in cdss.recommend(patient, protocol_similarity).to_dict(orient="records")
+    #         EXPLANATION=get_top_contributing_features(row["CONTRIB"], scores.attrs.get("SUBSCALES"))
+    #         explode days
+    #         cast to recsys metrics and prescription_staging
+    ######### write operations
 
     # return interface
     # return RecommendationsResponse(

@@ -42,3 +42,14 @@ class RecommendationOut(BaseModel):
 
 class RecommendationsResponse(RootModel):
     root: Dict[int, List[RecommendationOut]]
+
+class RecsysMetricsRow(BaseModel):
+    dm_value: float = Field(alias="DM_VALUE")
+    adherence: float = Field(alias="ADHERENCE")
+    ppf: float = Field(alias="PPF")
+    contrib: List[float] = Field(alias="CONTRIB")
+
+class PrescriptionStagingRow(BaseModel):
+    patient_id: int = Field(alias="PATIENT_ID")
+    protocol_id: int = Field(alias="PROTOCOL_ID")
+    day: int = Field(alias="DAY")
