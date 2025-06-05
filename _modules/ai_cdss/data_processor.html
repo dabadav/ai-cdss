@@ -346,6 +346,9 @@ window.addEventListener("load", () => mermaid.run());
                   
   <h1>Source code for ai_cdss.data_processor</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce</span>
+
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
@@ -360,9 +363,13 @@ window.addEventListener("load", () => mermaid.run());
     <span class="n">SESSION_ID</span><span class="p">,</span>
     <span class="n">DM_KEY</span><span class="p">,</span> <span class="n">PE_KEY</span><span class="p">,</span>
     <span class="n">DM_VALUE</span><span class="p">,</span> <span class="n">PE_VALUE</span><span class="p">,</span>
-    <span class="n">ADHERENCE</span><span class="p">,</span> 
+    <span class="n">DELTA_DM</span><span class="p">,</span>
+    <span class="n">ADHERENCE</span><span class="p">,</span>
+    <span class="n">RECENT_ADHERENCE</span><span class="p">,</span>
     <span class="n">USAGE</span><span class="p">,</span>
     <span class="n">DAYS</span><span class="p">,</span>
+    <span class="n">PPF</span><span class="p">,</span>
+    <span class="n">SCORE</span><span class="p">,</span>
     <span class="n">WEEKDAY_INDEX</span><span class="p">,</span>
     <span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">,</span>
     <span class="n">PRESCRIPTION_ACTIVE</span><span class="p">,</span>
@@ -379,6 +386,11 @@ window.addEventListener("load", () => mermaid.run());
 
 <span class="c1"># ---------------------------------------------------------------------</span>
 <span class="c1"># Data Processor Class</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FeatureBlock</span><span class="p">:</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">level</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
 
 <div class="viewcode-block" id="DataProcessor">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor">[docs]</a>
@@ -447,74 +459,36 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">            Final scored dataframe with protocol recommendations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="c1"># Preprocessing</span>
-        <span class="n">ts_processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_timeseries</span><span class="p">(</span><span class="n">timeseries_data</span><span class="p">)</span>
-        <span class="n">ss_processed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess_sessions</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
+        <span class="c1"># --- Log-Level Output ---</span>
+        <span class="c1">## PATIENT_ID + PROTOCOL_ID + SESSION_ID + ADHERENCE + RECENT_ADHERENCE + USAGE + DAYS + DM_VALUE + DELTA_DM_VALUE + PE_VALUE + PPF + SCORE</span>
         
-        <span class="c1"># Merging</span>
-        <span class="n">merged_data</span> <span class="o">=</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">ss_processed</span><span class="p">,</span> <span class="n">ts_processed</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;inner&quot;</span><span class="p">,</span> <span class="n">left_name</span><span class="o">=</span><span class="s2">&quot;session&quot;</span><span class="p">,</span> <span class="n">right_name</span><span class="o">=</span><span class="s2">&quot;ts&quot;</span><span class="p">)</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">merged_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">FINAL_METRICS</span><span class="p">]</span><span class="o">.</span><span class="n">last</span><span class="p">()</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">ppf_data</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+        <span class="c1"># --- Feature Building ---</span>
+        <span class="n">ts_feat_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_delta_dm</span><span class="p">(</span><span class="n">timeseries_data</span><span class="p">)</span>
+        <span class="n">adherence_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_recent_adherence</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
+        <span class="n">usage_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_usage</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
+        <span class="n">days_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_prescription_days</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
 
-        <span class="c1"># Scoring</span>
-        <span class="n">scored_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_score</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">init_data</span><span class="p">)</span>
-        <span class="n">scored_data</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="n">ppf_data</span><span class="o">.</span><span class="n">attrs</span>
+        <span class="c1"># --- Combine Session Features ---</span>
+        <span class="n">feat_df</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">),</span> <span class="p">[</span><span class="n">ts_feat_df</span><span class="p">,</span> <span class="n">adherence_df</span><span class="p">,</span> <span class="n">usage_df</span><span class="p">,</span> <span class="n">days_df</span><span class="p">])</span>
+        <span class="c1"># Store the whole scored DataFrame as a csv</span>
+        <span class="c1"># TODO: Log function util to save to hidden directory</span>
+        <span class="n">feat_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;scored_features.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>   
 
-        <span class="k">return</span> <span class="n">scored_data</span></div>
+        <span class="c1"># --- Aggregation ---</span>
+        <span class="n">feat_agg</span> <span class="o">=</span> <span class="n">feat_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="s2">&quot;last&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
 
-    
-    <span class="k">def</span><span class="w"> </span><span class="nf">preprocess_timeseries</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeseries_data</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-        <span class="c1"># DMs Session Mean</span>
-        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">timeseries_data</span>
-            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PPS</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="n">DM_VALUE</span><span class="p">:</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">PE_VALUE</span><span class="p">:</span><span class="s2">&quot;mean&quot;</span><span class="p">})</span>
-            <span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
-        <span class="p">)</span>
+        <span class="c1"># --- Merge All for Scoring ---</span>
+        <span class="n">scoring_input</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">),</span> <span class="p">[</span>
+            <span class="n">ppf_data</span><span class="p">,</span>
+            <span class="n">feat_agg</span>
+        <span class="p">])</span>
+
+        <span class="c1"># --- Scoring ---</span>
+        <span class="n">scored_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_score</span><span class="p">(</span><span class="n">scoring_input</span><span class="p">,</span> <span class="n">init_data</span><span class="p">)</span>
+        <span class="n">scored_df</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="n">ppf_data</span><span class="o">.</span><span class="n">attrs</span>
         
-        <span class="c1"># Compute learning metric (smoothing + delta)</span>
-        <span class="n">timeseries_data</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">cumcount</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
-        <span class="n">timeseries_data</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">timeseries_data</span>
-            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">DM_VALUE</span><span class="p">]</span>
-            <span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">apply_savgol_filter_groupwise</span><span class="p">,</span> <span class="n">SAVGOL_WINDOW_SIZE</span><span class="p">,</span> <span class="n">SAVGOL_POLY_ORDER</span><span class="p">)</span>
-        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">scored_df</span><span class="p">[</span><span class="n">BY_PP</span> <span class="o">+</span> <span class="n">FINAL_METRICS</span><span class="p">]</span></div>
 
-        <span class="n">timeseries_data</span><span class="p">[</span><span class="n">DM_VALUE</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">timeseries_data</span>
-            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-                <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">get_rolling_theilsen_slope</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">],</span> <span class="n">g</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">],</span> <span class="n">THEILSON_REGRESSION_WINDOW_SIZE</span><span class="p">)</span>
-            <span class="p">)</span>
-            <span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Drop columns</span>
-        <span class="n">timeseries_data</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">,</span> <span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">])</span>
-        <span class="n">ts</span> <span class="o">=</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">)</span>
-        
-        <span class="k">return</span> <span class="n">ts</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">preprocess_sessions</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-        <span class="n">session</span> <span class="o">=</span> <span class="n">session_data</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">)</span>
-        
-        <span class="c1"># Compute ewma</span>
-        <span class="n">session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_ewma</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">ADHERENCE</span><span class="p">,</span> <span class="n">BY_PP</span><span class="p">)</span>
-        <span class="c1"># Compute usage</span>
-        <span class="n">session</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">SESSION_ID</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="s2">&quot;nunique&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span>
-        
-        <span class="c1"># Compute prescription days</span>
-        <span class="n">prescribed_days</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">]</span> <span class="o">==</span> <span class="n">PRESCRIPTION_ACTIVE</span><span class="p">]</span>
-            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">WEEKDAY_INDEX</span><span class="p">]</span>
-            <span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">unique</span><span class="p">()))</span>
-            <span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">DAYS</span><span class="p">)</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Merge days into session DataFrame</span>
-        <span class="n">session</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">prescribed_days</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">session</span>
 
 <div class="viewcode-block" id="DataProcessor.compute_score">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor.compute_score">[docs]</a>
@@ -542,38 +516,6 @@ window.addEventListener("load", () => mermaid.run());
         <span class="n">score</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">score</span></div>
-
-
-<div class="viewcode-block" id="DataProcessor.aggregate_dms_by_time">
-<a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor.aggregate_dms_by_time">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">aggregate_dms_by_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timeseries_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Aggregate multiple difficulty modulator (DM) values at the same timepoint.</span>
-
-<span class="sd">        Groups by patient, protocol, session, and time, and computes average DM and PE.</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        timeseries_data : pd.DataFrame</span>
-<span class="sd">            Raw timeseries data with DM_KEY, DM_VALUE, PE_KEY, PE_VALUE.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        pd.DataFrame</span>
-<span class="sd">            Aggregated timeseries data with unique timepoints.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">(</span>
-            <span class="n">timeseries_data</span>
-            <span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PPST</span><span class="p">)</span> <span class="c1"># Sort df by time</span>
-            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PPST</span><span class="p">)</span>
-            <span class="o">.</span><span class="n">agg</span><span class="p">({</span>
-                <span class="n">DM_KEY</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">x</span><span class="p">)),</span>  <span class="c1"># Unique parameters at this time</span>
-                <span class="n">DM_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>               <span class="c1"># Average parameter value</span>
-                <span class="n">PE_KEY</span><span class="p">:</span> <span class="s2">&quot;first&quot;</span><span class="p">,</span>                <span class="c1"># Assume same performance key per time, take first</span>
-                <span class="n">PE_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span>                <span class="c1"># Average performance value (usually only one)</span>
-            <span class="p">})</span>
-            <span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
-        <span class="p">)</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_init_metrics</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">protocol_metrics</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
@@ -646,12 +588,45 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">            DataFrame with an added SCORE column.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">scoring_df</span> <span class="o">=</span> <span class="n">scoring</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">scoring_df</span><span class="p">[</span><span class="s1">&#39;SCORE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">scoring_df</span><span class="p">[</span><span class="s1">&#39;ADHERENCE&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="o">+</span> <span class="n">scoring_df</span><span class="p">[</span><span class="s1">&#39;DM_VALUE&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="o">+</span> <span class="n">scoring_df</span><span class="p">[</span><span class="s1">&#39;PPF&#39;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">scoring_df</span><span class="p">[</span><span class="n">SCORE</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">scoring_df</span><span class="p">[</span><span class="n">RECENT_ADHERENCE</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="o">+</span> <span class="n">scoring_df</span><span class="p">[</span><span class="n">DELTA_DM</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="o">+</span> <span class="n">scoring_df</span><span class="p">[</span><span class="n">PPF</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="p">)</span>
-        <span class="k">return</span> <span class="n">scoring_df</span></div>
+        <span class="k">return</span> <span class="n">scoring_df</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_delta_dm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">FeatureBlock</span><span class="p">:</span>
+        <span class="n">grouped</span> <span class="o">=</span> <span class="n">ts_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PPS</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="n">DM_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">PE_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span><span class="p">})</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+        <span class="n">grouped</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">cumcount</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">grouped</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">DM_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span>
+            <span class="n">apply_savgol_filter_groupwise</span><span class="p">,</span> <span class="n">SAVGOL_WINDOW_SIZE</span><span class="p">,</span> <span class="n">SAVGOL_POLY_ORDER</span>
+        <span class="p">)</span>
+        <span class="n">grouped</span><span class="p">[</span><span class="n">DELTA_DM</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">get_rolling_theilsen_slope</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">],</span> <span class="n">g</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">],</span> <span class="n">THEILSON_REGRESSION_WINDOW_SIZE</span><span class="p">)</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">grouped</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">DM_VALUE</span><span class="p">,</span> <span class="n">DELTA_DM</span><span class="p">]]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_recent_adherence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">session_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_ewma</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">ADHERENCE</span><span class="p">,</span> <span class="n">BY_PP</span><span class="p">,</span> <span class="n">sufix</span><span class="o">=</span><span class="s2">&quot;_RECENT&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">RECENT_ADHERENCE</span><span class="p">]]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_usage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">session_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">df</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">SESSION_ID</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="s2">&quot;nunique&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">USAGE</span><span class="p">]]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_prescription_days</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="n">prescribed_days</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">session_df</span><span class="p">[</span><span class="n">session_df</span><span class="p">[</span><span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">]</span> <span class="o">==</span> <span class="n">PRESCRIPTION_ACTIVE</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">WEEKDAY_INDEX</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">unique</span><span class="p">()))</span>
+            <span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">DAYS</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="p">)</span>
+        <span class="n">merged</span> <span class="o">=</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">session_df</span><span class="p">[</span><span class="n">BY_PPS</span><span class="p">],</span> <span class="n">prescribed_days</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">merged</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">DAYS</span><span class="p">]]</span></div>
 
 </pre></div>
 

@@ -394,13 +394,10 @@
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.aggregate_dms_by_time" title="ai_cdss.DataProcessor.aggregate_dms_by_time"><code class="xref py py-obj docutils literal notranslate"><span class="pre">aggregate_dms_by_time</span></code></a>(timeseries_data)</p></td>
-<td><p>Aggregate multiple difficulty modulator (DM) values at the same timepoint.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.compute_score" title="ai_cdss.DataProcessor.compute_score"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_score</span></code></a>(data, protocol_metrics)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.compute_score" title="ai_cdss.DataProcessor.compute_score"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_score</span></code></a>(data, protocol_metrics)</p></td>
 <td><p>Initializes metrics based on legacy data and computes score</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.process_data" title="ai_cdss.DataProcessor.process_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_data</span></code></a>(session_data, timeseries_data, ...)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.process_data" title="ai_cdss.DataProcessor.process_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_data</span></code></a>(session_data, timeseries_data, ...)</p></td>
 <td><p>Process and score patient-protocol combinations using session, timeseries, and PPF data.</p></td>
 </tr>
 </tbody>
@@ -408,10 +405,16 @@
 </div>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
-<tr class="row-odd"><td><p><strong>preprocess_sessions</strong></p></td>
+<tr class="row-odd"><td><p><strong>build_delta_dm</strong></p></td>
 <td></td>
 </tr>
-<tr class="row-even"><td><p><strong>preprocess_timeseries</strong></p></td>
+<tr class="row-even"><td><p><strong>build_prescription_days</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><strong>build_recent_adherence</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>build_usage</strong></p></td>
 <td></td>
 </tr>
 </tbody>
@@ -460,30 +463,6 @@ and computes final patient-protocol scores.</p>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
 <dt>pd.DataFrame</dt><dd><p>Scored DataFrame sorted by patient and protocol.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.aggregate_dms_by_time">
-<span class="sig-name descname"><span class="pre">aggregate_dms_by_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeseries_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.aggregate_dms_by_time"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.aggregate_dms_by_time" title="Link to this definition">#</a></dt>
-<dd><p>Aggregate multiple difficulty modulator (DM) values at the same timepoint.</p>
-<p>Groups by patient, protocol, session, and time, and computes average DM and PE.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>timeseries_data</strong><span class="classifier">pd.DataFrame</span></dt><dd><p>Raw timeseries data with DM_KEY, DM_VALUE, PE_KEY, PE_VALUE.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>Aggregated timeseries data with unique timepoints.</p>
 </dd>
 </dl>
 </dd>
@@ -550,7 +529,6 @@ and computes final patient-protocol scores.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor"><code class="docutils literal notranslate"><span class="pre">DataProcessor</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.process_data"><code class="docutils literal notranslate"><span class="pre">DataProcessor.process_data()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_score"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_score()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.aggregate_dms_by_time"><code class="docutils literal notranslate"><span class="pre">DataProcessor.aggregate_dms_by_time()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples-using-ai-cdss-dataprocessor">Examples using <code class="docutils literal notranslate"><span class="pre">ai_cdss.DataProcessor</span></code></a></li>
