@@ -36,7 +36,7 @@ Run this script from the command line:
 from pathlib import Path
 import pandas as pd
 import numpy as np
-from ai_cdss.processing import ClinicalSubscales, ProtocolToClinicalMapper, compute_ppf, compute_protocol_similarity
+from ai_cdss.processing import ClinicalSubscales, ProtocolToClinicalMapper
 import shutil
 
 # Default data directory
