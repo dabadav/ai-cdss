@@ -1,4 +1,7 @@
 from typing import List
+from dataclasses import dataclass
+from functools import reduce
+
 
 import pandas as pd
 import pandera as pa
@@ -13,9 +16,13 @@ from ai_cdss.constants import (
     SESSION_ID,
     DM_KEY, PE_KEY,
     DM_VALUE, PE_VALUE,
-    ADHERENCE, 
+    DELTA_DM,
+    ADHERENCE,
+    RECENT_ADHERENCE,
     USAGE,
     DAYS,
+    PPF,
+    SCORE,
     WEEKDAY_INDEX,
     PRESCRIPTION_ENDING_DATE,
     PRESCRIPTION_ACTIVE,
@@ -32,6 +39,11 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------
 # Data Processor Class
+
+@dataclass
+class FeatureBlock:
+    df: pd.DataFrame
+    level: List[str]
 
 class DataProcessor:
     """
@@ -96,73 +108,35 @@ class DataProcessor:
             Final scored dataframe with protocol recommendations.
         """
 
-        # Preprocessing
-        ts_processed = self.preprocess_timeseries(timeseries_data)
-        ss_processed = self.preprocess_sessions(session_data)
+        # --- Log-Level Output ---
+        ## PATIENT_ID + PROTOCOL_ID + SESSION_ID + ADHERENCE + RECENT_ADHERENCE + USAGE + DAYS + DM_VALUE + DELTA_DM_VALUE + PE_VALUE + PPF + SCORE
         
-        # Merging
-        merged_data = safe_merge(ss_processed, ts_processed, on=BY_PPS, how="inner", left_name="session", right_name="ts")
-        data = merged_data.groupby(by=BY_PP)[FINAL_METRICS].last()
-        data = ppf_data.merge(data, on=BY_PP, how="left")
+        # --- Feature Building ---
+        ts_feat_df = self.build_delta_dm(timeseries_data)
+        adherence_df = self.build_recent_adherence(session_data)
+        usage_df = self.build_usage(session_data)
+        days_df = self.build_prescription_days(session_data)
 
-        # Scoring
-        scored_data = self.compute_score(data, init_data)
-        scored_data.attrs = ppf_data.attrs
+        # --- Combine Session Features ---
+        feat_df = reduce(lambda l, r: safe_merge(l, r, on=BY_PPS), [ts_feat_df, adherence_df, usage_df, days_df])
+        # Store the whole scored DataFrame as a csv
+        # TODO: Log function util to save to hidden directory
+        feat_df.to_csv("scored_features.csv", index=False)   
 
-        return scored_data
-    
-    def preprocess_timeseries(self, timeseries_data: DataFrame[TimeseriesSchema]) -> pd.DataFrame:
-        # DMs Session Mean
-        timeseries_data = (
-            timeseries_data
-            .groupby(BY_PPS)
-            .agg({DM_VALUE:"mean", PE_VALUE:"mean"})
-            .reset_index()
-        )
+        # --- Aggregation ---
+        feat_agg = feat_df.groupby(BY_PP).agg("last").reset_index()
+
+        # --- Merge All for Scoring ---
+        scoring_input = reduce(lambda l, r: safe_merge(l, r, on=BY_PP), [
+            ppf_data,
+            feat_agg
+        ])
+
+        # --- Scoring ---
+        scored_df = self.compute_score(scoring_input, init_data)
+        scored_df.attrs = ppf_data.attrs
         
-        # Compute learning metric (smoothing + delta)
-        timeseries_data['SESSION_INDEX'] = timeseries_data.groupby(BY_PP).cumcount() + 1
-        timeseries_data['DM_SMOOTH'] = (
-            timeseries_data
-            .groupby(by=BY_PP)[DM_VALUE]
-            .transform(apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER)
-        )
-
-        timeseries_data[DM_VALUE] = (
-            timeseries_data
-            .groupby(by=BY_PP, group_keys=False)
-            .apply(
-                lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g['SESSION_INDEX'], THEILSON_REGRESSION_WINDOW_SIZE)
-            )
-            .fillna(0)
-        )
-
-        # Drop columns
-        timeseries_data = timeseries_data.drop(columns=['SESSION_INDEX', 'DM_SMOOTH'])
-        ts = timeseries_data.sort_values(by=BY_PPS)
-        
-        return ts
-
-    def preprocess_sessions(self, session_data: pd.DataFrame) -> pd.DataFrame:
-        session = session_data.sort_values(by=BY_PPS)
-        
-        # Compute ewma
-        session = self._compute_ewma(session, ADHERENCE, BY_PP)
-        # Compute usage
-        session[USAGE] = session.groupby(BY_PP)[SESSION_ID].transform("nunique").astype("Int64")
-        
-        # Compute prescription days
-        prescribed_days = (
-            session[session[PRESCRIPTION_ENDING_DATE] == PRESCRIPTION_ACTIVE]
-            .groupby(BY_PP)[WEEKDAY_INDEX]
-            .agg(lambda x: sorted(x.unique()))
-            .rename(DAYS)
-        )
-
-        # Merge days into session DataFrame
-        session = session.merge(prescribed_days, on=BY_PP, how="left")
-
-        return session
+        return scored_df[BY_PP + FINAL_METRICS]
 
     def compute_score(self, data, protocol_metrics):
         """
@@ -188,35 +162,6 @@ class DataProcessor:
         score.sort_values(by=BY_PP, inplace=True)
 
         return score
-
-    def aggregate_dms_by_time(self, timeseries_data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Aggregate multiple difficulty modulator (DM) values at the same timepoint.
-
-        Groups by patient, protocol, session, and time, and computes average DM and PE.
-
-        Parameters
-        ----------
-        timeseries_data : pd.DataFrame
-            Raw timeseries data with DM_KEY, DM_VALUE, PE_KEY, PE_VALUE.
-
-        Returns
-        -------
-        pd.DataFrame
-            Aggregated timeseries data with unique timepoints.
-        """
-        return (
-            timeseries_data
-            .sort_values(by=BY_PPST) # Sort df by time
-            .groupby(BY_PPST)
-            .agg({
-                DM_KEY: lambda x: tuple(set(x)),  # Unique parameters at this time
-                DM_VALUE: "mean",               # Average parameter value
-                PE_KEY: "first",                # Assume same performance key per time, take first
-                PE_VALUE: "mean"                # Average performance value (usually only one)
-            })
-            .reset_index()
-        )
 
     def _init_metrics(self, data: pd.DataFrame, protocol_metrics: pd.DataFrame) -> pd.DataFrame:
         """
@@ -288,9 +233,42 @@ class DataProcessor:
             DataFrame with an added SCORE column.
         """
         scoring_df = scoring.copy()
-        scoring_df['SCORE'] = (
-            scoring_df['ADHERENCE'] * self.weights[0]
-            + scoring_df['DM_VALUE'] * self.weights[1]
-            + scoring_df['PPF'] * self.weights[2]
+        scoring_df[SCORE] = (
+            scoring_df[RECENT_ADHERENCE] * self.weights[0]
+            + scoring_df[DELTA_DM] * self.weights[1]
+            + scoring_df[PPF] * self.weights[2]
         )
         return scoring_df
+
+    def build_delta_dm(self, ts_df: DataFrame[TimeseriesSchema]) -> FeatureBlock:
+        grouped = ts_df.groupby(BY_PPS).agg({DM_VALUE: "mean", PE_VALUE: "mean"}).reset_index()
+
+        grouped['SESSION_INDEX'] = grouped.groupby(BY_PP).cumcount() + 1
+        grouped['DM_SMOOTH'] = grouped.groupby(BY_PP)[DM_VALUE].transform(
+            apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER
+        )
+        grouped[DELTA_DM] = grouped.groupby(BY_PP, group_keys=False).apply(
+            lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g['SESSION_INDEX'], THEILSON_REGRESSION_WINDOW_SIZE)
+        ).fillna(0)
+        return grouped[BY_PPS + [DM_VALUE, DELTA_DM]]
+
+    def build_recent_adherence(self, session_df: DataFrame[SessionSchema]) -> pd.DataFrame:
+        df = session_df.copy()
+        df = self._compute_ewma(df, ADHERENCE, BY_PP, sufix="_RECENT")
+        return df[BY_PPS + [RECENT_ADHERENCE]]
+
+    def build_usage(self, session_df: DataFrame[SessionSchema]) -> pd.DataFrame:
+        df = session_df.copy()
+        df[USAGE] = df.groupby(BY_PP)[SESSION_ID].transform("nunique").astype("Int64")
+        return df[BY_PPS + [USAGE]]
+
+    def build_prescription_days(self, session_df: DataFrame[SessionSchema]) -> pd.DataFrame:
+        prescribed_days = (
+            session_df[session_df[PRESCRIPTION_ENDING_DATE] == PRESCRIPTION_ACTIVE]
+            .groupby(BY_PP)[WEEKDAY_INDEX]
+            .agg(lambda x: sorted(x.unique()))
+            .rename(DAYS)
+            .reset_index()
+        )
+        merged = safe_merge(session_df[BY_PPS], prescribed_days, on=BY_PP, how="left")
+        return merged[BY_PPS + [DAYS]]

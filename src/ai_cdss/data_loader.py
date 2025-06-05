@@ -18,12 +18,9 @@ from ai_cdss.evaluation.synthetic import (
     generate_synthetic_protocol_metric
 )
 from ai_cdss.processing import check_session
-from rgs_interface.data.interface import fetch_rgs_data, fetch_timeseries_data
+from rgs_interface.data.interface import DatabaseInterface
 
 import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------
@@ -67,6 +64,7 @@ class DataLoader(DataLoaderBase):
         """
         Initialize the DataLoader with a list of patient IDs and RGS mode.
         """
+        self.interface = DatabaseInterface()
         self.rgs_mode = rgs_mode
 
     @safe_check_types(SessionSchema)
@@ -80,7 +78,7 @@ class DataLoader(DataLoaderBase):
             Session data for the specified patients.
         """
         try:
-            session = check_session(fetch_rgs_data(patient_list, rgs_mode=self.rgs_mode))
+            session = self.interface.fetch_rgs_data(patient_list, rgs_mode=self.rgs_mode)
             logger.info("Session data loaded successfully.")
             return session
         except SchemaError as e:
@@ -102,7 +100,7 @@ class DataLoader(DataLoaderBase):
         """
         
         try:
-            timeseries = fetch_timeseries_data(patient_list, rgs_mode=self.rgs_mode)
+            timeseries = self.interface.fetch_timeseries_data(patient_list, rgs_mode=self.rgs_mode)
             return timeseries
         except SchemaError as e:
             logger.error(f"Data validation failed: {e}")
@@ -214,7 +212,6 @@ class DataLoader(DataLoaderBase):
         except Exception as e:
             logger.error(f"Failed to load protocol metrics data: {e}")
             raise
-
 
 # ---------------------------------------------------------------------
 # Synthetic Data Loader
