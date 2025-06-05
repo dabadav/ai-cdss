@@ -16,6 +16,10 @@ from ai_cdss import config
 from ai_cdss.utils import MultiKeyDict
 from ai_cdss.constants import *
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 # ------------------------------
 # Clinical Scores
 
@@ -76,6 +80,11 @@ class ProtocolToClinicalMapper:
 # ---------------------------------------------------------------
 # Data Utilities
 
+def check_prescriptions(session: pd.DataFrame):
+    patients_non_prescribed = session[session[PRESCRIPTION_ID].isna()]
+    if not patients_non_prescribed.empty:
+        return patients_non_prescribed
+
 def check_session(session: pd.DataFrame) -> pd.DataFrame:
     """
     Check for data discrepancies in session DataFrame, export findings to ~/.ai_cdss/logs/,
@@ -91,31 +100,9 @@ def check_session(session: pd.DataFrame) -> pd.DataFrame:
     pd.DataFrame
         Cleaned session DataFrame.
     """
-    # Step 0: Setup paths
-    log_dir = os.path.expanduser("~/.ai_cdss/logs/")
-    os.makedirs(log_dir, exist_ok=True)
-
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-
-    log_file = os.path.join(log_dir, "data_check.log")
-
-    # Setup logging (re-setup per function call to ensure correct log file)
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
-
-    logger = logging.getLogger(__name__)
-
-    # Step 1: Patient registered but no data yet (no prescription)
-    print("Patient registered but no data yet.")
+    # Patient registered but no data yet (no prescription)
     patients_no_data = session[session["PRESCRIPTION_ID"].isna()]
     if not patients_no_data.empty:
-        export_file = os.path.join(log_dir, f"patients_no_data_{timestamp}.csv")
         patients_no_data[["PATIENT_ID", "PRESCRIPTION_ID", "SESSION_ID"]].to_csv(export_file, index=False)
         logger.warning(f"{len(patients_no_data)} patients found without prescription. Check exported file: {export_file}")
     else:
@@ -125,7 +112,6 @@ def check_session(session: pd.DataFrame) -> pd.DataFrame:
     session = session.drop(patients_no_data.index)
 
     # Sessions in session table but not in recording table (no adherence)
-    print("Sessions in session table but not in recording table")
     patient_session_discrepancy = session[session["ADHERENCE"].isna()]
     if not patient_session_discrepancy.empty:
         export_file = os.path.join(log_dir, f"patient_session_discrepancy_{timestamp}.csv")
@@ -235,7 +221,6 @@ def safe_merge(
 # ------ Data Processing ------ #
 #################################
 
-# %%
 def expand_session(session: pd.DataFrame):
     """
     For each prescription, generate expected sessions and merge with actual performed sessions.

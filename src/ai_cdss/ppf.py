@@ -147,7 +147,6 @@ def compute_protocol_similarity(protocol_mapped):
 
     return gower_sim_matrix
 
-
 def main():
     
     # Get platform-appropriate application data directory
