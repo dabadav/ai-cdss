@@ -8,17 +8,7 @@ import logging
 NullableField = partial(pa.Field, nullable=True)
 
 # Set up logging
-logger = logging.getLogger("ai_cdss.models")
-logger.setLevel(logging.INFO)
-
-# Avoid adding multiple handlers in interactive environments
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-
-logger.propagate = False
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------
 # RGS Data Input
@@ -152,8 +142,12 @@ def safe_check_types(schema_model: Type[pa.DataFrameModel]):
             df: pd.DataFrame = func(*args, **kwargs)
             
             if df.empty:
-                logger.warning("Returned DataFrame is empty.")
-
+                logger.warning(
+                    f"Returned DataFrame from `{func.__name__}` is empty. "
+                    f"Kwargs: {kwargs}"
+                )
+                return df
+            
             modified_columns = {}
             skipped_columns = []
 
