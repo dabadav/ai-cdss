@@ -13,7 +13,7 @@ sys.path.append("..")
 from ai_cdss.cdss import CDSS
 from ai_cdss.data_loader import DataLoaderMock
 from ai_cdss.data_processor import DataProcessor
-# from IPython.display import display
+from IPython.display import display
 
 print(__doc__)
 
