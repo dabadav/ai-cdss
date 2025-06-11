@@ -13,6 +13,8 @@ sys.path.append("..")
 from ai_cdss.cdss import CDSS
 from ai_cdss.data_loader import DataLoaderMock
 from ai_cdss.data_processor import DataProcessor
+
+import pandas as pd
 from IPython.display import display
 
 print(__doc__)
@@ -68,6 +70,8 @@ patient_id = 1
 
 recommendation = cdss.recommend(patient_id=patient_id, protocol_similarity=protocol_similarity)
 recommendation.to_csv(f"recommendation_{patient_id}_new.csv", index=False)
-display(recommendation)
+
+with pd.option_context('display.max_columns', None):
+    display(recommendation)
 
 # %%

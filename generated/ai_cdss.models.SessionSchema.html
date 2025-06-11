@@ -302,7 +302,6 @@
 <li class="toctree-l2"><a class="reference internal" href="ai_cdss.models.ScoringSchema.html">ai_cdss.models.ScoringSchema</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/static.html">PPF and Protocol Similarity Script</a></li>
 </ul>
 </div>
 </nav></div>
@@ -387,62 +386,6 @@
 <td><p>int64</p></td>
 <td><p>nullable</p></td>
 </tr>
-<tr class="row-odd"><td><p>HOSPITAL_ID</p></td>
-<td><p>int64</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-even"><td><p>PARETIC_SIDE</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-odd"><td><p>UPPER_EXTREMITY_TO_TRAIN</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-even"><td><p>HAND_RAISING_CAPACITY</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-odd"><td><p>COGNITIVE_FUNCTION_LEVEL</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-even"><td><p>HAS_HEMINEGLIGENCE</p></td>
-<td><p>int64</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-odd"><td><p>GENDER</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-even"><td><p>SKIN_COLOR</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-odd"><td><p>AGE</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 0; ≤ 120</p></td>
-</tr>
-<tr class="row-even"><td><p>VIDEOGAME_EXP</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 0</p></td>
-</tr>
-<tr class="row-odd"><td><p>COMPUTER_EXP</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 0</p></td>
-</tr>
-<tr class="row-even"><td><p>COMMENTS</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-odd"><td><p>PTN_HEIGHT_CM</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 100; ≤ 250</p></td>
-</tr>
-<tr class="row-even"><td><p>ARM_SIZE_CM</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 20; ≤ 60</p></td>
-</tr>
 <tr class="row-odd"><td><p>PRESCRIPTION_ID</p></td>
 <td><p>int64</p></td>
 <td><p>nullable</p></td>
@@ -467,14 +410,6 @@
 <td><p>datetime64[ns]</p></td>
 <td><p>nullable</p></td>
 </tr>
-<tr class="row-odd"><td><p>STARTING_HOUR</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 0; ≤ 23</p></td>
-</tr>
-<tr class="row-even"><td><p>STARTING_TIME_CATEGORY</p></td>
-<td><p>str</p></td>
-<td><p>nullable; isin: [‘MORNING’, ‘AFTERNOON’, ‘EVENING’, ‘NIGHT’]</p></td>
-</tr>
 <tr class="row-odd"><td><p>WEEKDAY_INDEX</p></td>
 <td><p>int64</p></td>
 <td><p>nullable; ≥ 0; ≤ 6</p></td>
@@ -482,14 +417,6 @@
 <tr class="row-even"><td><p>STATUS</p></td>
 <td><p>str</p></td>
 <td><p>nullable; isin: [‘CLOSED’, ‘ABORTED’, ‘ONGOING’]</p></td>
-</tr>
-<tr class="row-odd"><td><p>PROTOCOL_TYPE</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
-</tr>
-<tr class="row-even"><td><p>AR_MODE</p></td>
-<td><p>str</p></td>
-<td><p>nullable</p></td>
 </tr>
 <tr class="row-odd"><td><p>REAL_SESSION_DURATION</p></td>
 <td><p>int64</p></td>
@@ -515,7 +442,7 @@
 <td><p>int64</p></td>
 <td><p>nullable; ≥ 0</p></td>
 </tr>
-<tr class="row-odd"><td><p>SCORE</p></td>
+<tr class="row-odd"><td><p>GAME_SCORE</p></td>
 <td><p>int64</p></td>
 <td><p>nullable; ≥ 0</p></td>
 </tr>

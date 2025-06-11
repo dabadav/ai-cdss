@@ -364,8 +364,10 @@ window.addEventListener("load", () => mermaid.run());
     <span class="n">generate_synthetic_ids</span><span class="p">,</span>
     <span class="n">generate_synthetic_protocol_metric</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_session</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.constants</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEFAULT_DATA_DIR</span><span class="p">,</span> <span class="n">PPF_PARQUET_FILEPATH</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">rgs_interface.data.interface</span><span class="w"> </span><span class="kn">import</span> <span class="n">DatabaseInterface</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
@@ -387,7 +389,19 @@ window.addEventListener("load", () => mermaid.run());
         <span class="k">pass</span>
 
     <span class="nd">@abstractmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">load_ppf_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">PCMSchema</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_similarity</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">PCMSchema</span><span class="p">]:</span>
+        <span class="k">pass</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_clinical_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_subscales</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
         <span class="k">pass</span>
 
     <span class="nd">@abstractmethod</span>
@@ -413,15 +427,16 @@ window.addEventListener("load", () => mermaid.run());
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize the DataLoader with a list of patient IDs and RGS mode.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">interface</span> <span class="o">=</span> <span class="n">DatabaseInterface</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="p">:</span> <span class="n">DatabaseInterface</span> <span class="o">=</span> <span class="n">DatabaseInterface</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rgs_mode</span> <span class="o">=</span> <span class="n">rgs_mode</span>
 
+    <span class="c1"># @safe_check_types(SessionSchema)</span>
 <div class="viewcode-block" id="DataLoader.load_session_data">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader.load_session_data">[docs]</a>
-    <span class="nd">@safe_check_types</span><span class="p">(</span><span class="n">SessionSchema</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">load_session_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load session data from the RGS interface.</span>
+<span class="sd">        New patients without prescriptions are not included in this table</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -430,7 +445,7 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">session</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">fetch_rgs_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">,</span> <span class="n">rgs_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rgs_mode</span><span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Session data loaded successfully.&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Session data loaded successfully.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">session</span>
         <span class="k">except</span> <span class="n">SchemaError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data validation failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -440,12 +455,13 @@ window.addEventListener("load", () => mermaid.run());
             <span class="k">raise</span></div>
 
 
+    <span class="c1"># @safe_check_types(TimeseriesSchema)</span>
 <div class="viewcode-block" id="DataLoader.load_timeseries_data">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader.load_timeseries_data">[docs]</a>
-    <span class="nd">@safe_check_types</span><span class="p">(</span><span class="n">TimeseriesSchema</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">load_timeseries_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load timeseries data from the RGS interface.</span>
+<span class="sd">        New patients without prescriptions are not included in this table</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -455,6 +471,7 @@ window.addEventListener("load", () => mermaid.run());
         
         <span class="k">try</span><span class="p">:</span>
             <span class="n">timeseries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">fetch_timeseries_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">,</span> <span class="n">rgs_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rgs_mode</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Timeseries data loaded successfully.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">timeseries</span>
         <span class="k">except</span> <span class="n">SchemaError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Data validation failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
@@ -464,9 +481,9 @@ window.addEventListener("load", () => mermaid.run());
             <span class="k">raise</span></div>
 
 
+    <span class="c1"># @safe_check_types(PPFSchema)</span>
 <div class="viewcode-block" id="DataLoader.load_ppf_data">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader.load_ppf_data">[docs]</a>
-    <span class="nd">@pa</span><span class="o">.</span><span class="n">check_types</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">load_ppf_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">PPFSchema</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load PPF (precomputed patient-protocol fit) from internal data.</span>
@@ -478,14 +495,14 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Define PPF file path</span>
-            <span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;.ai_cdss&quot;</span> <span class="o">/</span> <span class="s2">&quot;output&quot;</span>
-            
+            <span class="n">ppf_path</span> <span class="o">=</span> <span class="n">PPF_PARQUET_FILEPATH</span>
+
             <span class="c1"># Check if file exists</span>
-            <span class="k">if</span> <span class="p">(</span><span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;ppf.parquet&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
-                <span class="n">ppf_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">path</span> <span class="o">=</span> <span class="n">output_dir</span> <span class="o">/</span> <span class="s2">&quot;ppf.parquet&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">ppf_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">ppf_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">path</span> <span class="o">=</span> <span class="n">ppf_path</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s2">&quot;No PPF file found in ~/.ai_cdss/output.&quot;</span><span class="p">)</span>
-            
+
             <span class="c1"># Filter PPF by patient list</span>
             <span class="n">ppf_data</span> <span class="o">=</span> <span class="n">ppf_data</span><span class="p">[</span><span class="n">ppf_data</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">patient_list</span><span class="p">)]</span>
 
@@ -508,7 +525,7 @@ window.addEventListener("load", () => mermaid.run());
                 <span class="n">ppf_data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">ppf_data</span><span class="p">,</span> <span class="n">missing_combinations</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
                 <span class="k">return</span> <span class="n">ppf_data</span>
             
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;PPF data loaded successfully.&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;PPF data loaded successfully.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">ppf_data</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
@@ -516,9 +533,9 @@ window.addEventListener("load", () => mermaid.run());
             <span class="k">raise</span></div>
 
 
+    <span class="c1"># @safe_check_types(PCMSchema)</span>
 <div class="viewcode-block" id="DataLoader.load_protocol_similarity">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader.load_protocol_similarity">[docs]</a>
-    <span class="nd">@pa</span><span class="o">.</span><span class="n">check_types</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_similarity</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">PCMSchema</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Load protocol similarity data from internal storage.</span>
@@ -554,7 +571,41 @@ window.addEventListener("load", () => mermaid.run());
             <span class="k">raise</span></div>
 
 
-    <span class="nd">@pa</span><span class="o">.</span><span class="n">check_types</span>
+<div class="viewcode-block" id="DataLoader.load_patient_clinical_data">
+<a class="viewcode-back" href="../../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader.load_patient_clinical_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_clinical_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load patient clinical data from the RGS interface.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        patient_list : List[int]</span>
+<span class="sd">            List of patient IDs to fetch clinical data for.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pd.DataFrame</span>
+<span class="sd">            DataFrame containing clinical data for the specified patients.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">clinical_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">fetch_clinical_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">clinical_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No clinical data found for the specified patients.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Clinical data loaded for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">clinical_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> patients.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">clinical_data</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load patient clinical data: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_subscales</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_load_patient_subscales</span><span class="p">()</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_load_protocol_attributes</span><span class="p">()</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_init</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="n">output_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">&quot;.ai_cdss&quot;</span> <span class="o">/</span> <span class="s2">&quot;output&quot;</span>
@@ -574,6 +625,35 @@ window.addEventListener("load", () => mermaid.run());
             <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load protocol metrics data: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="k">raise</span></div>
 
+
+<span class="c1"># ---------------------------------------------------------------------</span>
+<span class="c1"># Local Data Loader</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DataLoaderLocal</span><span class="p">(</span><span class="n">DataLoaderBase</span><span class="p">):</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_session_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">]:</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_timeseries_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">]:</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_ppf_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">PPFSchema</span><span class="p">]:</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_similarity</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">PCMSchema</span><span class="p">]:</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_clinical_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_subscales</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_load_patient_subscales</span><span class="p">(</span><span class="n">file_path</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">_load_protocol_attributes</span><span class="p">(</span><span class="n">file_path</span><span class="o">=</span><span class="n">file_path</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_init</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">pass</span>
 
 <span class="c1"># ---------------------------------------------------------------------</span>
 <span class="c1"># Synthetic Data Loader</span>
@@ -607,6 +687,62 @@ window.addEventListener("load", () => mermaid.run());
 
     <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_init</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">generate_synthetic_protocol_metric</span><span class="p">(</span><span class="n">num_protocols</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_protocols</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_clinical_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_patient_clinical_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_subscales</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_patient_subscales</span><span class="p">(</span><span class="n">patient_list</span><span class="p">)</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_protocol_attributes</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+    
+<span class="c1"># ---------------------------------------------------------------------</span>
+<span class="c1"># - Utility Functions</span>
+<span class="c1"># ---------------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">safe_load_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">default_filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Safely loads a CSV file, either from a given file path or from the default data directory.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        file_path (str, optional): Full path to the CSV file. If not provided, `default_filename` is used.</span>
+<span class="sd">        default_filename (str, optional): Name of the file in the default directory.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        pd.DataFrame: Loaded data.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If the file does not exist.</span>
+<span class="sd">        ValueError: If the file cannot be read as a valid CSV.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">file_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span> <span class="k">if</span> <span class="n">file_path</span> <span class="k">else</span> <span class="n">DEFAULT_DATA_DIR</span> <span class="o">/</span> <span class="n">default_filename</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">file_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File not found: </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">. Ensure the correct path is specified.&quot;</span><span class="p">)</span>
+
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        
+        <span class="c1"># If the file was loaded from outside the default directory, save a copy</span>
+        <span class="n">default_file_path</span> <span class="o">=</span> <span class="n">DEFAULT_DATA_DIR</span> <span class="o">/</span> <span class="n">file_path</span><span class="o">.</span><span class="n">name</span>
+        
+        <span class="k">if</span> <span class="n">file_path</span><span class="o">.</span><span class="n">parent</span> <span class="o">!=</span> <span class="n">DEFAULT_DATA_DIR</span><span class="p">:</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">default_file_path</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File copied to default directory: </span><span class="si">{</span><span class="n">default_file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">df</span>
+    
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error reading </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_patient_subscales</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load patient clinical subscale scores from a given file or the default directory.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">safe_load_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;clinical_scores.csv&quot;</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_protocol_attributes</span><span class="p">(</span><span class="n">file_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load protocol attributes from a given file or the default directory.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">safe_load_csv</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;protocol_attributes.csv&quot;</span><span class="p">)</span>
 </pre></div>
 
                 </article>

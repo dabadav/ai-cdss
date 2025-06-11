@@ -300,7 +300,6 @@
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/configuration.html">RCT Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/models.html">Data Interfaces</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/static.html">PPF and Protocol Similarity Script</a></li>
 </ul>
 </div>
 </nav></div>
@@ -381,16 +380,19 @@
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_ppf_data" title="ai_cdss.DataLoader.load_ppf_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_ppf_data</span></code></a>(patient_list)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_patient_clinical_data" title="ai_cdss.DataLoader.load_patient_clinical_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_patient_clinical_data</span></code></a>(patient_list)</p></td>
+<td><p>Load patient clinical data from the RGS interface.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_ppf_data" title="ai_cdss.DataLoader.load_ppf_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_ppf_data</span></code></a>(patient_list)</p></td>
 <td><p>Load PPF (precomputed patient-protocol fit) from internal data.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_protocol_similarity" title="ai_cdss.DataLoader.load_protocol_similarity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_protocol_similarity</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_protocol_similarity" title="ai_cdss.DataLoader.load_protocol_similarity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_protocol_similarity</span></code></a>()</p></td>
 <td><p>Load protocol similarity data from internal storage.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_session_data" title="ai_cdss.DataLoader.load_session_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_session_data</span></code></a>(patient_list)</p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_session_data" title="ai_cdss.DataLoader.load_session_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_session_data</span></code></a>(patient_list)</p></td>
 <td><p>Load session data from the RGS interface.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_timeseries_data" title="ai_cdss.DataLoader.load_timeseries_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_timeseries_data</span></code></a>(patient_list)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_timeseries_data" title="ai_cdss.DataLoader.load_timeseries_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_timeseries_data</span></code></a>(patient_list)</p></td>
 <td><p>Load timeseries data from the RGS interface.</p></td>
 </tr>
 </tbody>
@@ -398,6 +400,12 @@
 </div>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
+<tr class="row-odd"><td><p><strong>load_patient_subscales</strong></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><strong>load_protocol_attributes</strong></p></td>
+<td></td>
+</tr>
 <tr class="row-odd"><td><p><strong>load_protocol_init</strong></p></td>
 <td></td>
 </tr>
@@ -407,7 +415,8 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataLoader.load_session_data">
 <span class="sig-name descname"><span class="pre">load_session_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_session_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_session_data" title="Link to this definition">#</a></dt>
-<dd><p>Load session data from the RGS interface.</p>
+<dd><p>Load session data from the RGS interface.
+New patients without prescriptions are not included in this table</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.SessionSchema.html#ai_cdss.models.SessionSchema" title="ai_cdss.models.SessionSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">SessionSchema</span></code></a>]</span></p>
@@ -424,7 +433,8 @@
 <dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataLoader.load_timeseries_data">
 <span class="sig-name descname"><span class="pre">load_timeseries_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_timeseries_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_timeseries_data" title="Link to this definition">#</a></dt>
-<dd><p>Load timeseries data from the RGS interface.</p>
+<dd><p>Load timeseries data from the RGS interface.
+New patients without prescriptions are not included in this table</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.TimeseriesSchema.html#ai_cdss.models.TimeseriesSchema" title="ai_cdss.models.TimeseriesSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">TimeseriesSchema</span></code></a>]</span></p>
@@ -466,6 +476,29 @@
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><dl class="simple">
 <dt>DataFrame[ProtocolSimilaritySchema]</dt><dd><p>Protocol similarity data with columns: PROTOCOL_ID_1, PROTOCOL_ID_2, SIMILARITY_SCORE.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_patient_clinical_data">
+<span class="sig-name descname"><span class="pre">load_patient_clinical_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_patient_clinical_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_patient_clinical_data" title="Link to this definition">#</a></dt>
+<dd><p>Load patient clinical data from the RGS interface.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><dl class="simple">
+<dt><strong>patient_list</strong><span class="classifier">List[int]</span></dt><dd><p>List of patient IDs to fetch clinical data for.</p>
+</dd>
+</dl>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><dl class="simple">
+<dt>pd.DataFrame</dt><dd><p>DataFrame containing clinical data for the specified patients.</p>
 </dd>
 </dl>
 </dd>
@@ -528,6 +561,7 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_timeseries_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_timeseries_data()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_ppf_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_ppf_data()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_protocol_similarity"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_protocol_similarity()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_patient_clinical_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_patient_clinical_data()</span></code></a></li>
 </ul>
 </li>
 </ul>

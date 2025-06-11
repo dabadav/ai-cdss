@@ -9,4 +9,3 @@ This section provides the technical reference of the Clinical Decision Support S
    modules
    configuration
    models
-   static

@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>ai_cdss.DataProcessor &#8212; CDSS</title>
+    <title>ai_cdss.ProtocolToClinicalMapper &#8212; CDSS</title>
   
   
   
@@ -49,14 +49,12 @@
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
-    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'generated/ai_cdss.DataProcessor';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'generated/ai_cdss.ProtocolToClinicalMapper';</script>
     <script src="../_static/modal.js?v=f3ac3e3f"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="ai_cdss.cdss.CDSS" href="ai_cdss.cdss.CDSS.html" />
-    <link rel="prev" title="ai_cdss.DataLoader" href="ai_cdss.DataLoader.html" />
+    <link rel="next" title="Data Interfaces" href="../api/models.html" />
+    <link rel="prev" title="ai_cdss.ClinicalSubscales" href="ai_cdss.ClinicalSubscales.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -294,13 +292,12 @@
      aria-label="Section Navigation">
   <p class="bd-links__title" role="heading" aria-level="1">Section Navigation</p>
   <div class="bd-toc-item navbar-nav"><ul class="current nav bd-sidenav">
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../api/modules.html">CDSS</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2"><a class="reference internal" href="ai_cdss.DataLoader.html">ai_cdss.DataLoader</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">ai_cdss.DataProcessor</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ai_cdss.cdss.CDSS.html">ai_cdss.cdss.CDSS</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/modules.html">CDSS</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../api/configuration.html">RCT Configuration</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="ai_cdss.ClinicalSubscales.html">ai_cdss.ClinicalSubscales</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">ai_cdss.ProtocolToClinicalMapper</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../api/configuration.html">RCT Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../api/models.html">Data Interfaces</a></li>
 </ul>
 </div>
@@ -346,9 +343,9 @@
     <li class="breadcrumb-item"><a href="../api/index.html" class="nav-link">API Reference</a></li>
     
     
-    <li class="breadcrumb-item"><a href="../api/modules.html" class="nav-link">CDSS</a></li>
+    <li class="breadcrumb-item"><a href="../api/configuration.html" class="nav-link">RCT Configuration</a></li>
     
-    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">ai_cdss.DataProcessor</span></li>
+    <li class="breadcrumb-item active" aria-current="page"><span class="ellipsis">ai_cdss.ProtocolToClinicalMapper</span></li>
   </ul>
 </nav>
 </div>
@@ -365,118 +362,34 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="ai-cdss-dataprocessor">
-<h1>ai_cdss.DataProcessor<a class="headerlink" href="#ai-cdss-dataprocessor" title="Link to this heading">#</a></h1>
+  <section id="ai-cdss-protocoltoclinicalmapper">
+<h1>ai_cdss.ProtocolToClinicalMapper<a class="headerlink" href="#ai-cdss-protocoltoclinicalmapper" title="Link to this heading">#</a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ai_cdss.</span></span><span class="sig-name descname"><span class="pre">DataProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1,</span> <span class="pre">1,</span> <span class="pre">1]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor" title="Link to this definition">#</a></dt>
-<dd><p>A class for processing data and computing a final weighted score.</p>
-<p>The final score is computed as:</p>
-<div class="math notranslate nohighlight">
-\[S = \alpha \cdot A + \beta \cdot DM + \gamma \cdot PPF\]</div>
-<p>where:</p>
-<ul class="simple">
-<li><p><span class="math notranslate nohighlight">\(A\)</span> is Adherence</p></li>
-<li><p><span class="math notranslate nohighlight">\(DM\)</span> is the Difficulty Modulator</p></li>
-<li><p><span class="math notranslate nohighlight">\(PPF\)</span> is the Patient Prescription Factor</p></li>
-</ul>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>weights</strong><span class="classifier">List[float]</span></dt><dd><p>List of weights <span class="math notranslate nohighlight">\(\alpha\)</span>, <span class="math notranslate nohighlight">\(\beta\)</span>, <span class="math notranslate nohighlight">\(\gamma\)</span> for computing the final score.</p>
-</dd>
-<dt><strong>alpha</strong><span class="classifier">float</span></dt><dd><p>The smoothing factor for EWMA, controlling how much past values influence the trend.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-<p class="rubric">Methods</p>
+<dt class="sig sig-object py" id="ai_cdss.ProtocolToClinicalMapper">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ai_cdss.</span></span><span class="sig-name descname"><span class="pre">ProtocolToClinicalMapper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mapping_yaml_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#ProtocolToClinicalMapper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.ProtocolToClinicalMapper" title="Link to this definition">#</a></dt>
+<dd><p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.compute_score" title="ai_cdss.DataProcessor.compute_score"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_score</span></code></a>(data, protocol_metrics)</p></td>
-<td><p>Initializes metrics based on legacy data and computes score</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.process_data" title="ai_cdss.DataProcessor.process_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_data</span></code></a>(session_data, timeseries_data, ...)</p></td>
-<td><p>Process and score patient-protocol combinations using session, timeseries, and PPF data.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="pst-scrollable-table-container"><table class="table">
-<tbody>
-<tr class="row-odd"><td><p><strong>build_delta_dm</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><strong>build_prescription_days</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><strong>build_recent_adherence</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><strong>build_usage</strong></p></td>
-<td></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.ProtocolToClinicalMapper.map_protocol_features" title="ai_cdss.ProtocolToClinicalMapper.map_protocol_features"><code class="xref py py-obj docutils literal notranslate"><span class="pre">map_protocol_features</span></code></a>(protocol_df[, agg_func])</p></td>
+<td><p>Map protocol-level features into clinical scales using a predefined mapping.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.process_data">
-<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ppf_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.process_data" title="Link to this definition">#</a></dt>
-<dd><p>Process and score patient-protocol combinations using session, timeseries, and PPF data.
-When bootstrapping patient, score is based on PPF only.
-Otherwise a weighted sum of DELTA_DM, ADHERENCE_RECENT and PPF determines the score.</p>
+<dt class="sig sig-object py" id="ai_cdss.ProtocolToClinicalMapper.map_protocol_features">
+<span class="sig-name descname"><span class="pre">map_protocol_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">protocol_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">agg_func=&lt;function</span> <span class="pre">mean&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#ProtocolToClinicalMapper.map_protocol_features"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.ProtocolToClinicalMapper.map_protocol_features" title="Link to this definition">#</a></dt>
+<dd><p>Map protocol-level features into clinical scales using a predefined mapping.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema" title="ai_cdss.models.ScoringSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScoringSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>session_data</strong><span class="classifier">DataFrame[SessionSchema]</span></dt><dd><p>Session-level data including adherence and scheduling information.</p>
-</dd>
-<dt><strong>timeseries_data</strong><span class="classifier">DataFrame[TimeseriesSchema]</span></dt><dd><p>Timepoint-level data including DMs and performance metrics.</p>
-</dd>
-<dt><strong>ppf_data</strong><span class="classifier">DataFrame[PPFSchema]</span></dt><dd><p>Patient-protocol fitness values and contributions.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>DataFrame[ScoringSchema]</dt><dd><p>Final scored dataframe with protocol recommendations.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.compute_score">
-<span class="sig-name descname"><span class="pre">compute_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">protocol_metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.compute_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.compute_score" title="Link to this definition">#</a></dt>
-<dd><p>Initializes metrics based on legacy data and computes score</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>data</strong><span class="classifier">pd.DataFrame</span></dt><dd><p>Aggregated session and timeseries data per patient-protocol.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>Scored DataFrame sorted by patient and protocol.</p>
-</dd>
-</dl>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
 </dd>
 </dl>
 </dd></dl>
 
 </dd></dl>
 
-<section id="examples-using-ai-cdss-dataprocessor">
-<span id="sphx-glr-backreferences-ai-cdss-dataprocessor"></span><h2>Examples using <code class="docutils literal notranslate"><span class="pre">ai_cdss.DataProcessor</span></code><a class="headerlink" href="#examples-using-ai-cdss-dataprocessor" title="Link to this heading">#</a></h2>
-<div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the DataLoader, DataProcessor, and CDSS to load data and generate a 7-day protocol plan."><img alt="" src="../_images/sphx_glr_recommend_usage_thumb.png" />
-<p><a class="reference internal" href="../auto_examples/recommend_usage.html#sphx-glr-auto-examples-recommend-usage-py"><span class="std std-ref">Basic usage of CDSS to generate a protocol recommendation.</span></a></p>
-  <div class="sphx-glr-thumbnail-title">Basic usage of CDSS to generate a protocol recommendation.</div>
-</div></div></section>
-</section>
+<span class="target" id="sphx-glr-backreferences-ai-cdss-protocoltoclinicalmapper"></span></section>
 
 
                 </article>
@@ -489,20 +402,20 @@ Otherwise a weighted sum of DELTA_DM, ADHERENCE_RECENT and PPF determines the sc
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="ai_cdss.DataLoader.html"
+       href="ai_cdss.ClinicalSubscales.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">ai_cdss.DataLoader</p>
+        <p class="prev-next-title">ai_cdss.ClinicalSubscales</p>
       </div>
     </a>
     <a class="right-next"
-       href="ai_cdss.cdss.CDSS.html"
+       href="../api/models.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">ai_cdss.cdss.CDSS</p>
+        <p class="prev-next-title">Data Interfaces</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -525,12 +438,10 @@ Otherwise a weighted sum of DELTA_DM, ADHERENCE_RECENT and PPF determines the sc
   </div>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor"><code class="docutils literal notranslate"><span class="pre">DataProcessor</span></code></a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.process_data"><code class="docutils literal notranslate"><span class="pre">DataProcessor.process_data()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_score"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_score()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.ProtocolToClinicalMapper"><code class="docutils literal notranslate"><span class="pre">ProtocolToClinicalMapper</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.ProtocolToClinicalMapper.map_protocol_features"><code class="docutils literal notranslate"><span class="pre">ProtocolToClinicalMapper.map_protocol_features()</span></code></a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples-using-ai-cdss-dataprocessor">Examples using <code class="docutils literal notranslate"><span class="pre">ai_cdss.DataProcessor</span></code></a></li>
 </ul>
   </nav></div>
 

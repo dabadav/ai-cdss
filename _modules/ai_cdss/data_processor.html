@@ -345,52 +345,44 @@ window.addEventListener("load", () => mermaid.run());
                 <article class="bd-article">
                   
   <h1>Source code for ai_cdss.data_processor</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span></span><span class="c1"># ai_cdss/data_processor.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce</span>
-
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pandera.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">signal</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">importlib.resources</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.linear_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">TheilSenRegressor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.signal</span><span class="w"> </span><span class="kn">import</span> <span class="n">savgol_filter</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss</span><span class="w"> </span><span class="kn">import</span> <span class="n">config</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiKeyDict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.constants</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringSchema</span><span class="p">,</span> <span class="n">PPFSchema</span><span class="p">,</span> <span class="n">SessionSchema</span><span class="p">,</span> <span class="n">TimeseriesSchema</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">safe_merge</span><span class="p">,</span> <span class="n">apply_savgol_filter_groupwise</span><span class="p">,</span> <span class="n">get_rolling_theilsen_slope</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.constants</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">BY_PP</span><span class="p">,</span> <span class="n">BY_PPS</span><span class="p">,</span> <span class="n">BY_PPST</span><span class="p">,</span> 
-    <span class="n">PROTOCOL_ID</span><span class="p">,</span> 
-    <span class="n">SESSION_ID</span><span class="p">,</span>
-    <span class="n">DM_KEY</span><span class="p">,</span> <span class="n">PE_KEY</span><span class="p">,</span>
-    <span class="n">DM_VALUE</span><span class="p">,</span> <span class="n">PE_VALUE</span><span class="p">,</span>
-    <span class="n">DELTA_DM</span><span class="p">,</span>
-    <span class="n">ADHERENCE</span><span class="p">,</span>
-    <span class="n">RECENT_ADHERENCE</span><span class="p">,</span>
-    <span class="n">USAGE</span><span class="p">,</span>
-    <span class="n">DAYS</span><span class="p">,</span>
-    <span class="n">PPF</span><span class="p">,</span>
-    <span class="n">SCORE</span><span class="p">,</span>
-    <span class="n">WEEKDAY_INDEX</span><span class="p">,</span>
-    <span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">,</span>
-    <span class="n">PRESCRIPTION_ACTIVE</span><span class="p">,</span>
-    <span class="n">FINAL_METRICS</span><span class="p">,</span> 
-    <span class="n">SAVGOL_WINDOW_SIZE</span><span class="p">,</span>
-    <span class="n">SAVGOL_POLY_ORDER</span><span class="p">,</span>
-    <span class="n">THEILSON_REGRESSION_WINDOW_SIZE</span>
-<span class="p">)</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 
 <span class="c1"># Set up logging</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+<span class="c1">#################################</span>
+<span class="c1"># ------ Data Processing ------ #</span>
+<span class="c1">#################################</span>
+
 <span class="c1"># ---------------------------------------------------------------------</span>
 <span class="c1"># Data Processor Class</span>
-
-<span class="nd">@dataclass</span>
-<span class="k">class</span><span class="w"> </span><span class="nc">FeatureBlock</span><span class="p">:</span>
-    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
-    <span class="n">level</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
 
 <div class="viewcode-block" id="DataProcessor">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor">[docs]</a>
@@ -428,9 +420,9 @@ window.addEventListener("load", () => mermaid.run());
         <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span>
 
+    <span class="c1"># @pa.check_types</span>
 <div class="viewcode-block" id="DataProcessor.process_data">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor.process_data">[docs]</a>
-    <span class="nd">@pa</span><span class="o">.</span><span class="n">check_types</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">process_data</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> 
         <span class="n">session_data</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">],</span> 
@@ -440,9 +432,8 @@ window.addEventListener("load", () => mermaid.run());
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">ScoringSchema</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Process and score patient-protocol combinations using session, timeseries, and PPF data.</span>
-
-<span class="sd">        Applies EWMA to adherence and difficulty modulators, merges features,</span>
-<span class="sd">        and computes final patient-protocol scores.</span>
+<span class="sd">        When bootstrapping patient, score is based on PPF only.</span>
+<span class="sd">        Otherwise a weighted sum of DELTA_DM, ADHERENCE_RECENT and PPF determines the score.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -463,19 +454,27 @@ window.addEventListener("load", () => mermaid.run());
         <span class="c1">## PATIENT_ID + PROTOCOL_ID + SESSION_ID + ADHERENCE + RECENT_ADHERENCE + USAGE + DAYS + DM_VALUE + DELTA_DM_VALUE + PE_VALUE + PPF + SCORE</span>
         
         <span class="c1"># --- Feature Building ---</span>
-        <span class="n">ts_feat_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_delta_dm</span><span class="p">(</span><span class="n">timeseries_data</span><span class="p">)</span>
-        <span class="n">adherence_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_recent_adherence</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
-        <span class="n">usage_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_usage</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
-        <span class="n">days_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_prescription_days</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>
-
-        <span class="c1"># --- Combine Session Features ---</span>
-        <span class="n">feat_df</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">),</span> <span class="p">[</span><span class="n">ts_feat_df</span><span class="p">,</span> <span class="n">adherence_df</span><span class="p">,</span> <span class="n">usage_df</span><span class="p">,</span> <span class="n">days_df</span><span class="p">])</span>
-        <span class="c1"># Store the whole scored DataFrame as a csv</span>
-        <span class="c1"># TODO: Log function util to save to hidden directory</span>
-        <span class="n">feat_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;scored_features.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>   
-
-        <span class="c1"># --- Aggregation ---</span>
-        <span class="n">feat_agg</span> <span class="o">=</span> <span class="n">feat_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="s2">&quot;last&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">session_data</span><span class="o">.</span><span class="n">empty</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="c1"># Compute Session Features</span>
+            <span class="n">ts_feat_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_delta_dm</span><span class="p">(</span><span class="n">timeseries_data</span><span class="p">)</span>           <span class="c1"># DELTA_DM</span>
+            <span class="n">adherence_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_recent_adherence</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>    <span class="c1"># ADHERENCE_RECENT</span>
+            <span class="n">usage_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_usage</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>                   <span class="c1"># USAGE</span>
+            <span class="n">days_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_prescription_days</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>        <span class="c1"># DAYS</span>
+            
+            <span class="c1"># Combine Session Features</span>
+            <span class="n">feat_df</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">),</span> <span class="p">[</span><span class="n">ts_feat_df</span><span class="p">,</span> <span class="n">adherence_df</span><span class="p">,</span> <span class="n">usage_df</span><span class="p">,</span> <span class="n">days_df</span><span class="p">])</span>
+            
+            <span class="c1"># Store the whole scored DataFrame as a csv</span>
+            <span class="n">feat_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">DEFAULT_LOG_DIR</span> <span class="o">/</span> <span class="s2">&quot;scored_features.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>   
+            
+            <span class="c1"># Aggregate to patient protocol level</span>
+            <span class="n">feat_agg</span> <span class="o">=</span> <span class="n">feat_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="s2">&quot;last&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        
+        <span class="c1"># If we are bootstrapping a study, and no patient prescriptions yet</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Initialize feature df with expected columns</span>
+            <span class="n">scoring_columns</span> <span class="o">=</span> <span class="n">BY_PP</span> <span class="o">+</span> <span class="p">[</span><span class="n">DELTA_DM</span><span class="p">,</span> <span class="n">RECENT_ADHERENCE</span><span class="p">,</span> <span class="n">USAGE</span><span class="p">,</span> <span class="n">DAYS</span><span class="p">]</span>
+            <span class="n">feat_agg</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">scoring_columns</span><span class="p">)</span>
 
         <span class="c1"># --- Merge All for Scoring ---</span>
         <span class="n">scoring_input</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">),</span> <span class="p">[</span>
@@ -532,8 +531,15 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">        pd.DataFrame</span>
 <span class="sd">            Safe dataframe with no NaNs.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># When no prescriptions add empty list instead of NaN</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">DAYS</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">DAYS</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">else</span> <span class="n">x</span><span class="p">)</span>
+        <span class="c1"># When no sessions performed add a 0</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="c1"># Cast NaN to None </span>
+        <span class="c1"># data.where(pd.notna(data), None)</span>
 
+        <span class="c1"># data = data.fillna(None)</span>
+        <span class="c1"># data = data.fillna(0).infer_objects(copy=False)</span>
         <span class="c1"># # Only fill NaNs using map for matching PROTOCOL_IDs</span>
         <span class="c1"># data[ADHERENCE] = data[ADHERENCE].fillna(0)</span>
         <span class="c1"># # data[ADHERENCE] = data[ADHERENCE].fillna(data[PROTOCOL_ID].map(protocol_metrics[ADHERENCE]))</span>
@@ -541,8 +547,6 @@ window.addEventListener("load", () => mermaid.run());
         <span class="c1"># # data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics[&quot;DM_DELTA&quot;]))</span>
         <span class="c1"># data[PE_VALUE] = data[PE_VALUE].fillna(0)</span>
         <span class="c1"># data[DAYS]  = data[DAYS].fillna(0)</span>
-        <span class="c1"># data[USAGE] = data[USAGE].fillna(0)</span>
-        <span class="c1"># data = data.fillna(0)</span>
         <span class="k">return</span> <span class="n">data</span>
     
     <span class="k">def</span><span class="w"> </span><span class="nf">_compute_ewma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">value_col</span><span class="p">,</span> <span class="n">group_cols</span><span class="p">,</span> <span class="n">sufix</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
@@ -588,23 +592,25 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">            DataFrame with an added SCORE column.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">scoring_df</span> <span class="o">=</span> <span class="n">scoring</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c1"># weighted nan-compativle sum of factors</span>
         <span class="n">scoring_df</span><span class="p">[</span><span class="n">SCORE</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">scoring_df</span><span class="p">[</span><span class="n">RECENT_ADHERENCE</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="o">+</span> <span class="n">scoring_df</span><span class="p">[</span><span class="n">DELTA_DM</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="o">+</span> <span class="n">scoring_df</span><span class="p">[</span><span class="n">PPF</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+            <span class="n">scoring_df</span><span class="p">[</span><span class="n">RECENT_ADHERENCE</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="o">+</span> <span class="n">scoring_df</span><span class="p">[</span><span class="n">DELTA_DM</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="o">+</span> <span class="n">scoring_df</span><span class="p">[</span><span class="n">PPF</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mf">0.</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">scoring_df</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">build_delta_dm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">FeatureBlock</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_delta_dm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
         <span class="n">grouped</span> <span class="o">=</span> <span class="n">ts_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PPS</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="n">DM_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">PE_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span><span class="p">})</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
 
         <span class="n">grouped</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">cumcount</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="n">grouped</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">DM_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span>
             <span class="n">apply_savgol_filter_groupwise</span><span class="p">,</span> <span class="n">SAVGOL_WINDOW_SIZE</span><span class="p">,</span> <span class="n">SAVGOL_POLY_ORDER</span>
         <span class="p">)</span>
-        <span class="n">grouped</span><span class="p">[</span><span class="n">DELTA_DM</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+        <span class="n">grouped</span><span class="p">[</span><span class="n">DELTA_DM</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)[[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">,</span> <span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
             <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">get_rolling_theilsen_slope</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">],</span> <span class="n">g</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">],</span> <span class="n">THEILSON_REGRESSION_WINDOW_SIZE</span><span class="p">)</span>
         <span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">grouped</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">DM_VALUE</span><span class="p">,</span> <span class="n">DELTA_DM</span><span class="p">]]</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">build_recent_adherence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
@@ -628,6 +634,420 @@ window.addEventListener("load", () => mermaid.run());
         <span class="n">merged</span> <span class="o">=</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">session_df</span><span class="p">[</span><span class="n">BY_PPS</span><span class="p">],</span> <span class="n">prescribed_days</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">merged</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">DAYS</span><span class="p">]]</span></div>
 
+    
+<span class="c1"># ------------------------------</span>
+<span class="c1"># Clinical Scores</span>
+
+<div class="viewcode-block" id="ClinicalSubscales">
+<a class="viewcode-back" href="../../generated/ai_cdss.ClinicalSubscales.html#ai_cdss.ClinicalSubscales">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ClinicalSubscales</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale_yaml_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize with an optional path to scale.yaml, defaulting to internal package resource.&quot;&quot;&quot;</span>
+        <span class="c1"># Retrieves max values for clinical subscales from config/scales.yaml</span>
+        <span class="k">if</span> <span class="n">scale_yaml_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scales_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">scale_yaml_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">scales_path</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;scales.yaml&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">scales_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Scale YAML file not found at </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">scales_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Load scales maximum values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scales_dict</span> <span class="o">=</span> <span class="n">MultiKeyDict</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scales_path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ClinicalSubscales.compute_deficit_matrix">
+<a class="viewcode-back" href="../../generated/ai_cdss.ClinicalSubscales.html#ai_cdss.ClinicalSubscales.compute_deficit_matrix">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_deficit_matrix</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute deficit matrix given patient clinical scores.&quot;&quot;&quot;</span>
+
+        <span class="c1"># Retrieve max values using MultiKeyDict</span>
+        <span class="n">max_subscales</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">scales_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">scale</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">scale</span> <span class="ow">in</span> <span class="n">patient_df</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+        
+        <span class="c1"># Check for missing subscale values</span>
+        <span class="k">if</span> <span class="kc">None</span> <span class="ow">in</span> <span class="n">max_subscales</span><span class="p">:</span>
+            <span class="n">missing_subscales</span> <span class="o">=</span> <span class="p">[</span><span class="n">scale</span> <span class="k">for</span> <span class="n">scale</span><span class="p">,</span> <span class="n">max_val</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">patient_df</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">max_subscales</span><span class="p">)</span> <span class="k">if</span> <span class="n">max_val</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">]</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing max values for subscales: </span><span class="si">{</span><span class="n">missing_subscales</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Compute deficit matrix</span>
+        <span class="n">deficit_matrix</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="p">(</span><span class="n">patient_df</span> <span class="o">/</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">max_subscales</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">patient_df</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">deficit_matrix</span></div>
+</div>
+
+
+<span class="c1"># ------------------------------</span>
+<span class="c1"># Protocol Attributes</span>
+
+<div class="viewcode-block" id="ProtocolToClinicalMapper">
+<a class="viewcode-back" href="../../generated/ai_cdss.ProtocolToClinicalMapper.html#ai_cdss.ProtocolToClinicalMapper">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProtocolToClinicalMapper</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mapping_yaml_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize with an optional path to scale.yaml, defaulting to internal package resource.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">mapping_yaml_path</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mapping_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">mapping_yaml_path</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mapping_path</span> <span class="o">=</span> <span class="n">importlib</span><span class="o">.</span><span class="n">resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="o">/</span> <span class="s2">&quot;mapping.yaml&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapping_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Scale YAML file not found at </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mapping_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># logger.info(f&quot;Loading subscale max values from: {self.scales_path}&quot;)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mapping</span> <span class="o">=</span> <span class="n">MultiKeyDict</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mapping_path</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ProtocolToClinicalMapper.map_protocol_features">
+<a class="viewcode-back" href="../../generated/ai_cdss.ProtocolToClinicalMapper.html#ai_cdss.ProtocolToClinicalMapper.map_protocol_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">map_protocol_features</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">protocol_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">agg_func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Map protocol-level features into clinical scales using a predefined mapping.&quot;&quot;&quot;</span>
+        <span class="c1"># Retrieve max values using MultiKeyDict</span>
+        <span class="n">df_clinical</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">protocol_df</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="c1"># Collapse using agg_func the protocol latent attributes    </span>
+        <span class="k">for</span> <span class="n">clinical_scale</span><span class="p">,</span> <span class="n">features</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapping</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">df_clinical</span><span class="p">[</span><span class="n">clinical_scale</span><span class="p">]</span> <span class="o">=</span> <span class="n">protocol_df</span><span class="p">[</span><span class="n">features</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">agg_func</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">df_clinical</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">protocol_df</span><span class="p">[</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">df_clinical</span></div>
+</div>
+
+
+<span class="c1"># ---------------------------------------------------------------</span>
+<span class="c1"># Adherence</span>
+<span class="c1"># ---------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">expand_session</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    For each prescription, generate expected sessions and merge with actual performed sessions.</span>
+<span class="sd">    Missing sessions are marked as NOT_PERFORMED with appropriate filling.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Ensure dates are datetime</span>
+    <span class="n">session</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">])</span>
+    <span class="n">last_session_per_patient</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">)[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+    
+    <span class="c1"># Step 1: Generate expected sessions DataFrame</span>
+    <span class="n">prescriptions</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_STARTING_DATE&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ENDING_DATE&quot;</span><span class="p">,</span> <span class="s2">&quot;WEEKDAY_INDEX&quot;</span><span class="p">])</span>
+    <span class="n">expected_rows</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_STARTING_DATE&quot;</span><span class="p">]</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_ENDING_DATE&quot;</span><span class="p">]</span>
+        <span class="n">weekday</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;WEEKDAY_INDEX&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="ow">or</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">end</span><span class="p">)</span> <span class="ow">or</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">weekday</span><span class="p">):</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Cap end date at last actual session of the patient</span>
+        <span class="n">last_patient_session</span> <span class="o">=</span> <span class="n">last_session_per_patient</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">],</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">today</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">end</span> <span class="o">&gt;</span> <span class="n">last_patient_session</span><span class="p">:</span>
+            <span class="n">end</span> <span class="o">=</span> <span class="n">last_patient_session</span>
+
+        <span class="n">expected_dates</span> <span class="o">=</span> <span class="n">generate_expected_sessions</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">weekday</span><span class="p">))</span>
+    
+        <span class="k">for</span> <span class="n">date</span> <span class="ow">in</span> <span class="n">expected_dates</span><span class="p">:</span>
+            <span class="n">template_row</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">date</span>
+            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;STATUS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;NOT_PERFORMED&quot;</span>
+            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;ADHERENCE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;SESSION_DURATION&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;REAL_SESSION_DURATION&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="c1"># Set session outcome-related columns to NaN</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">METRIC_COLUMNS</span><span class="p">:</span>
+                <span class="n">template_row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+
+            <span class="c1"># Append to expected rows</span>
+            <span class="n">expected_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">template_row</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+
+    <span class="n">expected_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">expected_rows</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">expected_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">session</span>  <span class="c1"># No new data, return original</span>
+
+    <span class="c1"># Filter expected_df to remove performed sessions</span>
+    <span class="n">performed_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="n">session</span><span class="p">[[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]])</span>
+    <span class="n">expected_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="n">expected_df</span><span class="p">[[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]])</span>  
+    <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">expected_index</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">performed_index</span><span class="p">)</span>
+    <span class="n">expected_df</span> <span class="o">=</span> <span class="n">expected_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+    <span class="c1"># Merge expected sessions with performed sessions</span>
+    <span class="n">merged</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">session</span><span class="p">,</span> <span class="n">expected_df</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    
+    <span class="c1"># Propagate last performed session values (forward fill by prescription)</span>
+    <span class="n">merged</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">fill_columns</span> <span class="o">=</span> <span class="n">METRIC_COLUMNS</span>
+    <span class="n">merged</span><span class="p">[</span><span class="n">fill_columns</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">)[</span><span class="n">fill_columns</span><span class="p">]</span><span class="o">.</span><span class="n">ffill</span><span class="p">()</span>
+    <span class="n">merged</span><span class="o">.</span><span class="n">fillna</span><span class="p">({</span><span class="s1">&#39;DM_VALUE&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;PE_VALUE&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># For missing session-specific outcome columns, set to NaN</span>
+    <span class="n">is_missing</span> <span class="o">=</span> <span class="n">merged</span><span class="p">[</span><span class="s2">&quot;STATUS&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;NOT_PERFORMED&quot;</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">SESSION_COLUMNS</span><span class="p">:</span>
+        <span class="n">merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">is_missing</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+
+    <span class="k">return</span> <span class="n">merged</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_expected_sessions</span><span class="p">(</span><span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">,</span> <span class="n">target_weekday</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generate all expected session dates between start_date and end_date for the given target weekday.</span>
+<span class="sd">    If the prescription end date is in the future, use today as the end limit (assuming future sessions are not yet done).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">expected_dates</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">today</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">today</span><span class="p">()</span>
+    
+    <span class="c1"># If the prescription is still ongoing, cap the end_date at today</span>
+    <span class="k">if</span> <span class="n">end_date</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">expected_dates</span>  <span class="c1"># no valid end date</span>
+    <span class="k">if</span> <span class="n">end_date</span> <span class="o">&gt;</span> <span class="n">today</span><span class="p">:</span>
+        <span class="n">end_date</span> <span class="o">=</span> <span class="n">today</span>
+    
+    <span class="c1"># Find the first occurrence of the target weekday on or after start_date</span>
+    <span class="k">if</span> <span class="n">start_date</span><span class="o">.</span><span class="n">weekday</span><span class="p">()</span> <span class="o">!=</span> <span class="n">target_weekday</span><span class="p">:</span>
+        <span class="n">days_until_target</span> <span class="o">=</span> <span class="p">(</span><span class="n">target_weekday</span> <span class="o">-</span> <span class="n">start_date</span><span class="o">.</span><span class="n">weekday</span><span class="p">())</span> <span class="o">%</span> <span class="mi">7</span>
+        <span class="n">start_date</span> <span class="o">=</span> <span class="n">start_date</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">days_until_target</span><span class="p">)</span>
+    
+    <span class="c1"># Generate dates every 7 days (weekly) from the adjusted start_date up to end_date</span>
+    <span class="n">current_date</span> <span class="o">=</span> <span class="n">start_date</span>
+
+    <span class="k">while</span> <span class="n">current_date</span> <span class="o">&lt;=</span> <span class="n">end_date</span><span class="p">:</span>
+        <span class="n">expected_dates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current_date</span><span class="p">)</span>
+        <span class="n">current_date</span> <span class="o">+=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">expected_dates</span>
+
+<span class="c1"># ---------------------------------------------------------------</span>
+<span class="c1"># Delta DM</span>
+<span class="c1"># ---------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_savgol_filter_groupwise</span><span class="p">(</span><span class="n">series</span><span class="p">,</span> <span class="n">window_size</span><span class="p">,</span> <span class="n">polyorder</span><span class="p">):</span>
+    <span class="n">series_len</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">series</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">series_len</span> <span class="o">&lt;</span> <span class="n">polyorder</span> <span class="o">+</span> <span class="mi">1</span><span class="p">:</span> <span class="k">return</span> <span class="n">series</span>
+    <span class="n">window</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">window_size</span><span class="p">,</span> <span class="n">series_len</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">window</span> <span class="o">&lt;=</span> <span class="n">polyorder</span><span class="p">:</span> <span class="n">window</span> <span class="o">=</span> <span class="n">polyorder</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">window</span> <span class="o">&gt;</span> <span class="n">series_len</span><span class="p">:</span> <span class="k">return</span> <span class="n">series</span>
+    <span class="k">if</span> <span class="n">window</span> <span class="o">%</span> <span class="mi">2</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span> <span class="n">window</span> <span class="o">-=</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">window</span> <span class="o">&lt;=</span> <span class="n">polyorder</span> <span class="p">:</span> <span class="k">return</span> <span class="n">series</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">savgol_filter</span><span class="p">(</span><span class="n">series</span><span class="p">,</span> <span class="n">window_length</span><span class="o">=</span><span class="n">window</span><span class="p">,</span> <span class="n">polyorder</span><span class="o">=</span><span class="n">polyorder</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">series</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_rolling_theilsen_slope</span><span class="p">(</span><span class="n">series_y</span><span class="p">,</span> <span class="n">series_x</span><span class="p">,</span> <span class="n">window_size</span><span class="p">):</span>
+    <span class="n">slopes</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">series_y</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="n">series_y</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">series_y</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="p">:</span> <span class="k">return</span> <span class="n">slopes</span>
+    <span class="n">regressor</span> <span class="o">=</span> <span class="n">TheilSenRegressor</span><span class="p">(</span><span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">max_subpopulation</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">series_y</span><span class="p">)):</span>
+        <span class="n">start_index</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">i</span> <span class="o">-</span> <span class="n">window_size</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">window_y</span> <span class="o">=</span> <span class="n">series_y</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">start_index</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="n">window_x</span> <span class="o">=</span> <span class="n">series_x</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">start_index</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">window_y</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">slopes</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">window_y</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">;</span> <span class="k">continue</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">window_x</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span> <span class="o">==</span> <span class="mi">1</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">window_y</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">slopes</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">;</span> <span class="k">continue</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">window_y</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+             <span class="n">slopes</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">;</span> <span class="k">continue</span>
+        <span class="n">X_reshaped</span> <span class="o">=</span> <span class="n">window_x</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_reshaped</span><span class="p">,</span> <span class="n">window_y</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+            <span class="n">slopes</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">coef_</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span> <span class="n">slopes</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="k">return</span> <span class="n">slopes</span>
+
+<span class="c1"># ---------------------------------------------------------------</span>
+<span class="c1"># PPF</span>
+<span class="c1"># ---------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">feature_contributions</span><span class="p">(</span><span class="n">df_A</span><span class="p">,</span> <span class="n">df_B</span><span class="p">):</span>
+    <span class="c1"># Convert to numpy   </span>
+    <span class="n">A</span> <span class="o">=</span> <span class="n">df_A</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="c1"># (patients, subscales)</span>
+    <span class="n">B</span> <span class="o">=</span> <span class="n">df_B</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="c1"># (protocols, subscales)</span>
+
+    <span class="c1"># Compute row-wise norms</span>
+    <span class="n">A_norms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">A</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1"># (patients, 1)</span>
+    <span class="n">B_norms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">B</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="c1"># (protocols, 1)</span>
+    
+    <span class="c1"># Replace zero norms with a small value to avoid NaN (division by zero)</span>
+    <span class="n">A_norms</span><span class="p">[</span><span class="n">A_norms</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-10</span>
+    <span class="n">B_norms</span><span class="p">[</span><span class="n">B_norms</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-10</span>
+
+    <span class="c1"># Normalize each row to unit vectors</span>
+    <span class="n">A_norm</span> <span class="o">=</span> <span class="n">A</span> <span class="o">/</span> <span class="n">A_norms</span> <span class="c1"># (patient, subscales)</span>
+    <span class="n">B_norm</span> <span class="o">=</span> <span class="n">B</span> <span class="o">/</span> <span class="n">B_norms</span> <span class="c1"># (protocol, subscales)</span>
+
+    <span class="c1"># Compute feature contributions</span>
+    <span class="n">contributions</span> <span class="o">=</span> <span class="n">A_norm</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">B_norm</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">,</span> <span class="p">:,</span> <span class="p">:]</span> <span class="c1"># (patient, dim, subscales) * (dim, protocol, subscales)</span>
+
+    <span class="k">return</span> <span class="n">contributions</span> <span class="c1"># (patients, protocols, subscales_sim)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_ppf</span><span class="p">(</span><span class="n">patient_deficiency</span><span class="p">,</span> <span class="n">protocol_mapped</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Compute the patient-protocol feature matrix (PPF) and feature contributions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">contributions</span> <span class="o">=</span> <span class="n">feature_contributions</span><span class="p">(</span><span class="n">patient_deficiency</span><span class="p">,</span> <span class="n">protocol_mapped</span><span class="p">)</span>
+    <span class="n">ppf</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">contributions</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="c1"># (patients, protocols, cosine)</span>
+    <span class="n">ppf</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">ppf</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">patient_deficiency</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">protocol_mapped</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    <span class="n">contributions</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">contributions</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">index</span><span class="o">=</span><span class="n">patient_deficiency</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">protocol_mapped</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+    
+    <span class="n">ppf_long</span> <span class="o">=</span> <span class="n">ppf</span><span class="o">.</span><span class="n">stack</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    <span class="n">ppf_long</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PPF&quot;</span><span class="p">]</span>
+
+    <span class="n">contrib_long</span> <span class="o">=</span> <span class="n">contributions</span><span class="o">.</span><span class="n">stack</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    <span class="n">contrib_long</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;CONTRIB&quot;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">ppf_long</span><span class="p">,</span> <span class="n">contrib_long</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_protocol_similarity</span><span class="p">(</span><span class="n">protocol_mapped</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot; Compute protocol similarity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">gower</span>
+
+    <span class="n">protocol_attributes</span> <span class="o">=</span> <span class="n">protocol_mapped</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">protocol_ids</span> <span class="o">=</span> <span class="n">protocol_attributes</span><span class="o">.</span><span class="n">PROTOCOL_ID</span>
+    <span class="n">protocol_attributes</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">hot_encoded_cols</span> <span class="o">=</span> <span class="n">protocol_attributes</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;BODY_PART&quot;</span><span class="p">)</span>
+    <span class="n">weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">protocol_attributes</span><span class="o">.</span><span class="n">columns</span><span class="p">))</span>
+    <span class="n">weights</span><span class="p">[</span><span class="n">hot_encoded_cols</span><span class="p">]</span> <span class="o">=</span> <span class="n">weights</span><span class="p">[</span><span class="n">hot_encoded_cols</span><span class="p">]</span> <span class="o">/</span> <span class="n">hot_encoded_cols</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+    <span class="n">protocol_attributes</span> <span class="o">=</span> <span class="n">protocol_attributes</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+
+    <span class="n">gower_sim_matrix</span> <span class="o">=</span> <span class="n">gower</span><span class="o">.</span><span class="n">gower_matrix</span><span class="p">(</span><span class="n">protocol_attributes</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="n">weights</span><span class="p">)</span>
+    <span class="n">gower_sim_matrix</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span> <span class="n">gower_sim_matrix</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">protocol_ids</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">protocol_ids</span><span class="p">)</span>
+    <span class="n">gower_sim_matrix</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;PROTOCOL_SIM&quot;</span>
+
+    <span class="n">gower_sim_matrix</span> <span class="o">=</span> <span class="n">gower_sim_matrix</span><span class="o">.</span><span class="n">stack</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+    <span class="n">gower_sim_matrix</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;PROTOCOL_A&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTOCOL_B&quot;</span><span class="p">,</span> <span class="s2">&quot;SIMILARITY&quot;</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">gower_sim_matrix</span>
+
+<span class="c1"># ---------------------------------------------------------------</span>
+<span class="c1"># Utils</span>
+<span class="c1"># ---------------------------------------------------------------</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">check_prescriptions</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+    <span class="n">patients_non_prescribed</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="n">PRESCRIPTION_ID</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">patients_non_prescribed</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">patients_non_prescribed</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">check_session</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check for data discrepancies in session DataFrame, export findings to ~/.ai_cdss/logs/,</span>
+<span class="sd">    log summary, and return cleaned DataFrame.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    session : pd.DataFrame</span>
+<span class="sd">        Session DataFrame to check and clean.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pd.DataFrame</span>
+<span class="sd">        Cleaned session DataFrame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Patient registered but no data yet (no prescription)</span>
+    <span class="n">patients_no_data</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">patients_no_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="n">patients_no_data</span><span class="p">[[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_ID&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">export_file</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">patients_no_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> patients found without prescription. Check exported file: </span><span class="si">{</span><span class="n">export_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No patients without prescription found.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Drop these rows</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">patients_no_data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="c1"># Sessions in session table but not in recording table (no adherence)</span>
+    <span class="n">patient_session_discrepancy</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;ADHERENCE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">patient_session_discrepancy</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="n">export_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">log_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;patient_session_discrepancy_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.csv&quot;</span><span class="p">)</span>
+        <span class="n">patient_session_discrepancy</span><span class="p">[[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_ID&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">export_file</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">patient_session_discrepancy</span><span class="p">)</span><span class="si">}</span><span class="s2"> sessions found without adherence. Check exported file: </span><span class="si">{</span><span class="n">export_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No sessions without adherence found.&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Drop these rows</span>
+    <span class="n">session</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">patient_session_discrepancy</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+    <span class="c1"># Final info</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session data cleaned. Final shape: </span><span class="si">{</span><span class="n">session</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">session</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">safe_merge</span><span class="p">(</span>
+    <span class="n">left</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">right</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">on</span><span class="p">,</span>
+    <span class="n">how</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;left&quot;</span><span class="p">,</span>
+    <span class="n">export_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;~/.ai_cdss/logs/&quot;</span><span class="p">,</span>
+    <span class="n">left_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;left&quot;</span><span class="p">,</span>
+    <span class="n">right_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;right&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Perform a safe merge and independently report unmatched rows from left and right DataFrames.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    left : pd.DataFrame</span>
+<span class="sd">        Left DataFrame.</span>
+<span class="sd">    right : pd.DataFrame</span>
+<span class="sd">        Right DataFrame.</span>
+<span class="sd">    on : str or list</span>
+<span class="sd">        Column(s) to join on.</span>
+<span class="sd">    how : str, optional</span>
+<span class="sd">        Type of merge to be performed. Default is &quot;left&quot;.</span>
+<span class="sd">    export_dir : str, optional</span>
+<span class="sd">        Directory to export discrepancy reports and logs.</span>
+<span class="sd">    left_name : str, optional</span>
+<span class="sd">        Friendly name for the left DataFrame, for logging.</span>
+<span class="sd">    right_name : str, optional</span>
+<span class="sd">        Friendly name for the right DataFrame, for logging.</span>
+<span class="sd">    drop_inconsistencies : bool, optional</span>
+<span class="sd">        If True, drop inconsistent rows (left-only). Default is False.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    pd.DataFrame</span>
+<span class="sd">        Merged DataFrame.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Prepare export directory</span>
+    <span class="n">export_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">export_dir</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">export_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">_%H%M%S&#39;</span><span class="p">)</span>
+    <span class="n">log_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">export_dir</span><span class="p">,</span> <span class="s2">&quot;data_check.log&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Setup logger</span>
+    <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span>
+        <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+        <span class="nb">format</span><span class="o">=</span><span class="s1">&#39;</span><span class="si">%(asctime)s</span><span class="s1"> - </span><span class="si">%(levelname)s</span><span class="s1"> - </span><span class="si">%(message)s</span><span class="s1">&#39;</span><span class="p">,</span>
+        <span class="n">handlers</span><span class="o">=</span><span class="p">[</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">FileHandler</span><span class="p">(</span><span class="n">log_file</span><span class="p">),</span>
+            <span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">()</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+    <span class="c1"># Outer merge for discrepancy check</span>
+    <span class="n">discrepancy_check</span> <span class="o">=</span> <span class="n">left</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">on</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;outer&quot;</span><span class="p">,</span> <span class="n">indicator</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">left_only</span> <span class="o">=</span> <span class="n">discrepancy_check</span><span class="p">[</span><span class="n">discrepancy_check</span><span class="p">[</span><span class="s2">&quot;_merge&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;left_only&quot;</span><span class="p">]</span>
+    <span class="n">right_only</span> <span class="o">=</span> <span class="n">discrepancy_check</span><span class="p">[</span><span class="n">discrepancy_check</span><span class="p">[</span><span class="s2">&quot;_merge&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;right_only&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Export and log discrepancies if found</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">left_only</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="n">export_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">export_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">left_name</span><span class="si">}</span><span class="s2">_only_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.csv&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">left_only</span><span class="p">[</span><span class="n">BY_ID</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;SESSION_DURATION&quot;</span><span class="p">,</span> <span class="s2">&quot;SCORE&quot;</span><span class="p">,</span> <span class="s2">&quot;DM_VALUE&quot;</span><span class="p">,</span> <span class="s2">&quot;PE_VALUE&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">export_file</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">left_only</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">export_file</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">left_only</span><span class="p">)</span><span class="si">}</span><span class="s2"> rows found only in &#39;</span><span class="si">{</span><span class="n">left_name</span><span class="si">}</span><span class="s2">&#39; DataFrame &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(see export: </span><span class="si">{</span><span class="n">export_file</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">right_only</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+        <span class="n">export_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">export_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">right_name</span><span class="si">}</span><span class="s2">_only_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.csv&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">right_only</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;SESSION_DURATION&quot;</span><span class="p">,</span> <span class="s2">&quot;SCORE&quot;</span><span class="p">,</span> <span class="s2">&quot;DM_VALUE&quot;</span><span class="p">,</span> <span class="s2">&quot;PE_VALUE&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">export_file</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">right_only</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">export_file</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">right_only</span><span class="p">)</span><span class="si">}</span><span class="s2"> rows from &#39;</span><span class="si">{</span><span class="n">right_name</span><span class="si">}</span><span class="s2">&#39; DataFrame did not match &#39;</span><span class="si">{</span><span class="n">left_name</span><span class="si">}</span><span class="s2">&#39; DataFrame &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(see export: </span><span class="si">{</span><span class="n">export_file</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Step 3: Actual requested merge</span>
+    <span class="n">merged</span> <span class="o">=</span> <span class="n">left</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">right</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">on</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="n">how</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">merged</span>
 </pre></div>
 
                 </article>
