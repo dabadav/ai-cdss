@@ -1,6 +1,33 @@
 # constants.py
+from pathlib import Path
 
-# Individual column names
+############################
+# DATA
+############################
+DEFAULT_DATA_DIR = Path.home() / ".ai_cdss" / "data"
+DEFAULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+DEFAULT_OUTPUT_DIR = Path.home() / ".ai_cdss" / "output"
+DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+DEFAULT_LOG_DIR = Path.home() / ".ai_cdss" / "logs"
+DEFAULT_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+PPF_PARQUET_FILEPATH = DEFAULT_OUTPUT_DIR / "ppf.parquet"
+
+############################
+# PARAMETERS
+############################
+
+# Delta DM
+SAVGOL_WINDOW_SIZE = 7
+SAVGOL_POLY_ORDER = 2
+THEILSON_REGRESSION_WINDOW_SIZE = 7
+
+
+############################
+# ABBREVIATIONS
+############################
 PATIENT_ID = "PATIENT_ID"
 PROTOCOL_ID = "PROTOCOL_ID"
 PRESCRIPTION_ID = "PRESCRIPTION_ID"
@@ -35,11 +62,9 @@ SCORE = "SCORE"
 SESSION_COLUMNS: list[str] = [
     "SESSION_ID", "STARTING_HOUR", "STARTING_TIME_CATEGORY", "SECONDS_FROM_START", "TOTAL_SUCCESS", "TOTAL_ERRORS", "SCORE"
 ]
-
 METRIC_COLUMNS: list[str] = [
     "DM_VALUE", "PE_VALUE"
 ]
-
 TIME_COLUMNS: list[str] = [
     "SESSION_DATE", "STARTING_HOUR", "STARTING_TIME_CATEGORY", "SECONDS_FROM_START"
 ]
@@ -52,9 +77,3 @@ BY_ID: list[str] = BY_PPS + [PRESCRIPTION_ID] # By Patient–Protocol–Session 
 
 # Metrics
 FINAL_METRICS = [PPF, CONTRIB, RECENT_ADHERENCE, DELTA_DM, USAGE, DAYS, SCORE]
-
-
-# Delta DM
-SAVGOL_WINDOW_SIZE = 7
-SAVGOL_POLY_ORDER = 2
-THEILSON_REGRESSION_WINDOW_SIZE = 7

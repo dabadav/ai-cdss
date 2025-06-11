@@ -20,20 +20,6 @@ class SessionSchema(pa.DataFrameModel):
 
     # Patient profile
     patient_id: int = NullableField(alias='PATIENT_ID')
-    hospital_id: int = NullableField(alias='HOSPITAL_ID')
-    paretic_side: str = NullableField(alias='PARETIC_SIDE')
-    upper_extremity_to_train: str = NullableField(alias='UPPER_EXTREMITY_TO_TRAIN')
-    hand_raising_capacity: str = NullableField(alias='HAND_RAISING_CAPACITY')
-    cognitive_function_level: str = NullableField(alias='COGNITIVE_FUNCTION_LEVEL')
-    has_heminegligence: int = NullableField(alias='HAS_HEMINEGLIGENCE')
-    gender: str = NullableField(alias='GENDER')
-    skin_color: str = NullableField(alias='SKIN_COLOR')
-    age: int = NullableField(alias='AGE', ge=0, le=120)
-    videogame_exp: int = NullableField(alias='VIDEOGAME_EXP', ge=0)
-    computer_exp: int = NullableField(alias='COMPUTER_EXP', ge=0)
-    comments: str = NullableField(alias='COMMENTS')
-    ptn_height_cm: int = NullableField(alias='PTN_HEIGHT_CM', ge=100, le=250)
-    arm_size_cm: int = NullableField(alias='ARM_SIZE_CM', ge=20, le=60)
 
     # Identifiers
     prescription_id: int = NullableField(alias='PRESCRIPTION_ID')
@@ -46,15 +32,8 @@ class SessionSchema(pa.DataFrameModel):
     
     # Session
     session_date: pa.DateTime = NullableField(alias='SESSION_DATE')
-    starting_hour: int = NullableField(alias='STARTING_HOUR', ge=0, le=23)
-    starting_time_category: str = NullableField(alias='STARTING_TIME_CATEGORY', isin=["MORNING", "AFTERNOON", "EVENING", "NIGHT"])
     weekday: int = NullableField(alias='WEEKDAY_INDEX', ge=0, le=6, description="Weekday Index (0=Monday, 6=Sunday)")
-    
     status: str = NullableField(alias='STATUS', isin=["CLOSED", "ABORTED", "ONGOING"])
-    
-    # Protocol
-    protocol_type: str = NullableField(alias='PROTOCOL_TYPE')
-    ar_mode: str = NullableField(alias='AR_MODE')
     
     # Metrics
     real_session_duration: int = NullableField(alias='REAL_SESSION_DURATION', ge=0)
@@ -64,28 +43,28 @@ class SessionSchema(pa.DataFrameModel):
 
     total_success: int = NullableField(alias='TOTAL_SUCCESS', ge=0)
     total_errors: int = NullableField(alias='TOTAL_ERRORS', ge=0)
-    score: int = NullableField(alias='SCORE', ge=0)
+    game_score: int = NullableField(alias='GAME_SCORE', ge=0)
 
 class TimeseriesSchema(pa.DataFrameModel):
     """
     Schema for timeseries session data. Includes measurements per-second of difficulty modulators (DM) and performance estimates (PE).
     """
     # Identifiers
-    patient_id: int = pa.Field(alias="PATIENT_ID", gt=0)
-    session_id: int = pa.Field(alias="SESSION_ID", gt=0)
-    protocol_id: int = pa.Field(alias="PROTOCOL_ID", gt=0)
+    patient_id: int = NullableField(alias="PATIENT_ID", gt=0)
+    session_id: int = NullableField(alias="SESSION_ID", gt=0)
+    protocol_id: int = NullableField(alias="PROTOCOL_ID", gt=0)
     
     # Protocol
-    game_mode: str = pa.Field(alias="GAME_MODE")
+    game_mode: str = NullableField(alias="GAME_MODE")
     
     # Time
-    timepoint: int = pa.Field(alias="SECONDS_FROM_START")
+    timepoint: int = NullableField(alias="SECONDS_FROM_START")
     
     # Metrics
-    dm_key: str = pa.Field(alias="DM_KEY")
-    dm_value: float = pa.Field(alias="DM_VALUE")
-    pe_key: str = pa.Field(alias="PE_KEY")
-    pe_value: float = pa.Field(alias="PE_VALUE")
+    dm_key: str = NullableField(alias="DM_KEY")
+    dm_value: float = NullableField(alias="DM_VALUE")
+    pe_key: str = NullableField(alias="PE_KEY")
+    pe_value: float = NullableField(alias="PE_VALUE")
 
 class PPFSchema(pa.DataFrameModel):
     """
@@ -135,6 +114,7 @@ def safe_check_types(schema_model: Type[pa.DataFrameModel]):
     schema_model: A pandera DataFrameModel class.
     """
     schema = schema_model.to_schema()
+    schema_name = schema_model.__name__ # Get the name of the schema model class
 
     def decorator(func: Callable):
         @wraps(func)
@@ -171,8 +151,8 @@ def safe_check_types(schema_model: Type[pa.DataFrameModel]):
             
             # Log all skipped columns once
             if skipped_columns:
-                logger.info(
-                    f"Skipping dtype check for nullable columns with all null values: {', '.join(skipped_columns)}"
+                logger.debug(
+                    f"Skipped dtype check for empty columns in `{schema_name}`: {', '.join(skipped_columns)}"
                 )
 
             # Reconstruct modified schema

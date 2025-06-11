@@ -6,6 +6,9 @@ import pandas as pd
 from pandera.typing import DataFrame
 from ai_cdss.models import ScoringSchema
 
+import logging
+logger = logging.getLogger(__name__)
+
 class CDSS:
     """
     Clinical Decision Support System (CDSS) Class.
@@ -120,7 +123,7 @@ class CDSS:
             A dictionary mapping days to scheduled protocols.
         """
 
-        schedule = {day: [] for day in range(1, self.days + 1)}  # Days are 1-indexed
+        schedule = {day: [] for day in range(0, self.days)}  # Days are 1-indexed
         total_slots = self.days * self.protocols_per_day
 
         if protocols:
@@ -129,7 +132,7 @@ class CDSS:
 
             # Distribute protocols evenly across days
             for i, protocol in enumerate(repeated_protocols):
-                day = (i % self.days) + 1  # Distribute protocols in a round-robin fashion
+                day = (i % self.days)  # Distribute protocols in a round-robin fashion
                 
                 if protocol not in schedule[day]:
                     schedule[day].append(protocol)
@@ -150,6 +153,7 @@ class CDSS:
         list of int
             List of protocol IDs to be swapped.
         """
+        # TODO: Add logic for prescriptions existing but no USAGE
         prescriptions = self.get_prescriptions(patient_id)
         return prescriptions[prescriptions['SCORE'].transform(lambda x: x < x.mean())].PROTOCOL_ID.to_list()
 
