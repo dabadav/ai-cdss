@@ -1,21 +1,21 @@
 # ai_cdss/data_processor.py
-from typing import List
+from typing import List, Optional
 from functools import reduce
+from dataclasses import dataclass
 
 import pandas as pd
+from pandas import Timestamp
 import pandera as pa
 from pandera.typing import DataFrame
 
 import os
 import logging
-from datetime import datetime
 
 import importlib.resources
 from typing import Optional
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from sklearn.linear_model import TheilSenRegressor
 from scipy.signal import savgol_filter
 
@@ -25,6 +25,8 @@ from ai_cdss.constants import *
 from ai_cdss.models import ScoringSchema, PPFSchema, SessionSchema, TimeseriesSchema
 
 import logging
+from IPython.display import display
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +38,12 @@ logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------
 # Data Processor Class
+
+@dataclass
+class ProcessingContext:
+    scoring_date: Timestamp = None
+    simulation_mode: bool = False
+    additional_flags: dict = None
 
 class DataProcessor:
     """
@@ -63,20 +71,22 @@ class DataProcessor:
     def __init__(
         self,
         weights: List[float] = [1,1,1], 
-        alpha: float = 0.5
+        alpha: float = 0.5,
+        context: Optional[ProcessingContext] = None
     ):
         """
         Initialize the data processor with optional weights for scoring.
         """
         self.weights = weights
         self.alpha = alpha
+        self.context = context or ProcessingContext()
 
     # @pa.check_types
     def process_data(
         self, 
         session_data: DataFrame[SessionSchema], 
         timeseries_data: DataFrame[TimeseriesSchema], 
-        ppf_data: DataFrame[PPFSchema], 
+        ppf_data: DataFrame[PPFSchema],
         init_data: pd.DataFrame
     ) -> DataFrame[ScoringSchema]:
         """
@@ -101,37 +111,42 @@ class DataProcessor:
 
         # --- Log-Level Output ---
         ## PATIENT_ID + PROTOCOL_ID + SESSION_ID + ADHERENCE + RECENT_ADHERENCE + USAGE + DAYS + DM_VALUE + DELTA_DM_VALUE + PE_VALUE + PPF + SCORE
-        
+        scoring_date = self._get_scoring_date()
+        print(f"scoring {scoring_date}")
+
         # --- Feature Building ---
         if not session_data.empty and not timeseries_data.empty:
             # Compute Session Features
-            ts_feat_df = self.build_delta_dm(timeseries_data)           # DELTA_DM
+            dm_df = self.build_delta_dm(timeseries_data)                # DELTA_DM
             adherence_df = self.build_recent_adherence(session_data)    # ADHERENCE_RECENT
             usage_df = self.build_usage(session_data)                   # USAGE
-            days_df = self.build_prescription_days(session_data)        # DAYS
+            usage_week_df = self.build_week_usage(session_data, scoring_date=scoring_date)         # USAGE_WEEK
+            days_df = self.build_prescription_days(session_data, scoring_date=scoring_date)        # DAYS
             
             # Combine Session Features
-            feat_df = reduce(lambda l, r: safe_merge(l, r, on=BY_PPS), [ts_feat_df, adherence_df, usage_df, days_df])
+            feat_pp_df = reduce(lambda l, r: pd.merge(l, r, on=BY_PP, how='left'), [ppf_data, usage_df, usage_week_df, days_df])
+            feat_pps_df = reduce(lambda l, r: pd.merge(l, r, on=BY_PPS, how='left'), [adherence_df, dm_df])
             
             # Store the whole scored DataFrame as a csv
-            feat_df.to_csv(DEFAULT_LOG_DIR / "scored_features.csv", index=False)   
+            # feat_df.to_csv(DEFAULT_LOG_DIR / "scored_features.csv", index=False)   
             
             # Aggregate to patient protocol level
-            feat_agg = feat_df.groupby(BY_PP).agg("last").reset_index()
+            feat_agg = feat_pps_df.groupby(BY_PP).agg("last").reset_index()
+            scoring_input = reduce(lambda l, r: pd.merge(l, r, on=BY_PP, how='left'), [feat_pp_df, feat_agg])
         
         # If we are bootstrapping a study, and no patient prescriptions yet
         else:
             # Initialize feature df with expected columns
-            scoring_columns = BY_PP + [DELTA_DM, RECENT_ADHERENCE, USAGE, DAYS]
+            scoring_columns = BY_PP + [DELTA_DM, RECENT_ADHERENCE, USAGE, USAGE_WEEK, DAYS]
             feat_agg = pd.DataFrame(columns=scoring_columns)
 
-        # --- Merge All for Scoring ---
-        scoring_input = reduce(lambda l, r: safe_merge(l, r, on=BY_PP), [
-            ppf_data,
-            feat_agg
-        ])
+            # Merge for scoring
+            scoring_input = reduce(lambda l, r: safe_merge(l, r, on=BY_PP), [
+                ppf_data,
+                feat_agg
+            ])
 
-        # --- Scoring ---
+        # --- Scoring Data ---
         scored_df = self.compute_score(scoring_input, init_data)
         scored_df.attrs = ppf_data.attrs
         
@@ -180,20 +195,14 @@ class DataProcessor:
         data[DAYS] = data[DAYS].apply(lambda x: [] if x is None or (not isinstance(x, list) and pd.isna(x)) else x)
         # When no sessions performed add a 0
         data[USAGE] = data[USAGE].astype("Int64").fillna(0)
-        # Cast NaN to None 
-        # data.where(pd.notna(data), None)
+        data[USAGE_WEEK] = data[USAGE_WEEK].astype("Int64").fillna(0)
 
-        # data = data.fillna(None)
-        # data = data.fillna(0).infer_objects(copy=False)
-        # # Only fill NaNs using map for matching PROTOCOL_IDs
-        # data[ADHERENCE] = data[ADHERENCE].fillna(0)
-        # # data[ADHERENCE] = data[ADHERENCE].fillna(data[PROTOCOL_ID].map(protocol_metrics[ADHERENCE]))
-        # data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics["DM_DELTA"]))
-        # # data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics["DM_DELTA"]))
-        # data[PE_VALUE] = data[PE_VALUE].fillna(0)
-        # data[DAYS]  = data[DAYS].fillna(0)
+        # How to initliaze DM and Adherence? -> Later weeks?
         return data
     
+    def _get_scoring_date(self):
+        return self.context.scoring_date or pd.Timestamp.today().normalize()
+
     def _compute_ewma(self, df, value_col, group_cols, sufix=""):
         """
         Compute Exponential Weighted Moving Average (EWMA) over grouped time series.
@@ -246,38 +255,131 @@ class DataProcessor:
         return scoring_df
 
     def build_delta_dm(self, ts_df: DataFrame[TimeseriesSchema]) -> pd.DataFrame:
-        grouped = ts_df.groupby(BY_PPS).agg({DM_VALUE: "mean", PE_VALUE: "mean"}).reset_index()
+        grouped = ts_df.groupby(BY_PPS).agg({DM_VALUE: "mean"}).reset_index()
 
+        # Session index per patient protocol
         grouped['SESSION_INDEX'] = grouped.groupby(BY_PP).cumcount() + 1
+
+        # Compute smoothing
         grouped['DM_SMOOTH'] = grouped.groupby(BY_PP)[DM_VALUE].transform(
             apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER
         )
-        grouped[DELTA_DM] = grouped.groupby(BY_PP, group_keys=False)[['DM_SMOOTH', 'SESSION_INDEX']].apply(
-            lambda g: get_rolling_theilsen_slope(g['DM_SMOOTH'], g['SESSION_INDEX'], THEILSON_REGRESSION_WINDOW_SIZE)
+        
+        # Compute slope
+        grouped[DELTA_DM] = delta_slope = grouped.groupby(BY_PP)['DM_SMOOTH'].transform(
+            lambda g: get_rolling_theilsen_slope(
+                g,
+                grouped.loc[g.index, 'SESSION_INDEX'],
+                THEILSON_REGRESSION_WINDOW_SIZE
+            )
         ).fillna(0)
 
         return grouped[BY_PPS + [DM_VALUE, DELTA_DM]]
 
     def build_recent_adherence(self, session_df: DataFrame[SessionSchema]) -> pd.DataFrame:
+        """
+        This feature builder must return adherence for patient protocols, with the following considerations:
+        - Adherence computed as SESSION_TIME / PRESCRIBED_SESSION_TIME
+        - Adherence is considered 0 if presribed session is not performed
+            - BUT is not considered if no session was performed that day.
+
+        Additionally a recency bias is applied.
+        """
         df = session_df.copy()
+        # Includes prescribed but not performed sessions
+        df = include_missing_sessions(df)
+
+        # Include same day logic do not penalize
+        def day_skip_to_nan(group):
+            # Check all STATUS == NOT_PERFORMED
+            day_skipped = all(group['STATUS'] == 'NOT_PERFORMED')
+            # EWMA does not use nan values for computation
+            if day_skipped:
+                group['ADHERENCE'] = np.nan
+            return group
+        
+        df = df.groupby(by=[PATIENT_ID, 'SESSION_DATE'], group_keys=False).apply(day_skip_to_nan)
+
+        df = df.sort_values(by=BY_PP + ['SESSION_DATE', 'WEEKDAY_INDEX'])
+        df['SESSION_INDEX'] = df.groupby(BY_PP).cumcount() + 1
+
+        # For a given patient protocol, take the array of adherences and mean aggregate with recency bias.
         df = self._compute_ewma(df, ADHERENCE, BY_PP, sufix="_RECENT")
-        return df[BY_PPS + [RECENT_ADHERENCE]]
+        return df[BY_PPS + ['SESSION_DATE', 'STATUS', 'SESSION_INDEX', ADHERENCE, RECENT_ADHERENCE]]
 
     def build_usage(self, session_df: DataFrame[SessionSchema]) -> pd.DataFrame:
-        df = session_df.copy()
-        df[USAGE] = df.groupby(BY_PP)[SESSION_ID].transform("nunique").astype("Int64")
-        return df[BY_PPS + [USAGE]]
+        """
+        This feature builder must return how many times protocols are used in this format:
+        PATIENT_ID  PROTOCOL_ID  USAGE
+        12          220          2
+        12          231          1
+        12          233          0
 
-    def build_prescription_days(self, session_df: DataFrame[SessionSchema]) -> pd.DataFrame:
+        Protocols that have not been yet prescribed for a patient are not returned.
+        """
+        df = session_df.copy()
+        return (
+            df.groupby([PATIENT_ID, PROTOCOL_ID], dropna=False)[SESSION_ID]
+            .nunique()
+            .reset_index(name=USAGE)
+            .astype({USAGE: "Int64"})
+        )
+
+    def build_week_usage(self, session_df: DataFrame[SessionSchema], scoring_date: Timestamp = None) -> pd.DataFrame:
+        """
+        This feature builder must return how many times protocols are used in this week in this format:
+        PATIENT_ID  PROTOCOL_ID  USAGE_WEEK
+        12          220          2
+        12          231          1
+        12          233          0
+
+        Protocols that have not been yet prescribed for a patient are not returned.
+        """
+        df = session_df.copy()
+
+        # Compute current week's Monday 00:00 and Sunday 23:59:59.999999
+        week_start = scoring_date - pd.Timedelta(days=scoring_date.weekday())  # Monday 00:00
+        week_start = week_start.normalize()
+        week_end = week_start + pd.Timedelta(days=7)  # Next Monday 00:00
+
+        # Filter to sessions in the given week range
+        df = df[(df[SESSION_DATE] >= week_start) & (df[SESSION_DATE] < week_end)]
+
+        # Group by patient and protocol, count unique sessions
+        return (
+            df.groupby([PATIENT_ID, PROTOCOL_ID], dropna=False)[SESSION_ID]
+            .nunique()
+            .reset_index(name=USAGE_WEEK)
+            .astype({USAGE_WEEK: "Int64"})
+        )
+
+    def build_prescription_days(self, session_df: DataFrame[SessionSchema], scoring_date: Timestamp = None) -> pd.DataFrame:
+        """
+        This feature builder must return active prescriptions signaled as:
+        PRESCRIPTION_ENDING_DATE == 2100-01-01 00:00:00
+
+        In the following format, (encoding weekdays from 0-6):
+        PATIENT_ID  PROTOCOL_ID DAYS
+        12          220         [2]
+        12          233         [0]
+        """
+        # If no scoring date is given, use today's date at 00:00
+        week_start = scoring_date - pd.Timedelta(days=scoring_date.weekday())  # Monday 00:00
+        week_start = week_start.normalize()
+        
+        # Filter activities where the prescription is still active in this week.
+        # i.e., prescriptions whose ending date is on or after the start of this week
+        active_prescriptions = session_df[session_df[PRESCRIPTION_ENDING_DATE] > week_start]
+        
+        # Group by patient and protocol, collect all unique weekday indices (0–6) where active prescriptions occurred
         prescribed_days = (
-            session_df[session_df[PRESCRIPTION_ENDING_DATE] == PRESCRIPTION_ACTIVE]
+            active_prescriptions
             .groupby(BY_PP)[WEEKDAY_INDEX]
             .agg(lambda x: sorted(x.unique()))
             .rename(DAYS)
             .reset_index()
         )
-        merged = safe_merge(session_df[BY_PPS], prescribed_days, on=BY_PP, how="left")
-        return merged[BY_PPS + [DAYS]]
+        return prescribed_days
     
 # ------------------------------
 # Clinical Scores
@@ -340,102 +442,110 @@ class ProtocolToClinicalMapper:
 # Adherence
 # ---------------------------------------------------------------
 
-def expand_session(session: pd.DataFrame):
+def include_missing_sessions(session: pd.DataFrame):
     """
-    For each prescription, generate expected sessions and merge with actual performed sessions.
-    Missing sessions are marked as NOT_PERFORMED with appropriate filling.
+    For each prescription, generate expected sessions (based on weekday, start and end dates),
+    and merge them with actual performed sessions. Sessions that were expected but not performed
+    are marked as NOT_PERFORMED.
+
+    All date comparisons are done at day-level (time is ignored).
     """
-    # Ensure dates are datetime
-    session["SESSION_DATE"] = pd.to_datetime(session["SESSION_DATE"])
-    last_session_per_patient = session.groupby("PATIENT_ID")["SESSION_DATE"].max().to_dict()
     
-    # Step 1: Generate expected sessions DataFrame
-    prescriptions = session.drop_duplicates(subset=["PRESCRIPTION_ID", "PATIENT_ID", "PROTOCOL_ID", "PRESCRIPTION_STARTING_DATE", "PRESCRIPTION_ENDING_DATE", "WEEKDAY_INDEX"])
-    expected_rows = []
+    # Normalize to date (drop time component)
+    date_cols = ["SESSION_DATE", "PRESCRIPTION_STARTING_DATE", "PRESCRIPTION_ENDING_DATE"]
+    for col in date_cols:
+        session[col] = pd.to_datetime(session[col]).dt.normalize()
+
+    # Get last performed session date per patient
+    valid_sessions = session.dropna(subset=["SESSION_DATE"])
+
+    last_session_per_patient = (
+        valid_sessions.groupby("PATIENT_ID")["SESSION_DATE"]
+        .max()
+        .to_dict()
+    )
+
+    # Get exisiting prescriptions
+    prescriptions = session.drop_duplicates(
+        subset=[
+            "PRESCRIPTION_ID", "PATIENT_ID", "PROTOCOL_ID",
+            "PRESCRIPTION_STARTING_DATE", "PRESCRIPTION_ENDING_DATE", "WEEKDAY_INDEX"
+        ]
+    )
+    
+    # Generate expected session dates
+    expected_session_rows = []
 
     for _, row in prescriptions.iterrows():
+        patient_id = row['PATIENT_ID']
         start = row["PRESCRIPTION_STARTING_DATE"]
         end = row["PRESCRIPTION_ENDING_DATE"]
         weekday = row["WEEKDAY_INDEX"]
 
+        # Safety
         if pd.isna(start) or pd.isna(end) or pd.isna(weekday):
             continue
 
-        # Cap end date at last actual session of the patient
-        last_patient_session = last_session_per_patient.get(row["PATIENT_ID"], pd.Timestamp.today())
-        if end > last_patient_session:
-            end = last_patient_session
+        # Cap at last performed session for the patient
+        last_session = last_session_per_patient.get(patient_id, pd.Timestamp.today().normalize())
+        # If the prescription end date is in the future, use today as the end limit (assuming future sessions are not yet done)
+        end = min(end, last_session)
 
-        expected_dates = generate_expected_sessions(start, end, int(weekday))
-    
-        for date in expected_dates:
-            template_row = row.copy()
-            template_row["SESSION_DATE"] = date
-            template_row["STATUS"] = "NOT_PERFORMED"
-            template_row["ADHERENCE"] = 0.0
-            template_row["SESSION_DURATION"] = 0
-            template_row["REAL_SESSION_DURATION"] = 0
-            # Set session outcome-related columns to NaN
-            for col in METRIC_COLUMNS:
-                template_row[col] = np.nan
+        # Generate expected session dates for this prescription
+        expected_dates = generate_expected_sessions(start, end, int(weekday))  # Should return date-like list
 
-            # Append to expected rows
-            expected_rows.append(template_row.to_dict())
+        # Fill rows with NOT_PERFORMED status
+        for session_date in expected_dates:
+            row_dict = {
+                **row.to_dict(),
+                "SESSION_DATE": pd.to_datetime(session_date).normalize(),
+                "STATUS": "NOT_PERFORMED",
+                "ADHERENCE": 0.0,
+                "SESSION_DURATION": 0,
+                "REAL_SESSION_DURATION": 0,
+            }
+            # Overwrite session metric columns with NaN
+            row_dict.update({col: np.nan for col in SESSION_COLUMNS})
+            expected_session_rows.append(row_dict)
 
-    expected_df = pd.DataFrame(expected_rows)
+    expected_df = pd.DataFrame(expected_session_rows)
 
     if expected_df.empty:
-        return session  # No new data, return original
-
-    # Filter expected_df to remove performed sessions
-    performed_index = pd.MultiIndex.from_frame(session[["PRESCRIPTION_ID", "SESSION_DATE"]])
-    expected_index = pd.MultiIndex.from_frame(expected_df[["PRESCRIPTION_ID", "SESSION_DATE"]])  
+        return session
+    
+    # Filter out already performed sessions
+    performed_index = pd.MultiIndex.from_frame(valid_sessions[["PRESCRIPTION_ID", "SESSION_DATE"]])
+    expected_index = pd.MultiIndex.from_frame(expected_df[["PRESCRIPTION_ID", "SESSION_DATE"]])
+    # Identify expected sessions that were not actually performed
+    # (i.e., keep only those not present in the performed session index)
     mask = ~expected_index.isin(performed_index)
     expected_df = expected_df.loc[mask]
 
-    # Merge expected sessions with performed sessions
-    merged = pd.concat([session, expected_df], ignore_index=True)
-    
-    # Propagate last performed session values (forward fill by prescription)
-    merged.sort_values(by=["PRESCRIPTION_ID", "SESSION_DATE"], inplace=True)
-    fill_columns = METRIC_COLUMNS
-    merged[fill_columns] = merged.groupby("PRESCRIPTION_ID")[fill_columns].ffill()
-    merged.fillna({'DM_VALUE': 0, 'PE_VALUE': 0}, inplace=True)
+    # Merge performed sessions with expected sessions
+    session_all = pd.concat([valid_sessions, expected_df], ignore_index=True)
 
-    # For missing session-specific outcome columns, set to NaN
-    is_missing = merged["STATUS"] == "NOT_PERFORMED"
-    for col in SESSION_COLUMNS:
-        merged.loc[is_missing, col] = np.nan
+    return session_all.sort_values(by=["PATIENT_ID", "PRESCRIPTION_ID", "SESSION_DATE"]).reset_index(drop=True)
 
-    return merged.reset_index(drop=True)
-
-def generate_expected_sessions(start_date, end_date, target_weekday):
+def generate_expected_sessions(start: Timestamp, end: Timestamp, weekday: int) -> List[Timestamp]:
     """
-    Generate all expected session dates between start_date and end_date for the given target weekday.
-    If the prescription end date is in the future, use today as the end limit (assuming future sessions are not yet done).
+    Generate session dates between start and end for the given weekday index.
+    Weekday: 0=Monday, 1=Tuesday, ..., 6=Sunday
     """
-    expected_dates = []
-    today = pd.Timestamp.today()
-    
-    # If the prescription is still ongoing, cap the end_date at today
-    if end_date is None:
-        return expected_dates  # no valid end date
-    if end_date > today:
-        end_date = today
-    
-    # Find the first occurrence of the target weekday on or after start_date
-    if start_date.weekday() != target_weekday:
-        days_until_target = (target_weekday - start_date.weekday()) % 7
-        start_date = start_date + pd.Timedelta(days=days_until_target)
-    
-    # Generate dates every 7 days (weekly) from the adjusted start_date up to end_date
-    current_date = start_date
+    weekday_map = {
+        0: 'W-MON',
+        1: 'W-TUE',
+        2: 'W-WED',
+        3: 'W-THU',
+        4: 'W-FRI',
+        5: 'W-SAT',
+        6: 'W-SUN',
+    }
 
-    while current_date <= end_date:
-        expected_dates.append(current_date)
-        current_date += pd.Timedelta(days=7)
-    
-    return expected_dates
+    freq = weekday_map.get(weekday)
+    if freq is None:
+        return []
+
+    return list(pd.date_range(start=start, end=end, freq=freq))
 
 # ---------------------------------------------------------------
 # Delta DM
@@ -544,53 +654,48 @@ def compute_protocol_similarity(protocol_mapped):
 # Utils
 # ---------------------------------------------------------------
 
-def check_prescriptions(session: pd.DataFrame):
-    patients_non_prescribed = session[session[PRESCRIPTION_ID].isna()]
-    if not patients_non_prescribed.empty:
-        return patients_non_prescribed
+# def check_session(session: pd.DataFrame) -> pd.DataFrame:
+#     """
+#     Check for data discrepancies in session DataFrame, export findings to ~/.ai_cdss/logs/,
+#     log summary, and return cleaned DataFrame.
 
-def check_session(session: pd.DataFrame) -> pd.DataFrame:
-    """
-    Check for data discrepancies in session DataFrame, export findings to ~/.ai_cdss/logs/,
-    log summary, and return cleaned DataFrame.
+#     Parameters
+#     ----------
+#     session : pd.DataFrame
+#         Session DataFrame to check and clean.
 
-    Parameters
-    ----------
-    session : pd.DataFrame
-        Session DataFrame to check and clean.
+#     Returns
+#     -------
+#     pd.DataFrame
+#         Cleaned session DataFrame.
+#     """
+#     # Patient registered but no data yet (no prescription)
+#     patients_no_data = session[session["PRESCRIPTION_ID"].isna()]
+#     if not patients_no_data.empty:
+#         patients_no_data[["PATIENT_ID", "PRESCRIPTION_ID", "SESSION_ID"]].to_csv(export_file, index=False)
+#         logger.warning(f"{len(patients_no_data)} patients found without prescription. Check exported file: {export_file}")
+#     else:
+#         logger.info("No patients without prescription found.")
 
-    Returns
-    -------
-    pd.DataFrame
-        Cleaned session DataFrame.
-    """
-    # Patient registered but no data yet (no prescription)
-    patients_no_data = session[session["PRESCRIPTION_ID"].isna()]
-    if not patients_no_data.empty:
-        patients_no_data[["PATIENT_ID", "PRESCRIPTION_ID", "SESSION_ID"]].to_csv(export_file, index=False)
-        logger.warning(f"{len(patients_no_data)} patients found without prescription. Check exported file: {export_file}")
-    else:
-        logger.info("No patients without prescription found.")
+#     # Drop these rows
+#     session = session.drop(patients_no_data.index)
 
-    # Drop these rows
-    session = session.drop(patients_no_data.index)
+#     # Sessions in session table but not in recording table (no adherence)
+#     patient_session_discrepancy = session[session["ADHERENCE"].isna()]
+#     if not patient_session_discrepancy.empty:
+#         export_file = os.path.join(log_dir, f"patient_session_discrepancy_{timestamp}.csv")
+#         patient_session_discrepancy[["PATIENT_ID", "PRESCRIPTION_ID", "SESSION_ID"]].to_csv(export_file, index=False)
+#         logger.warning(f"{len(patient_session_discrepancy)} sessions found without adherence. Check exported file: {export_file}")
+#     else:
+#         logger.info("No sessions without adherence found.")
 
-    # Sessions in session table but not in recording table (no adherence)
-    patient_session_discrepancy = session[session["ADHERENCE"].isna()]
-    if not patient_session_discrepancy.empty:
-        export_file = os.path.join(log_dir, f"patient_session_discrepancy_{timestamp}.csv")
-        patient_session_discrepancy[["PATIENT_ID", "PRESCRIPTION_ID", "SESSION_ID"]].to_csv(export_file, index=False)
-        logger.warning(f"{len(patient_session_discrepancy)} sessions found without adherence. Check exported file: {export_file}")
-    else:
-        logger.info("No sessions without adherence found.")
+#     # Drop these rows
+#     session = session.drop(patient_session_discrepancy.index)
 
-    # Drop these rows
-    session = session.drop(patient_session_discrepancy.index)
+#     # Final info
+#     logger.info(f"Session data cleaned. Final shape: {session.shape}")
 
-    # Final info
-    logger.info(f"Session data cleaned. Final shape: {session.shape}")
-
-    return session
+#     return session
 
 def safe_merge(
     left: pd.DataFrame,
@@ -632,7 +737,7 @@ def safe_merge(
     export_dir = os.path.expanduser(export_dir)
     os.makedirs(export_dir, exist_ok=True)
 
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    timestamp = pd.Timestamp.now()
     log_file = os.path.join(export_dir, "data_check.log")
 
     # Setup logger

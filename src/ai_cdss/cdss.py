@@ -5,6 +5,7 @@ from typing import Dict, List
 import pandas as pd
 from pandera.typing import DataFrame
 from ai_cdss.models import ScoringSchema
+from ai_cdss.constants import USAGE_WEEK, DAYS
 
 import logging
 logger = logging.getLogger(__name__)
@@ -64,6 +65,18 @@ class CDSS:
         rows = []
 
         if not prescriptions.empty:
+            
+            # ALL_PRESCRIPTIONS_WEEK_USAGE = 0, Repeat prescriptions
+            week_skipped = not prescriptions.apply(lambda x: True if x[USAGE_WEEK] >= len(x[DAYS]) else False, axis=1).any()
+            
+            # Check this condition
+            if week_skipped:
+                logger.info(f"Patient {patient_id}, skipped the whole week, cdss repeating prescriptions.")
+                # Convert to DataFrame
+                recommendations = prescriptions
+                recommendations.attrs = self.scoring.attrs
+                return recommendations
+
             # Identify which protocols need substitution
             protocols_to_swap = self.decide_prescription_swap(patient_id)
             protocols_excluded = prescriptions["PROTOCOL_ID"].tolist()
@@ -153,8 +166,8 @@ class CDSS:
         list of int
             List of protocol IDs to be swapped.
         """
-        # TODO: Add logic for prescriptions existing but no USAGE
         prescriptions = self.get_prescriptions(patient_id)
+        # Below protocols mean
         return prescriptions[prescriptions['SCORE'].transform(lambda x: x < x.mean())].PROTOCOL_ID.to_list()
 
     def get_substitute(self, patient_id: int, protocol_id: int, protocol_similarity, protocol_excluded: List[int] = None):

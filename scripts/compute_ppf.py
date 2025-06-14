@@ -32,7 +32,7 @@ Run this script from the command line:
 
     python -m ai_cdss.ppf
 """
-
+# %%
 from pathlib import Path
 import pandas as pd
 from ai_cdss.data_loader import DataLoaderLocal
@@ -57,14 +57,12 @@ def main():
 
     ppf, contrib = compute_ppf(patient_deficiency, protocol_mapped)
     ppf_contrib = pd.merge(ppf, contrib, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
-    ppf_contrib.set_index('PATIENT_ID', inplace=True)
-
     # Save Contrib Subscales as metadata
     ppf_contrib.attrs = {"SUBSCALES": list(protocol_mapped.columns)}
 
     # Save to CSV in versioned output directory
     output_path = output_dir / "ppf.parquet"
-    ppf_contrib.to_parquet(output_path)
+    ppf_contrib.to_parquet(output_path, index=False)
 
     print(ppf_contrib)
     print(f"Results saved to: {output_path.absolute()}")
@@ -72,3 +70,4 @@ def main():
 if __name__ == "__main__":
 
     main()
+# %%

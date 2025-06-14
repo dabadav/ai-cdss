@@ -116,7 +116,7 @@ class DataLoader(DataLoaderBase):
         """
         
         try:
-            timeseries = self.interface.fetch_timeseries_data(patient_list, rgs_mode=self.rgs_mode)
+            timeseries = self.interface.fetch_dm_data(patient_list, rgs_mode=self.rgs_mode)
             logger.debug(f"Timeseries data loaded successfully.")
             return timeseries
         except SchemaError as e:
@@ -203,7 +203,7 @@ class DataLoader(DataLoaderBase):
                     "Expected either protocol_similarity.parquet or protocol_similarity.csv."
                 )
             
-            logger.info("Protocol similarity data loaded successfully.")
+            logger.debug("Protocol similarity data loaded successfully.")
             return similarity_data
 
         except Exception as e:
