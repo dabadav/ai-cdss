@@ -346,23 +346,23 @@ window.addEventListener("load", () => mermaid.run());
                   
   <h1>Source code for ai_cdss.data_processor</h1><div class="highlight"><pre>
 <span></span><span class="c1"># ai_cdss/data_processor.py</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">reduce</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="kn">import</span> <span class="n">Timestamp</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pandera.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataFrame</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">importlib.resources</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.linear_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">TheilSenRegressor</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.signal</span><span class="w"> </span><span class="kn">import</span> <span class="n">savgol_filter</span>
 
@@ -372,6 +372,8 @@ window.addEventListener("load", () => mermaid.run());
 <span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScoringSchema</span><span class="p">,</span> <span class="n">PPFSchema</span><span class="p">,</span> <span class="n">SessionSchema</span><span class="p">,</span> <span class="n">TimeseriesSchema</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">IPython.display</span><span class="w"> </span><span class="kn">import</span> <span class="n">display</span>
+
 
 <span class="c1"># Set up logging</span>
 <span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span>
@@ -383,6 +385,12 @@ window.addEventListener("load", () => mermaid.run());
 
 <span class="c1"># ---------------------------------------------------------------------</span>
 <span class="c1"># Data Processor Class</span>
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProcessingContext</span><span class="p">:</span>
+    <span class="n">scoring_date</span><span class="p">:</span> <span class="n">Timestamp</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">simulation_mode</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">additional_flags</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="kc">None</span>
 
 <div class="viewcode-block" id="DataProcessor">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor">[docs]</a>
@@ -412,13 +420,15 @@ window.addEventListener("load", () => mermaid.run());
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">weights</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">],</span> 
-        <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span>
+        <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">context</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ProcessingContext</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Initialize the data processor with optional weights for scoring.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">context</span> <span class="ow">or</span> <span class="n">ProcessingContext</span><span class="p">()</span>
 
     <span class="c1"># @pa.check_types</span>
 <div class="viewcode-block" id="DataProcessor.process_data">
@@ -427,7 +437,7 @@ window.addEventListener("load", () => mermaid.run());
         <span class="bp">self</span><span class="p">,</span> 
         <span class="n">session_data</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">],</span> 
         <span class="n">timeseries_data</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">],</span> 
-        <span class="n">ppf_data</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">PPFSchema</span><span class="p">],</span> 
+        <span class="n">ppf_data</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">PPFSchema</span><span class="p">],</span>
         <span class="n">init_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">ScoringSchema</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -452,37 +462,42 @@ window.addEventListener("load", () => mermaid.run());
 
         <span class="c1"># --- Log-Level Output ---</span>
         <span class="c1">## PATIENT_ID + PROTOCOL_ID + SESSION_ID + ADHERENCE + RECENT_ADHERENCE + USAGE + DAYS + DM_VALUE + DELTA_DM_VALUE + PE_VALUE + PPF + SCORE</span>
-        
+        <span class="n">scoring_date</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_scoring_date</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;scoring </span><span class="si">{</span><span class="n">scoring_date</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
         <span class="c1"># --- Feature Building ---</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">session_data</span><span class="o">.</span><span class="n">empty</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
             <span class="c1"># Compute Session Features</span>
-            <span class="n">ts_feat_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_delta_dm</span><span class="p">(</span><span class="n">timeseries_data</span><span class="p">)</span>           <span class="c1"># DELTA_DM</span>
+            <span class="n">dm_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_delta_dm</span><span class="p">(</span><span class="n">timeseries_data</span><span class="p">)</span>                <span class="c1"># DELTA_DM</span>
             <span class="n">adherence_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_recent_adherence</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>    <span class="c1"># ADHERENCE_RECENT</span>
             <span class="n">usage_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_usage</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>                   <span class="c1"># USAGE</span>
-            <span class="n">days_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_prescription_days</span><span class="p">(</span><span class="n">session_data</span><span class="p">)</span>        <span class="c1"># DAYS</span>
+            <span class="n">usage_week_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_week_usage</span><span class="p">(</span><span class="n">session_data</span><span class="p">,</span> <span class="n">scoring_date</span><span class="o">=</span><span class="n">scoring_date</span><span class="p">)</span>         <span class="c1"># USAGE_WEEK</span>
+            <span class="n">days_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_prescription_days</span><span class="p">(</span><span class="n">session_data</span><span class="p">,</span> <span class="n">scoring_date</span><span class="o">=</span><span class="n">scoring_date</span><span class="p">)</span>        <span class="c1"># DAYS</span>
             
             <span class="c1"># Combine Session Features</span>
-            <span class="n">feat_df</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">),</span> <span class="p">[</span><span class="n">ts_feat_df</span><span class="p">,</span> <span class="n">adherence_df</span><span class="p">,</span> <span class="n">usage_df</span><span class="p">,</span> <span class="n">days_df</span><span class="p">])</span>
+            <span class="n">feat_pp_df</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">),</span> <span class="p">[</span><span class="n">ppf_data</span><span class="p">,</span> <span class="n">usage_df</span><span class="p">,</span> <span class="n">usage_week_df</span><span class="p">,</span> <span class="n">days_df</span><span class="p">])</span>
+            <span class="n">feat_pps_df</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PPS</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">),</span> <span class="p">[</span><span class="n">adherence_df</span><span class="p">,</span> <span class="n">dm_df</span><span class="p">])</span>
             
             <span class="c1"># Store the whole scored DataFrame as a csv</span>
-            <span class="n">feat_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">DEFAULT_LOG_DIR</span> <span class="o">/</span> <span class="s2">&quot;scored_features.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>   
+            <span class="c1"># feat_df.to_csv(DEFAULT_LOG_DIR / &quot;scored_features.csv&quot;, index=False)   </span>
             
             <span class="c1"># Aggregate to patient protocol level</span>
-            <span class="n">feat_agg</span> <span class="o">=</span> <span class="n">feat_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="s2">&quot;last&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+            <span class="n">feat_agg</span> <span class="o">=</span> <span class="n">feat_pps_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="s2">&quot;last&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+            <span class="n">scoring_input</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s1">&#39;left&#39;</span><span class="p">),</span> <span class="p">[</span><span class="n">feat_pp_df</span><span class="p">,</span> <span class="n">feat_agg</span><span class="p">])</span>
         
         <span class="c1"># If we are bootstrapping a study, and no patient prescriptions yet</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Initialize feature df with expected columns</span>
-            <span class="n">scoring_columns</span> <span class="o">=</span> <span class="n">BY_PP</span> <span class="o">+</span> <span class="p">[</span><span class="n">DELTA_DM</span><span class="p">,</span> <span class="n">RECENT_ADHERENCE</span><span class="p">,</span> <span class="n">USAGE</span><span class="p">,</span> <span class="n">DAYS</span><span class="p">]</span>
+            <span class="n">scoring_columns</span> <span class="o">=</span> <span class="n">BY_PP</span> <span class="o">+</span> <span class="p">[</span><span class="n">DELTA_DM</span><span class="p">,</span> <span class="n">RECENT_ADHERENCE</span><span class="p">,</span> <span class="n">USAGE</span><span class="p">,</span> <span class="n">USAGE_WEEK</span><span class="p">,</span> <span class="n">DAYS</span><span class="p">]</span>
             <span class="n">feat_agg</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">scoring_columns</span><span class="p">)</span>
 
-        <span class="c1"># --- Merge All for Scoring ---</span>
-        <span class="n">scoring_input</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">),</span> <span class="p">[</span>
-            <span class="n">ppf_data</span><span class="p">,</span>
-            <span class="n">feat_agg</span>
-        <span class="p">])</span>
+            <span class="c1"># Merge for scoring</span>
+            <span class="n">scoring_input</span> <span class="o">=</span> <span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">:</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">l</span><span class="p">,</span> <span class="n">r</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">),</span> <span class="p">[</span>
+                <span class="n">ppf_data</span><span class="p">,</span>
+                <span class="n">feat_agg</span>
+            <span class="p">])</span>
 
-        <span class="c1"># --- Scoring ---</span>
+        <span class="c1"># --- Scoring Data ---</span>
         <span class="n">scored_df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute_score</span><span class="p">(</span><span class="n">scoring_input</span><span class="p">,</span> <span class="n">init_data</span><span class="p">)</span>
         <span class="n">scored_df</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="n">ppf_data</span><span class="o">.</span><span class="n">attrs</span>
         
@@ -535,20 +550,14 @@ window.addEventListener("load", () => mermaid.run());
         <span class="n">data</span><span class="p">[</span><span class="n">DAYS</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">DAYS</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="k">else</span> <span class="n">x</span><span class="p">)</span>
         <span class="c1"># When no sessions performed add a 0</span>
         <span class="n">data</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-        <span class="c1"># Cast NaN to None </span>
-        <span class="c1"># data.where(pd.notna(data), None)</span>
+        <span class="n">data</span><span class="p">[</span><span class="n">USAGE_WEEK</span><span class="p">]</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">USAGE_WEEK</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
-        <span class="c1"># data = data.fillna(None)</span>
-        <span class="c1"># data = data.fillna(0).infer_objects(copy=False)</span>
-        <span class="c1"># # Only fill NaNs using map for matching PROTOCOL_IDs</span>
-        <span class="c1"># data[ADHERENCE] = data[ADHERENCE].fillna(0)</span>
-        <span class="c1"># # data[ADHERENCE] = data[ADHERENCE].fillna(data[PROTOCOL_ID].map(protocol_metrics[ADHERENCE]))</span>
-        <span class="c1"># data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics[&quot;DM_DELTA&quot;]))</span>
-        <span class="c1"># # data[DM_VALUE] = data[DM_VALUE].fillna(data[PROTOCOL_ID].map(protocol_metrics[&quot;DM_DELTA&quot;]))</span>
-        <span class="c1"># data[PE_VALUE] = data[PE_VALUE].fillna(0)</span>
-        <span class="c1"># data[DAYS]  = data[DAYS].fillna(0)</span>
+        <span class="c1"># How to initliaze DM and Adherence? -&gt; Later weeks?</span>
         <span class="k">return</span> <span class="n">data</span>
     
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_scoring_date</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">scoring_date</span> <span class="ow">or</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">today</span><span class="p">()</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_compute_ewma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">value_col</span><span class="p">,</span> <span class="n">group_cols</span><span class="p">,</span> <span class="n">sufix</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Compute Exponential Weighted Moving Average (EWMA) over grouped time series.</span>
@@ -601,38 +610,143 @@ window.addEventListener("load", () => mermaid.run());
         <span class="k">return</span> <span class="n">scoring_df</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">build_delta_dm</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ts_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">TimeseriesSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-        <span class="n">grouped</span> <span class="o">=</span> <span class="n">ts_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PPS</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="n">DM_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="n">PE_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span><span class="p">})</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="n">grouped</span> <span class="o">=</span> <span class="n">ts_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PPS</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span><span class="n">DM_VALUE</span><span class="p">:</span> <span class="s2">&quot;mean&quot;</span><span class="p">})</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
 
+        <span class="c1"># Session index per patient protocol</span>
         <span class="n">grouped</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">cumcount</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># Compute smoothing</span>
         <span class="n">grouped</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">DM_VALUE</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span>
             <span class="n">apply_savgol_filter_groupwise</span><span class="p">,</span> <span class="n">SAVGOL_WINDOW_SIZE</span><span class="p">,</span> <span class="n">SAVGOL_POLY_ORDER</span>
         <span class="p">)</span>
-        <span class="n">grouped</span><span class="p">[</span><span class="n">DELTA_DM</span><span class="p">]</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)[[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">,</span> <span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">get_rolling_theilsen_slope</span><span class="p">(</span><span class="n">g</span><span class="p">[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">],</span> <span class="n">g</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">],</span> <span class="n">THEILSON_REGRESSION_WINDOW_SIZE</span><span class="p">)</span>
+        
+        <span class="c1"># Compute slope</span>
+        <span class="n">grouped</span><span class="p">[</span><span class="n">DELTA_DM</span><span class="p">]</span> <span class="o">=</span> <span class="n">delta_slope</span> <span class="o">=</span> <span class="n">grouped</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="s1">&#39;DM_SMOOTH&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">g</span><span class="p">:</span> <span class="n">get_rolling_theilsen_slope</span><span class="p">(</span>
+                <span class="n">g</span><span class="p">,</span>
+                <span class="n">grouped</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">],</span>
+                <span class="n">THEILSON_REGRESSION_WINDOW_SIZE</span>
+            <span class="p">)</span>
         <span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">grouped</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">DM_VALUE</span><span class="p">,</span> <span class="n">DELTA_DM</span><span class="p">]]</span>
 
+<div class="viewcode-block" id="DataProcessor.build_recent_adherence">
+<a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor.build_recent_adherence">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_recent_adherence</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This feature builder must return adherence for patient protocols, with the following considerations:</span>
+<span class="sd">        - Adherence computed as SESSION_TIME / PRESCRIBED_SESSION_TIME</span>
+<span class="sd">        - Adherence is considered 0 if presribed session is not performed</span>
+<span class="sd">            - BUT is not considered if no session was performed that day.</span>
+
+<span class="sd">        Additionally a recency bias is applied.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">df</span> <span class="o">=</span> <span class="n">session_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="c1"># Includes prescribed but not performed sessions</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">include_missing_sessions</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="c1"># Include same day logic do not penalize</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">day_skip_to_nan</span><span class="p">(</span><span class="n">group</span><span class="p">):</span>
+            <span class="c1"># Check all STATUS == NOT_PERFORMED</span>
+            <span class="n">day_skipped</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">group</span><span class="p">[</span><span class="s1">&#39;STATUS&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;NOT_PERFORMED&#39;</span><span class="p">)</span>
+            <span class="c1"># EWMA does not use nan values for computation</span>
+            <span class="k">if</span> <span class="n">day_skipped</span><span class="p">:</span>
+                <span class="n">group</span><span class="p">[</span><span class="s1">&#39;ADHERENCE&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="k">return</span> <span class="n">group</span>
+        
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="n">PATIENT_ID</span><span class="p">,</span> <span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">],</span> <span class="n">group_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">day_skip_to_nan</span><span class="p">)</span>
+
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">BY_PP</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">,</span> <span class="s1">&#39;WEEKDAY_INDEX&#39;</span><span class="p">])</span>
+        <span class="n">df</span><span class="p">[</span><span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)</span><span class="o">.</span><span class="n">cumcount</span><span class="p">()</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="c1"># For a given patient protocol, take the array of adherences and mean aggregate with recency bias.</span>
         <span class="n">df</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_ewma</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">ADHERENCE</span><span class="p">,</span> <span class="n">BY_PP</span><span class="p">,</span> <span class="n">sufix</span><span class="o">=</span><span class="s2">&quot;_RECENT&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">RECENT_ADHERENCE</span><span class="p">]]</span>
+        <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">,</span> <span class="s1">&#39;STATUS&#39;</span><span class="p">,</span> <span class="s1">&#39;SESSION_INDEX&#39;</span><span class="p">,</span> <span class="n">ADHERENCE</span><span class="p">,</span> <span class="n">RECENT_ADHERENCE</span><span class="p">]]</span></div>
 
+
+<div class="viewcode-block" id="DataProcessor.build_usage">
+<a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor.build_usage">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">build_usage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">session_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-        <span class="n">df</span><span class="p">[</span><span class="n">USAGE</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">SESSION_ID</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="s2">&quot;nunique&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;Int64&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">df</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">USAGE</span><span class="p">]]</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This feature builder must return how many times protocols are used in this format:</span>
+<span class="sd">        PATIENT_ID  PROTOCOL_ID  USAGE</span>
+<span class="sd">        12          220          2</span>
+<span class="sd">        12          231          1</span>
+<span class="sd">        12          233          0</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">build_prescription_days</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="sd">        Protocols that have not been yet prescribed for a patient are not returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">session_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="n">PATIENT_ID</span><span class="p">,</span> <span class="n">PROTOCOL_ID</span><span class="p">],</span> <span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="n">SESSION_ID</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">nunique</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">USAGE</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">astype</span><span class="p">({</span><span class="n">USAGE</span><span class="p">:</span> <span class="s2">&quot;Int64&quot;</span><span class="p">})</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DataProcessor.build_week_usage">
+<a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor.build_week_usage">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_week_usage</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">],</span> <span class="n">scoring_date</span><span class="p">:</span> <span class="n">Timestamp</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This feature builder must return how many times protocols are used in this week in this format:</span>
+<span class="sd">        PATIENT_ID  PROTOCOL_ID  USAGE_WEEK</span>
+<span class="sd">        12          220          2</span>
+<span class="sd">        12          231          1</span>
+<span class="sd">        12          233          0</span>
+
+<span class="sd">        Protocols that have not been yet prescribed for a patient are not returned.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">session_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Compute current week&#39;s Monday 00:00 and Sunday 23:59:59.999999</span>
+        <span class="n">week_start</span> <span class="o">=</span> <span class="n">scoring_date</span> <span class="o">-</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">scoring_date</span><span class="o">.</span><span class="n">weekday</span><span class="p">())</span>  <span class="c1"># Monday 00:00</span>
+        <span class="n">week_start</span> <span class="o">=</span> <span class="n">week_start</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+        <span class="n">week_end</span> <span class="o">=</span> <span class="n">week_start</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>  <span class="c1"># Next Monday 00:00</span>
+
+        <span class="c1"># Filter to sessions in the given week range</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="n">SESSION_DATE</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">week_start</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">SESSION_DATE</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">week_end</span><span class="p">)]</span>
+
+        <span class="c1"># Group by patient and protocol, count unique sessions</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="n">PATIENT_ID</span><span class="p">,</span> <span class="n">PROTOCOL_ID</span><span class="p">],</span> <span class="n">dropna</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="n">SESSION_ID</span><span class="p">]</span>
+            <span class="o">.</span><span class="n">nunique</span><span class="p">()</span>
+            <span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">USAGE_WEEK</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">astype</span><span class="p">({</span><span class="n">USAGE_WEEK</span><span class="p">:</span> <span class="s2">&quot;Int64&quot;</span><span class="p">})</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="DataProcessor.build_prescription_days">
+<a class="viewcode-back" href="../../generated/ai_cdss.DataProcessor.html#ai_cdss.DataProcessor.build_prescription_days">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">build_prescription_days</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_df</span><span class="p">:</span> <span class="n">DataFrame</span><span class="p">[</span><span class="n">SessionSchema</span><span class="p">],</span> <span class="n">scoring_date</span><span class="p">:</span> <span class="n">Timestamp</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This feature builder must return active prescriptions signaled as:</span>
+<span class="sd">        PRESCRIPTION_ENDING_DATE == 2100-01-01 00:00:00</span>
+
+<span class="sd">        In the following format, (encoding weekdays from 0-6):</span>
+<span class="sd">        PATIENT_ID  PROTOCOL_ID DAYS</span>
+<span class="sd">        12          220         [2]</span>
+<span class="sd">        12          233         [0]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># If no scoring date is given, use today&#39;s date at 00:00</span>
+        <span class="n">week_start</span> <span class="o">=</span> <span class="n">scoring_date</span> <span class="o">-</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">scoring_date</span><span class="o">.</span><span class="n">weekday</span><span class="p">())</span>  <span class="c1"># Monday 00:00</span>
+        <span class="n">week_start</span> <span class="o">=</span> <span class="n">week_start</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+        
+        <span class="c1"># Filter activities where the prescription is still active in this week.</span>
+        <span class="c1"># i.e., prescriptions whose ending date is on or after the start of this week</span>
+        <span class="n">active_prescriptions</span> <span class="o">=</span> <span class="n">session_df</span><span class="p">[</span><span class="n">session_df</span><span class="p">[</span><span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">week_start</span><span class="p">]</span>
+        
+        <span class="c1"># Group by patient and protocol, collect all unique weekday indices (0–6) where active prescriptions occurred</span>
         <span class="n">prescribed_days</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">session_df</span><span class="p">[</span><span class="n">session_df</span><span class="p">[</span><span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">]</span> <span class="o">==</span> <span class="n">PRESCRIPTION_ACTIVE</span><span class="p">]</span>
+            <span class="n">active_prescriptions</span>
             <span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">BY_PP</span><span class="p">)[</span><span class="n">WEEKDAY_INDEX</span><span class="p">]</span>
             <span class="o">.</span><span class="n">agg</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">unique</span><span class="p">()))</span>
             <span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">DAYS</span><span class="p">)</span>
             <span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
         <span class="p">)</span>
-        <span class="n">merged</span> <span class="o">=</span> <span class="n">safe_merge</span><span class="p">(</span><span class="n">session_df</span><span class="p">[</span><span class="n">BY_PPS</span><span class="p">],</span> <span class="n">prescribed_days</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">BY_PP</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">merged</span><span class="p">[</span><span class="n">BY_PPS</span> <span class="o">+</span> <span class="p">[</span><span class="n">DAYS</span><span class="p">]]</span></div>
+        <span class="k">return</span> <span class="n">prescribed_days</span></div>
+</div>
 
     
 <span class="c1"># ------------------------------</span>
@@ -708,102 +822,110 @@ window.addEventListener("load", () => mermaid.run());
 <span class="c1"># Adherence</span>
 <span class="c1"># ---------------------------------------------------------------</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">expand_session</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">include_missing_sessions</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    For each prescription, generate expected sessions and merge with actual performed sessions.</span>
-<span class="sd">    Missing sessions are marked as NOT_PERFORMED with appropriate filling.</span>
+<span class="sd">    For each prescription, generate expected sessions (based on weekday, start and end dates),</span>
+<span class="sd">    and merge them with actual performed sessions. Sessions that were expected but not performed</span>
+<span class="sd">    are marked as NOT_PERFORMED.</span>
+
+<span class="sd">    All date comparisons are done at day-level (time is ignored).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Ensure dates are datetime</span>
-    <span class="n">session</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">])</span>
-    <span class="n">last_session_per_patient</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">)[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
     
-    <span class="c1"># Step 1: Generate expected sessions DataFrame</span>
-    <span class="n">prescriptions</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_STARTING_DATE&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ENDING_DATE&quot;</span><span class="p">,</span> <span class="s2">&quot;WEEKDAY_INDEX&quot;</span><span class="p">])</span>
-    <span class="n">expected_rows</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Normalize to date (drop time component)</span>
+    <span class="n">date_cols</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_STARTING_DATE&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ENDING_DATE&quot;</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">date_cols</span><span class="p">:</span>
+        <span class="n">session</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="n">col</span><span class="p">])</span><span class="o">.</span><span class="n">dt</span><span class="o">.</span><span class="n">normalize</span><span class="p">()</span>
+
+    <span class="c1"># Get last performed session date per patient</span>
+    <span class="n">valid_sessions</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">])</span>
+
+    <span class="n">last_session_per_patient</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">valid_sessions</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">)[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span>
+        <span class="o">.</span><span class="n">max</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Get exisiting prescriptions</span>
+    <span class="n">prescriptions</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">(</span>
+        <span class="n">subset</span><span class="o">=</span><span class="p">[</span>
+            <span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;PRESCRIPTION_STARTING_DATE&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ENDING_DATE&quot;</span><span class="p">,</span> <span class="s2">&quot;WEEKDAY_INDEX&quot;</span>
+        <span class="p">]</span>
+    <span class="p">)</span>
+    
+    <span class="c1"># Generate expected session dates</span>
+    <span class="n">expected_session_rows</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">iterrows</span><span class="p">():</span>
+        <span class="n">patient_id</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s1">&#39;PATIENT_ID&#39;</span><span class="p">]</span>
         <span class="n">start</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_STARTING_DATE&quot;</span><span class="p">]</span>
         <span class="n">end</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_ENDING_DATE&quot;</span><span class="p">]</span>
         <span class="n">weekday</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;WEEKDAY_INDEX&quot;</span><span class="p">]</span>
 
+        <span class="c1"># Safety</span>
         <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">start</span><span class="p">)</span> <span class="ow">or</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">end</span><span class="p">)</span> <span class="ow">or</span> <span class="n">pd</span><span class="o">.</span><span class="n">isna</span><span class="p">(</span><span class="n">weekday</span><span class="p">):</span>
             <span class="k">continue</span>
 
-        <span class="c1"># Cap end date at last actual session of the patient</span>
-        <span class="n">last_patient_session</span> <span class="o">=</span> <span class="n">last_session_per_patient</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">],</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">today</span><span class="p">())</span>
-        <span class="k">if</span> <span class="n">end</span> <span class="o">&gt;</span> <span class="n">last_patient_session</span><span class="p">:</span>
-            <span class="n">end</span> <span class="o">=</span> <span class="n">last_patient_session</span>
+        <span class="c1"># Cap at last performed session for the patient</span>
+        <span class="n">last_session</span> <span class="o">=</span> <span class="n">last_session_per_patient</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">today</span><span class="p">()</span><span class="o">.</span><span class="n">normalize</span><span class="p">())</span>
+        <span class="c1"># If the prescription end date is in the future, use today as the end limit (assuming future sessions are not yet done)</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">end</span><span class="p">,</span> <span class="n">last_session</span><span class="p">)</span>
 
-        <span class="n">expected_dates</span> <span class="o">=</span> <span class="n">generate_expected_sessions</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">weekday</span><span class="p">))</span>
-    
-        <span class="k">for</span> <span class="n">date</span> <span class="ow">in</span> <span class="n">expected_dates</span><span class="p">:</span>
-            <span class="n">template_row</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
-            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">date</span>
-            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;STATUS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;NOT_PERFORMED&quot;</span>
-            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;ADHERENCE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
-            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;SESSION_DURATION&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="n">template_row</span><span class="p">[</span><span class="s2">&quot;REAL_SESSION_DURATION&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="c1"># Set session outcome-related columns to NaN</span>
-            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">METRIC_COLUMNS</span><span class="p">:</span>
-                <span class="n">template_row</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="c1"># Generate expected session dates for this prescription</span>
+        <span class="n">expected_dates</span> <span class="o">=</span> <span class="n">generate_expected_sessions</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">weekday</span><span class="p">))</span>  <span class="c1"># Should return date-like list</span>
 
-            <span class="c1"># Append to expected rows</span>
-            <span class="n">expected_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">template_row</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+        <span class="c1"># Fill rows with NOT_PERFORMED status</span>
+        <span class="k">for</span> <span class="n">session_date</span> <span class="ow">in</span> <span class="n">expected_dates</span><span class="p">:</span>
+            <span class="n">row_dict</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="o">**</span><span class="n">row</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(),</span>
+                <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">session_date</span><span class="p">)</span><span class="o">.</span><span class="n">normalize</span><span class="p">(),</span>
+                <span class="s2">&quot;STATUS&quot;</span><span class="p">:</span> <span class="s2">&quot;NOT_PERFORMED&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;ADHERENCE&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">,</span>
+                <span class="s2">&quot;SESSION_DURATION&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="s2">&quot;REAL_SESSION_DURATION&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="p">}</span>
+            <span class="c1"># Overwrite session metric columns with NaN</span>
+            <span class="n">row_dict</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">col</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">SESSION_COLUMNS</span><span class="p">})</span>
+            <span class="n">expected_session_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row_dict</span><span class="p">)</span>
 
-    <span class="n">expected_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">expected_rows</span><span class="p">)</span>
+    <span class="n">expected_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">expected_session_rows</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">expected_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">session</span>  <span class="c1"># No new data, return original</span>
-
-    <span class="c1"># Filter expected_df to remove performed sessions</span>
-    <span class="n">performed_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="n">session</span><span class="p">[[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]])</span>
-    <span class="n">expected_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="n">expected_df</span><span class="p">[[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]])</span>  
+        <span class="k">return</span> <span class="n">session</span>
+    
+    <span class="c1"># Filter out already performed sessions</span>
+    <span class="n">performed_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="n">valid_sessions</span><span class="p">[[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]])</span>
+    <span class="n">expected_index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_frame</span><span class="p">(</span><span class="n">expected_df</span><span class="p">[[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">]])</span>
+    <span class="c1"># Identify expected sessions that were not actually performed</span>
+    <span class="c1"># (i.e., keep only those not present in the performed session index)</span>
     <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">expected_index</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">performed_index</span><span class="p">)</span>
     <span class="n">expected_df</span> <span class="o">=</span> <span class="n">expected_df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
 
-    <span class="c1"># Merge expected sessions with performed sessions</span>
-    <span class="n">merged</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">session</span><span class="p">,</span> <span class="n">expected_df</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    
-    <span class="c1"># Propagate last performed session values (forward fill by prescription)</span>
-    <span class="n">merged</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">],</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">fill_columns</span> <span class="o">=</span> <span class="n">METRIC_COLUMNS</span>
-    <span class="n">merged</span><span class="p">[</span><span class="n">fill_columns</span><span class="p">]</span> <span class="o">=</span> <span class="n">merged</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">)[</span><span class="n">fill_columns</span><span class="p">]</span><span class="o">.</span><span class="n">ffill</span><span class="p">()</span>
-    <span class="n">merged</span><span class="o">.</span><span class="n">fillna</span><span class="p">({</span><span class="s1">&#39;DM_VALUE&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;PE_VALUE&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># Merge performed sessions with expected sessions</span>
+    <span class="n">session_all</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">valid_sessions</span><span class="p">,</span> <span class="n">expected_df</span><span class="p">],</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="c1"># For missing session-specific outcome columns, set to NaN</span>
-    <span class="n">is_missing</span> <span class="o">=</span> <span class="n">merged</span><span class="p">[</span><span class="s2">&quot;STATUS&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;NOT_PERFORMED&quot;</span>
-    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">SESSION_COLUMNS</span><span class="p">:</span>
-        <span class="n">merged</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">is_missing</span><span class="p">,</span> <span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+    <span class="k">return</span> <span class="n">session_all</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_DATE&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">merged</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">generate_expected_sessions</span><span class="p">(</span><span class="n">start_date</span><span class="p">,</span> <span class="n">end_date</span><span class="p">,</span> <span class="n">target_weekday</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">generate_expected_sessions</span><span class="p">(</span><span class="n">start</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">,</span> <span class="n">end</span><span class="p">:</span> <span class="n">Timestamp</span><span class="p">,</span> <span class="n">weekday</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Timestamp</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Generate all expected session dates between start_date and end_date for the given target weekday.</span>
-<span class="sd">    If the prescription end date is in the future, use today as the end limit (assuming future sessions are not yet done).</span>
+<span class="sd">    Generate session dates between start and end for the given weekday index.</span>
+<span class="sd">    Weekday: 0=Monday, 1=Tuesday, ..., 6=Sunday</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">expected_dates</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="n">today</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">today</span><span class="p">()</span>
-    
-    <span class="c1"># If the prescription is still ongoing, cap the end_date at today</span>
-    <span class="k">if</span> <span class="n">end_date</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">expected_dates</span>  <span class="c1"># no valid end date</span>
-    <span class="k">if</span> <span class="n">end_date</span> <span class="o">&gt;</span> <span class="n">today</span><span class="p">:</span>
-        <span class="n">end_date</span> <span class="o">=</span> <span class="n">today</span>
-    
-    <span class="c1"># Find the first occurrence of the target weekday on or after start_date</span>
-    <span class="k">if</span> <span class="n">start_date</span><span class="o">.</span><span class="n">weekday</span><span class="p">()</span> <span class="o">!=</span> <span class="n">target_weekday</span><span class="p">:</span>
-        <span class="n">days_until_target</span> <span class="o">=</span> <span class="p">(</span><span class="n">target_weekday</span> <span class="o">-</span> <span class="n">start_date</span><span class="o">.</span><span class="n">weekday</span><span class="p">())</span> <span class="o">%</span> <span class="mi">7</span>
-        <span class="n">start_date</span> <span class="o">=</span> <span class="n">start_date</span> <span class="o">+</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">days_until_target</span><span class="p">)</span>
-    
-    <span class="c1"># Generate dates every 7 days (weekly) from the adjusted start_date up to end_date</span>
-    <span class="n">current_date</span> <span class="o">=</span> <span class="n">start_date</span>
+    <span class="n">weekday_map</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="mi">0</span><span class="p">:</span> <span class="s1">&#39;W-MON&#39;</span><span class="p">,</span>
+        <span class="mi">1</span><span class="p">:</span> <span class="s1">&#39;W-TUE&#39;</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">:</span> <span class="s1">&#39;W-WED&#39;</span><span class="p">,</span>
+        <span class="mi">3</span><span class="p">:</span> <span class="s1">&#39;W-THU&#39;</span><span class="p">,</span>
+        <span class="mi">4</span><span class="p">:</span> <span class="s1">&#39;W-FRI&#39;</span><span class="p">,</span>
+        <span class="mi">5</span><span class="p">:</span> <span class="s1">&#39;W-SAT&#39;</span><span class="p">,</span>
+        <span class="mi">6</span><span class="p">:</span> <span class="s1">&#39;W-SUN&#39;</span><span class="p">,</span>
+    <span class="p">}</span>
 
-    <span class="k">while</span> <span class="n">current_date</span> <span class="o">&lt;=</span> <span class="n">end_date</span><span class="p">:</span>
-        <span class="n">expected_dates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">current_date</span><span class="p">)</span>
-        <span class="n">current_date</span> <span class="o">+=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
-    
-    <span class="k">return</span> <span class="n">expected_dates</span>
+    <span class="n">freq</span> <span class="o">=</span> <span class="n">weekday_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">weekday</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">freq</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="n">end</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="n">freq</span><span class="p">))</span>
 
 <span class="c1"># ---------------------------------------------------------------</span>
 <span class="c1"># Delta DM</span>
@@ -912,53 +1034,48 @@ window.addEventListener("load", () => mermaid.run());
 <span class="c1"># Utils</span>
 <span class="c1"># ---------------------------------------------------------------</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">check_prescriptions</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
-    <span class="n">patients_non_prescribed</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="n">PRESCRIPTION_ID</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">patients_non_prescribed</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">patients_non_prescribed</span>
+<span class="c1"># def check_session(session: pd.DataFrame) -&gt; pd.DataFrame:</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     Check for data discrepancies in session DataFrame, export findings to ~/.ai_cdss/logs/,</span>
+<span class="c1">#     log summary, and return cleaned DataFrame.</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">check_session</span><span class="p">(</span><span class="n">session</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Check for data discrepancies in session DataFrame, export findings to ~/.ai_cdss/logs/,</span>
-<span class="sd">    log summary, and return cleaned DataFrame.</span>
+<span class="c1">#     Parameters</span>
+<span class="c1">#     ----------</span>
+<span class="c1">#     session : pd.DataFrame</span>
+<span class="c1">#         Session DataFrame to check and clean.</span>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    session : pd.DataFrame</span>
-<span class="sd">        Session DataFrame to check and clean.</span>
+<span class="c1">#     Returns</span>
+<span class="c1">#     -------</span>
+<span class="c1">#     pd.DataFrame</span>
+<span class="c1">#         Cleaned session DataFrame.</span>
+<span class="c1">#     &quot;&quot;&quot;</span>
+<span class="c1">#     # Patient registered but no data yet (no prescription)</span>
+<span class="c1">#     patients_no_data = session[session[&quot;PRESCRIPTION_ID&quot;].isna()]</span>
+<span class="c1">#     if not patients_no_data.empty:</span>
+<span class="c1">#         patients_no_data[[&quot;PATIENT_ID&quot;, &quot;PRESCRIPTION_ID&quot;, &quot;SESSION_ID&quot;]].to_csv(export_file, index=False)</span>
+<span class="c1">#         logger.warning(f&quot;{len(patients_no_data)} patients found without prescription. Check exported file: {export_file}&quot;)</span>
+<span class="c1">#     else:</span>
+<span class="c1">#         logger.info(&quot;No patients without prescription found.&quot;)</span>
 
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    pd.DataFrame</span>
-<span class="sd">        Cleaned session DataFrame.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="c1"># Patient registered but no data yet (no prescription)</span>
-    <span class="n">patients_no_data</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">patients_no_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-        <span class="n">patients_no_data</span><span class="p">[[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_ID&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">export_file</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">patients_no_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> patients found without prescription. Check exported file: </span><span class="si">{</span><span class="n">export_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No patients without prescription found.&quot;</span><span class="p">)</span>
+<span class="c1">#     # Drop these rows</span>
+<span class="c1">#     session = session.drop(patients_no_data.index)</span>
 
-    <span class="c1"># Drop these rows</span>
-    <span class="n">session</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">patients_no_data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="c1">#     # Sessions in session table but not in recording table (no adherence)</span>
+<span class="c1">#     patient_session_discrepancy = session[session[&quot;ADHERENCE&quot;].isna()]</span>
+<span class="c1">#     if not patient_session_discrepancy.empty:</span>
+<span class="c1">#         export_file = os.path.join(log_dir, f&quot;patient_session_discrepancy_{timestamp}.csv&quot;)</span>
+<span class="c1">#         patient_session_discrepancy[[&quot;PATIENT_ID&quot;, &quot;PRESCRIPTION_ID&quot;, &quot;SESSION_ID&quot;]].to_csv(export_file, index=False)</span>
+<span class="c1">#         logger.warning(f&quot;{len(patient_session_discrepancy)} sessions found without adherence. Check exported file: {export_file}&quot;)</span>
+<span class="c1">#     else:</span>
+<span class="c1">#         logger.info(&quot;No sessions without adherence found.&quot;)</span>
 
-    <span class="c1"># Sessions in session table but not in recording table (no adherence)</span>
-    <span class="n">patient_session_discrepancy</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;ADHERENCE&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()]</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">patient_session_discrepancy</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-        <span class="n">export_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">log_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;patient_session_discrepancy_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">.csv&quot;</span><span class="p">)</span>
-        <span class="n">patient_session_discrepancy</span><span class="p">[[</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;PRESCRIPTION_ID&quot;</span><span class="p">,</span> <span class="s2">&quot;SESSION_ID&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">export_file</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">patient_session_discrepancy</span><span class="p">)</span><span class="si">}</span><span class="s2"> sessions found without adherence. Check exported file: </span><span class="si">{</span><span class="n">export_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No sessions without adherence found.&quot;</span><span class="p">)</span>
+<span class="c1">#     # Drop these rows</span>
+<span class="c1">#     session = session.drop(patient_session_discrepancy.index)</span>
 
-    <span class="c1"># Drop these rows</span>
-    <span class="n">session</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">patient_session_discrepancy</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="c1">#     # Final info</span>
+<span class="c1">#     logger.info(f&quot;Session data cleaned. Final shape: {session.shape}&quot;)</span>
 
-    <span class="c1"># Final info</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Session data cleaned. Final shape: </span><span class="si">{</span><span class="n">session</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="k">return</span> <span class="n">session</span>
+<span class="c1">#     return session</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">safe_merge</span><span class="p">(</span>
     <span class="n">left</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
@@ -1000,7 +1117,7 @@ window.addEventListener("load", () => mermaid.run());
     <span class="n">export_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">expanduser</span><span class="p">(</span><span class="n">export_dir</span><span class="p">)</span>
     <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">export_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">_%H%M%S&#39;</span><span class="p">)</span>
+    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
     <span class="n">log_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">export_dir</span><span class="p">,</span> <span class="s2">&quot;data_check.log&quot;</span><span class="p">)</span>
 
     <span class="c1"># Setup logger</span>

@@ -470,7 +470,7 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">        &quot;&quot;&quot;</span>
         
         <span class="k">try</span><span class="p">:</span>
-            <span class="n">timeseries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">fetch_timeseries_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">,</span> <span class="n">rgs_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rgs_mode</span><span class="p">)</span>
+            <span class="n">timeseries</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">fetch_dm_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">,</span> <span class="n">rgs_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rgs_mode</span><span class="p">)</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Timeseries data loaded successfully.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">timeseries</span>
         <span class="k">except</span> <span class="n">SchemaError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
@@ -563,7 +563,7 @@ window.addEventListener("load", () => mermaid.run());
                     <span class="s2">&quot;Expected either protocol_similarity.parquet or protocol_similarity.csv.&quot;</span>
                 <span class="p">)</span>
             
-            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Protocol similarity data loaded successfully.&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;Protocol similarity data loaded successfully.&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">similarity_data</span>
 
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
