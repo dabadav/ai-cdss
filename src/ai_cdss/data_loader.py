@@ -175,6 +175,35 @@ class DataLoader(DataLoaderBase):
             logger.error(f"Failed to load PPF data: {e}")
             raise
 
+    def load_patient_clinical_data(self, patient_list: List[int]) -> pd.DataFrame:
+        """
+        Load patient clinical data from the RGS interface.
+
+        Parameters
+        ----------
+        patient_list : List[int]
+            List of patient IDs to fetch clinical data for.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing clinical data for the specified patients.
+        """
+        try:
+            clinical_data = self.interface.fetch_clinical_data(patient_list)
+            if clinical_data.empty:
+                logger.warning("No clinical data found for the specified patients.")
+            else:
+                logger.info(f"Clinical data loaded for {len(clinical_data)} patients.")
+            return clinical_data
+
+        except Exception as e:
+            logger.error(f"Failed to load patient clinical data: {e}")
+            raise
+
+    def load_patient_subscales(self, patient_list = None):
+        return _load_patient_subscales()
+
     # @safe_check_types(PCMSchema)
     def load_protocol_similarity(self) -> DataFrame[PCMSchema]:
         """
@@ -210,35 +239,6 @@ class DataLoader(DataLoaderBase):
             logger.error(f"Failed to load protocol similarity data: {e}")
             raise
 
-    def load_patient_clinical_data(self, patient_list: List[int]) -> pd.DataFrame:
-        """
-        Load patient clinical data from the RGS interface.
-
-        Parameters
-        ----------
-        patient_list : List[int]
-            List of patient IDs to fetch clinical data for.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame containing clinical data for the specified patients.
-        """
-        try:
-            clinical_data = self.interface.fetch_clinical_data(patient_list)
-            if clinical_data.empty:
-                logger.warning("No clinical data found for the specified patients.")
-            else:
-                logger.info(f"Clinical data loaded for {len(clinical_data)} patients.")
-            return clinical_data
-
-        except Exception as e:
-            logger.error(f"Failed to load patient clinical data: {e}")
-            raise
-
-    def load_patient_subscales(self, patient_list = None):
-        return _load_patient_subscales()
-    
     def load_protocol_attributes(self, file_path = None):
         return _load_protocol_attributes()
 

@@ -2,26 +2,6 @@ import numpy as np
 from collections import Counter
 import pandas as pd
 
-def test_cdss_prescribed_but_not_performed():
-    """
-    Test CDSS behavior when a patient is boostrapped but does not perform any exercise on week 0.
-    """
-    scoring_example_df = pd.DataFrame({
-        'PATIENT_ID': [1, 1, 1],
-        'PROTOCOL_ID': [100, 101, 102],                # Tres protocolos distintos
-        'ADHERENCE_RECENT': [0.0, 0.0, 0.0],           # No hubo adherencia en ninguno
-        'DELTA_DM': [0.0, 0.0, 0.0],                   # Sin mejora (ni empeoramiento)
-        'PPF': [0.5, 0.4, 0.6],                        # Diferente PPF para cada protocolo
-        'CONTRIB': [
-            [0.1, 0.2, 0.0, 0.0],
-            [0.05, 0.1, 0.05, 0.0],
-            [0.2, 0.1, 0.0, 0.1]
-        ],
-        'SCORE': [0.2, 0.15, 0.25],                    # Scores bajos
-        'USAGE': [0, 0, 0],                            # Aún sin uso
-        'DAYS': [[1, 3, 5], [2, 4], [1, 4, 6]]          # Días prescritos distintos
-    })
-
 def test_cdss_pipeline_behavior(synthetic_data_factory):
     """
     Full pipeline behavior test:

@@ -114,6 +114,8 @@ class DataProcessor:
         scoring_date = self._get_scoring_date()
         print(f"scoring {scoring_date}")
 
+        # Filter sessions in study range
+
         # --- Feature Building ---
         if not session_data.empty and not timeseries_data.empty:
             # Compute Session Features
