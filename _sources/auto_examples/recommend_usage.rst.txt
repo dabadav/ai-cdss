@@ -34,7 +34,9 @@ to load data and generate a 7-day protocol plan.
  .. code-block:: none
 
 
-    scoring 2025-06-14 00:00:00
+    scoring 2025-06-16 00:00:00
+    /home/runner/work/ai-cdss/ai-cdss/src/ai_cdss/data_processor.py:303: FutureWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+      df = df.groupby(by=[PATIENT_ID, 'SESSION_DATE'], group_keys=False).apply(day_skip_to_nan)
        PATIENT_ID  PROTOCOL_ID       PPF  \
     0           1            1  0.562178   
     1           1            2  0.965500   
@@ -136,7 +138,7 @@ to load data and generate a 7-day protocol plan.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 1.208 seconds)
+   **Total running time of the script:** (0 minutes 1.194 seconds)
 
 
 .. _sphx_glr_download_auto_examples_recommend_usage.py:

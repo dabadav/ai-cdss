@@ -397,7 +397,7 @@
 <td><p>This feature builder must return active prescriptions signaled as: PRESCRIPTION_ENDING_DATE == 2100-01-01 00:00:00</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.build_recent_adherence" title="ai_cdss.DataProcessor.build_recent_adherence"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_recent_adherence</span></code></a>(session_df)</p></td>
-<td><p>This feature builder must return adherence for patient protocols, with the following considerations: :rtype: <span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p></td>
+<td><p>This feature builder must return adherence for patient protocols, with the following considerations: - Adherence computed as SESSION_TIME / PRESCRIBED_SESSION_TIME - Adherence is considered 0 if presribed session is not performed     - BUT is not considered if no session was performed that day.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.build_usage" title="ai_cdss.DataProcessor.build_usage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_usage</span></code></a>(session_df)</p></td>
 <td><p>This feature builder must return how many times protocols are used in this format: PATIENT_ID  PROTOCOL_ID  USAGE 12          220          2 12          231          1 12          233          0</p></td>
@@ -475,18 +475,19 @@ Otherwise a weighted sum of DELTA_DM, ADHERENCE_RECENT and PPF determines the sc
 <dt class="sig sig-object py" id="ai_cdss.DataProcessor.build_recent_adherence">
 <span class="sig-name descname"><span class="pre">build_recent_adherence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.build_recent_adherence"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.build_recent_adherence" title="Link to this definition">#</a></dt>
 <dd><p>This feature builder must return adherence for patient protocols, with the following considerations:
-:rtype: <span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
-<ul class="simple">
-<li><p>Adherence computed as SESSION_TIME / PRESCRIBED_SESSION_TIME</p></li>
-<li><dl class="simple">
-<dt>Adherence is considered 0 if presribed session is not performed</dt><dd><ul>
+- Adherence computed as SESSION_TIME / PRESCRIBED_SESSION_TIME
+- Adherence is considered 0 if presribed session is not performed</p>
+<blockquote>
+<div><ul class="simple">
 <li><p>BUT is not considered if no session was performed that day.</p></li>
 </ul>
+</div></blockquote>
+<p>Additionally a recency bias is applied.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
 </dd>
 </dl>
-</li>
-</ul>
-<p>Additionally a recency bias is applied.</p>
 </dd></dl>
 
 <dl class="py method">

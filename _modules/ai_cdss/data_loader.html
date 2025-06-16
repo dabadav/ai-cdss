@@ -533,6 +533,38 @@ window.addEventListener("load", () => mermaid.run());
             <span class="k">raise</span></div>
 
 
+<div class="viewcode-block" id="DataLoader.load_patient_clinical_data">
+<a class="viewcode-back" href="../../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader.load_patient_clinical_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_clinical_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load patient clinical data from the RGS interface.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        patient_list : List[int]</span>
+<span class="sd">            List of patient IDs to fetch clinical data for.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pd.DataFrame</span>
+<span class="sd">            DataFrame containing clinical data for the specified patients.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">clinical_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">fetch_clinical_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">clinical_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No clinical data found for the specified patients.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Clinical data loaded for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">clinical_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> patients.&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">clinical_data</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load patient clinical data: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">raise</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_subscales</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">_load_patient_subscales</span><span class="p">()</span>
+
     <span class="c1"># @safe_check_types(PCMSchema)</span>
 <div class="viewcode-block" id="DataLoader.load_protocol_similarity">
 <a class="viewcode-back" href="../../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader.load_protocol_similarity">[docs]</a>
@@ -571,38 +603,6 @@ window.addEventListener("load", () => mermaid.run());
             <span class="k">raise</span></div>
 
 
-<div class="viewcode-block" id="DataLoader.load_patient_clinical_data">
-<a class="viewcode-back" href="../../generated/ai_cdss.DataLoader.html#ai_cdss.DataLoader.load_patient_clinical_data">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_clinical_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Load patient clinical data from the RGS interface.</span>
-
-<span class="sd">        Parameters</span>
-<span class="sd">        ----------</span>
-<span class="sd">        patient_list : List[int]</span>
-<span class="sd">            List of patient IDs to fetch clinical data for.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        pd.DataFrame</span>
-<span class="sd">            DataFrame containing clinical data for the specified patients.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">clinical_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">fetch_clinical_data</span><span class="p">(</span><span class="n">patient_list</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">clinical_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No clinical data found for the specified patients.&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Clinical data loaded for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">clinical_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> patients.&quot;</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">clinical_data</span>
-
-        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to load patient clinical data: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">raise</span></div>
-
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">load_patient_subscales</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-        <span class="k">return</span> <span class="n">_load_patient_subscales</span><span class="p">()</span>
-    
     <span class="k">def</span><span class="w"> </span><span class="nf">load_protocol_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">file_path</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
         <span class="k">return</span> <span class="n">_load_protocol_attributes</span><span class="p">()</span>
 

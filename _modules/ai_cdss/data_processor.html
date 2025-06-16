@@ -465,6 +465,8 @@ window.addEventListener("load", () => mermaid.run());
         <span class="n">scoring_date</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_scoring_date</span><span class="p">()</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;scoring </span><span class="si">{</span><span class="n">scoring_date</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
+        <span class="c1"># Filter sessions in study range</span>
+
         <span class="c1"># --- Feature Building ---</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">session_data</span><span class="o">.</span><span class="n">empty</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">timeseries_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
             <span class="c1"># Compute Session Features</span>

@@ -350,7 +350,9 @@ to download the full example code.</p>
 <span id="sphx-glr-auto-examples-recommend-usage-py"></span><h1>Basic usage of CDSS to generate a protocol recommendation.<a class="headerlink" href="#basic-usage-of-cdss-to-generate-a-protocol-recommendation" title="Link to this heading">#</a></h1>
 <p>This example demonstrates how to use the <cite>DataLoader</cite>, <cite>DataProcessor</cite>, and <cite>CDSS</cite>
 to load data and generate a 7-day protocol plan.</p>
-<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>scoring 2025-06-14 00:00:00
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>scoring 2025-06-16 00:00:00
+/home/runner/work/ai-cdss/ai-cdss/src/ai_cdss/data_processor.py:303: FutureWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+  df = df.groupby(by=[PATIENT_ID, &#39;SESSION_DATE&#39;], group_keys=False).apply(day_skip_to_nan)
    PATIENT_ID  PROTOCOL_ID       PPF  \
 0           1            1  0.562178
 1           1            2  0.965500
@@ -443,7 +445,7 @@ to load data and generate a 7-day protocol plan.</p>
     <span class="n">display</span><span class="p">(</span><span class="n">recommendation</span><span class="p">)</span>
 </pre></div>
 </div>
-<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.208 seconds)</p>
+<p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 1.194 seconds)</p>
 <div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-recommend-usage-py">
 <div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
 <p><a class="reference download internal" download="" href="../_downloads/aa750e9abe7f1471f9842a3481afb58a/recommend_usage.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">recommend_usage.ipynb</span></code></a></p>
