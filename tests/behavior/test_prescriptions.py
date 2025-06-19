@@ -18,6 +18,7 @@ from functools import reduce
 #         - Protocol 231: 1 session
 #         - Protocol 233: 0 sessions (unused)
 #     """
+    
 #     patient_id = 12
 #     loader = DataLoader()
 #     session = loader.load_session_data([patient_id])
@@ -45,7 +46,92 @@ from functools import reduce
 #         check_dtype=False
 #     )
 
-#     # assert False
+#     assert False
+
+
+# def test_feature_computation_all_sessions_usage():
+#     """Test the exclusion of sessions that are outside the study range.
+    
+#     Patient 12 — Study 405:
+#     - Prescribed 3 protocols (233, 220, 231)
+#     - Only 2 prescriptions had sessions:
+#         - Protocol 220: 2 sessions
+#         - Protocol 231: 1 session
+#         - Protocol 233: 0 sessions (unused)
+#     """
+#     from ai_cdss.data_processor import include_missing_sessions
+    
+#     patient_id = 12
+#     loader = DataLoader()
+#     session = loader.load_session_data([patient_id])
+#     print(f"\nSession data... \n")
+#     with pd.option_context('display.max_columns', None):
+#         display(session)
+#     print(f"\nSession data all... \n")
+#     # session = include_missing_sessions(session)
+#     # with pd.option_context('display.max_columns', None):
+#         # display(session)
+
+#     processor = DataProcessor()
+#     usage = processor.build_recent_adherence(session[session['STATUS'] != 'NOT_PERFORMED'])
+#     print(f"\nUsage... \n")
+#     with pd.option_context('display.max_columns', None):
+#         display(usage)
+
+#     # Define expected result
+#     expected = pd.DataFrame({
+#         "PATIENT_ID": [12, 12, 12],
+#         "PROTOCOL_ID": [220, 231, 233],
+#         "USAGE": [3, 1, 0]
+#     }).astype({"USAGE": "Int64"})
+
+#     # Assert equality
+#     pdt.assert_frame_equal(
+#         usage.sort_values(by=["PATIENT_ID", "PROTOCOL_ID"]).reset_index(drop=True),
+#         expected.sort_values(by=["PATIENT_ID", "PROTOCOL_ID"]).reset_index(drop=True),
+#         check_dtype=False
+#     )
+#     assert False
+
+# def test_feature_computation_usage_week():
+#     """Test the exclusion of sessions that are outside the study range.
+    
+#     Patient 12 — Study 405:
+#     - Prescribed 3 protocols (233, 220, 231)
+#     - Only 2 prescriptions had sessions:
+#         - Protocol 220: 2 sessions
+#         - Protocol 231: 1 session
+#         - Protocol 233: 0 sessions (unused)
+#     """
+    
+#     patient_id = 12
+#     loader = DataLoader()
+#     session = loader.load_session_data([patient_id])
+#     print(f"\nSession data... \n")
+#     with pd.option_context('display.max_columns', None):
+#         display(session)
+
+#     processor = DataProcessor()
+#     usage = processor.build_usage(session)
+#     print(f"\nUsage... \n")
+#     with pd.option_context('display.max_columns', None):
+#         display(usage)
+
+#     # Define expected result
+#     expected = pd.DataFrame({
+#         "PATIENT_ID": [12, 12, 12],
+#         "PROTOCOL_ID": [220, 231, 233],
+#         "USAGE": [3, 1, 0]
+#     }).astype({"USAGE": "Int64"})
+
+#     # Assert equality
+#     pdt.assert_frame_equal(
+#         usage.sort_values(by=["PATIENT_ID", "PROTOCOL_ID"]).reset_index(drop=True),
+#         expected.sort_values(by=["PATIENT_ID", "PROTOCOL_ID"]).reset_index(drop=True),
+#         check_dtype=False
+#     )
+
+#     assert False
 
 # def test_feature_computation_adherence_internal_ewma_nan():
 #     """Test behavior of ewma function when nan values
@@ -54,19 +140,71 @@ from functools import reduce
 #     - When day skipped ADHERENCE of that sessions set to nan
 #     - EWMA function does not use or is influence by nan
 #     """
+#     from ai_cdss.data_processor import include_missing_sessions
 #     patient_id = 13
 #     loader = DataLoader()
 #     session = loader.load_session_data([patient_id])
+#     ppf = loader.load_ppf_data([patient_id])
 #     print(f"\nSession data... \n")
 #     with pd.option_context('display.max_columns', None):
 #         display(session)
 
 #     processor = DataProcessor()
+
+#     session = include_missing_sessions(session)
+#     print(f"\nSession data... \n")
+#     with pd.option_context('display.max_columns', None):
+#         display(session)
+#     # Filter SESSION_DATE OUTSIDE CLINICAL_STUDY RANGE
+
+#     performed_session = session[session['STATUS'] != 'NOT_PERFORMED']
 #     adherence = processor.build_recent_adherence(session)
+
 #     print(f"\n Adherence... \n")
 #     with pd.option_context('display.max_columns', None, 'display.width', 1000):
 #         display_adherence = adherence.sort_values(by=BY_PP)
 #         display(display_adherence)
+
+#     dm = processor.build_delta_dm(performed_session[BY_PPS + ['SESSION_DATE', 'DM_VALUE']])
+
+#     print(f"\n DM... \n")
+#     with pd.option_context('display.max_columns', None, 'display.width', 1000):
+#         display(dm)
+
+#     feat_pps_df = reduce(lambda l, r: pd.merge(l, r, on=BY_PPS, how='left'), [adherence, dm])
+
+#     print(f"\n Feature... \n")
+#     with pd.option_context('display.max_columns', None, 'display.width', 1000):
+#         display(feat_pps_df)
+
+#     usage = processor.build_usage(session)
+#     usage_week = processor.build_week_usage(session, scoring_date=processor._get_scoring_date())         # USAGE_WEEK
+#     days = processor.build_prescription_days(session, scoring_date=processor._get_scoring_date())        # DAYS
+
+#     feat_pp_df  = reduce(lambda l, r: pd.merge(l, r, on=BY_PP, how='left'),  [ppf, usage, usage_week, days, feat_pps_df])
+
+#     weeks_since_start = processor.build_week_since_start(session[[PATIENT_ID, 'CLINICAL_TRIAL_START_DATE', 'CLINICAL_TRIAL_END_DATE']].drop_duplicates(), processor._get_scoring_date())
+#     feat_pp_df = feat_pp_df.merge(weeks_since_start, on=PATIENT_ID, how="left")
+
+#     print(f"\n Feature... \n")
+#     with pd.option_context('display.max_columns', None, 'display.width', 1000):
+#         display(feat_pp_df)
+
+#     missing_cols = set(session.columns) - set(feat_pp_df.columns)
+#     log_df = feat_pp_df.merge(
+#         session[BY_PP + ['SESSION_DATE'] + list(missing_cols)], 
+#         on=BY_PP + ['SESSION_DATE'], 
+#         how='left'
+#     )
+#     print(f"\n Log df... \n")
+#     with pd.option_context('display.max_columns', None, 'display.width', 1000):
+#         display(log_df)
+
+
+#     scoring_input = feat_pp_df.groupby(BY_PP).agg("last").reset_index()
+#     print(f"\n Scoring... \n")
+#     with pd.option_context('display.max_columns', None, 'display.width', 1000):
+#         display(scoring_input)
 
 #     # Assert EWMA skips NaNs — check it's not NaN where it shouldn't be
 #     ewma_vals = adherence['ADHERENCE_RECENT']
@@ -77,6 +215,7 @@ from functools import reduce
 #     # For protocol 205:
 #     df_205 = adherence[adherence['PROTOCOL_ID'] == 205].sort_values(by='SESSION_INDEX')
 #     assert df_205['ADHERENCE_RECENT'].iloc[-1] > 0, "EWMA for protocol 205 should be > 0"
+#     assert False
 
 # def test_feature_computation_adherence():
 #     """Test the exclusion of sessions that are outside the study range
@@ -260,12 +399,15 @@ from functools import reduce
 #     patient_id = 12
 #     loader = DataLoader()
 #     session = loader.load_session_data([patient_id])
-#     timeseries = loader.load_timeseries_data([patient_id])
+#     # timeseries = loader.load_timeseries_data([patient_id])
 #     ppf = loader.load_ppf_data([patient_id])
 #     protocol_similarity = loader.load_protocol_similarity()
+#     print(f"\Session df data... \n")
+#     with pd.option_context('display.width', 1000):
+#         display(session)
 
 #     processor = DataProcessor()
-#     scoring_df = processor.process_data(session_data=session, timeseries_data=timeseries, ppf_data=ppf, init_data=None)
+#     scoring_df = processor.process_data(session_data=session, ppf_data=ppf)
 
 #     print(f"\nScoring df data... \n")
 #     with pd.option_context('display.width', 1000):
@@ -273,7 +415,6 @@ from functools import reduce
 
 #     #### Test Week Skip Logic
 #     cdss = CDSS(scoring=scoring_df)
-
 #     prescriptions = cdss.get_prescriptions(patient_id=patient_id)
 #     print(f"\nPrescriptions data... \n")
 #     with pd.option_context('display.width', 1000):
@@ -434,3 +575,52 @@ from functools import reduce
 #     missing = result[result["STATUS"] == "NOT_PERFORMED"]
 #     assert len(missing) == 1
 #     assert missing.iloc[0]["SESSION_DATE"].weekday() == 0  # Monday
+
+# def test_study_bootstrap():
+
+#     loader = DataLoader()
+
+#     session = loader.load_session_data([14])
+#     print(f'\n Session data ...\n')
+#     with pd.option_context('display.max_columns', None, 'display.width', 1000):
+#         display(session)
+        
+#     assert False
+
+# def test_filter_study_sessions():
+#     """Test behavior of ewma function when nan values
+
+#     Expected behavior:
+#     - When day skipped ADHERENCE of that sessions set to nan
+#     - EWMA function does not use or is influence by nan
+#     """
+#     from ai_cdss.data_processor import include_missing_sessions
+#     patient_id = 13
+#     loader = DataLoader()
+#     session = loader.load_session_data([patient_id])
+#     print(f"\nSession data... \n")
+#     with pd.option_context('display.max_columns', None):
+#         display(session)
+
+#     all_session = include_missing_sessions(session)
+#     print(f"\n Adherence... \n")
+#     with pd.option_context('display.max_columns', None):
+#         display(all_session)
+
+#     assert False
+
+# def test_processing():
+#     from ai_cdss.loaders import DataLoader
+#     from ai_cdss.processing import DataProcessor
+#     patient_id = 13
+#     loader = DataLoader()
+#     processor = DataProcessor()
+#     session = loader.load_session_data([patient_id])
+#     ppf = loader.load_ppf_data([patient_id])
+
+#     scoring = processor.process_data(session, ppf)
+#     print(f"\n Scoring... \n")
+#     with pd.option_context('display.max_columns', None):
+#         display(scoring)
+
+#     assert False

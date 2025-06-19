@@ -1,8 +1,11 @@
 # ai_cdss/models.py
 import pandera as pa
 import pandas as pd
-from typing import List, Callable, Type
+from typing import List, Optional, Callable, Type, Dict
+from dataclasses import dataclass, field
+from enum import Enum
 from functools import partial, wraps
+from ai_cdss.constants import *
 import logging
 
 NullableField = partial(pa.Field, nullable=True)
@@ -19,31 +22,31 @@ class SessionSchema(pa.DataFrameModel):
     """
 
     # Patient profile
-    patient_id: int = NullableField(alias='PATIENT_ID')
+    patient_id: int = NullableField(alias=PATIENT_ID)
 
     # Identifiers
-    prescription_id: int = NullableField(alias='PRESCRIPTION_ID')
-    session_id: int = NullableField(alias='SESSION_ID')
-    protocol_id: int = NullableField(alias='PROTOCOL_ID')
+    prescription_id: int = NullableField(alias=PRESCRIPTION_ID)
+    session_id: int = NullableField(alias=SESSION_ID)
+    protocol_id: int = NullableField(alias=PROTOCOL_ID)
 
     # Prescription
-    prescription_starting_date: pa.DateTime = NullableField(alias='PRESCRIPTION_STARTING_DATE')
-    prescription_ending_date: pa.DateTime = NullableField(alias='PRESCRIPTION_ENDING_DATE')
+    prescription_starting_date: pa.DateTime = NullableField(alias=PRESCRIPTION_STARTING_DATE)
+    prescription_ending_date: pa.DateTime = NullableField(alias=PRESCRIPTION_ENDING_DATE)
     
     # Session
-    session_date: pa.DateTime = NullableField(alias='SESSION_DATE')
-    weekday: int = NullableField(alias='WEEKDAY_INDEX', ge=0, le=6, description="Weekday Index (0=Monday, 6=Sunday)")
-    status: str = NullableField(alias='STATUS', isin=["CLOSED", "ABORTED", "ONGOING"])
+    session_date: pa.DateTime = NullableField(alias=SESSION_DATE)
+    weekday: int = NullableField(alias=WEEKDAY_INDEX, ge=0, le=6, description="Weekday Index (0=Monday, 6=Sunday)")
+    status: str = NullableField(alias=STATUS, isin=["CLOSED", "ABORTED", "ONGOING"])
     
     # Metrics
-    real_session_duration: int = NullableField(alias='REAL_SESSION_DURATION', ge=0)
-    prescribed_session_duration: int = NullableField(alias='PRESCRIBED_SESSION_DURATION', ge=0)
-    session_duration: int = NullableField(alias='SESSION_DURATION', ge=0)
-    adherence: float = NullableField(alias='ADHERENCE', ge=0, le=1)
+    real_session_duration: int = NullableField(alias=REAL_SESSION_DURATION, ge=0)
+    prescribed_session_duration: int = NullableField(alias=PRESCRIBED_SESSION_DURATION, ge=0)
+    session_duration: int = NullableField(alias=SESSION_DURATION, ge=0)
+    adherence: float = NullableField(alias=ADHERENCE, ge=0, le=1)
 
-    total_success: int = NullableField(alias='TOTAL_SUCCESS', ge=0)
-    total_errors: int = NullableField(alias='TOTAL_ERRORS', ge=0)
-    game_score: int = NullableField(alias='GAME_SCORE', ge=0)
+    total_success: int = NullableField(alias=TOTAL_SUCCESS, ge=0)
+    total_errors: int = NullableField(alias=TOTAL_ERRORS, ge=0)
+    game_score: int = NullableField(alias=GAME_SCORE, ge=0)
 
 class TimeseriesSchema(pa.DataFrameModel):
     """
@@ -83,6 +86,53 @@ class PCMSchema(pa.DataFrameModel):
     protocol_a: int = pa.Field(alias="PROTOCOL_A")
     protocol_b: int = pa.Field(alias="PROTOCOL_B")
     similarity: float = pa.Field(alias="SIMILARITY")
+
+# Dataclasses
+
+class Granularity(Enum):
+    PATIENT_ID = "PATIENT_ID"
+    BY_PP = "BY_PP"
+    BY_PPS = "BY_PPS"
+    BY_PPST = "BY_PPST"
+    BY_ID = "BY_ID"
+
+    def id_cols(self) -> List[str]:
+        try:
+            return {
+                Granularity.BY_PP: BY_PP,
+                Granularity.BY_PPS: BY_PPS,
+                Granularity.BY_PPST: BY_PPST,
+                Granularity.BY_ID: BY_ID,
+                Granularity.PATIENT_ID: PATIENT_ID,
+            }[self]
+        except KeyError:
+            raise ValueError(f"Unsupported Granularity: {self}")
+    
+class DataUnitName(str, Enum):
+    PATIENT = "patient"
+    SESSIONS = "sessions"
+    PPF = "ppf"
+
+@dataclass
+class DataUnit:
+    """
+    A unit of data with an associated granularity and optional metadata.
+    """
+    name: DataUnitName
+    data: pd.DataFrame
+    level: Granularity
+    metadata: Optional[Dict[str, any]] = field(default_factory=dict)
+
+    @property
+    def id_cols(self) -> List[str]:
+        return self.level.id_cols()
+
+class DataUnitSet:
+    def __init__(self, units: List[DataUnit]):
+        self.units = {unit.name: unit for unit in units}
+
+    def get(self, name: DataUnitName) -> DataUnit:
+        return self.units[name.value]
 
 # ---------------------------------------------------------------------
 # Recommender Output

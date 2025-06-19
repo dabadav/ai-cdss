@@ -5,7 +5,7 @@ from typing import Dict, List
 import pandas as pd
 from pandera.typing import DataFrame
 from ai_cdss.models import ScoringSchema
-from ai_cdss.constants import USAGE_WEEK, DAYS
+from ai_cdss.constants import PATIENT_ID, PROTOCOL_ID, USAGE, USAGE_WEEK, DAYS, SCORE, PROTOCOL_A, PROTOCOL_B, SIMILARITY
 
 import logging
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class CDSS:
             A DataFrame mapping recommended protocol IDs to their scheduling details.
         """
         # Get scores for patient
-        patient_data = self.scoring[self.scoring["PATIENT_ID"] == patient_id]
+        patient_data = self.scoring[self.scoring[PATIENT_ID] == patient_id]
         if patient_data.empty:
             return pd.DataFrame()
 
@@ -79,10 +79,10 @@ class CDSS:
 
             # Identify which protocols need substitution
             protocols_to_swap = self.decide_prescription_swap(patient_id)
-            protocols_excluded = prescriptions["PROTOCOL_ID"].tolist()
+            protocols_excluded = prescriptions[PROTOCOL_ID].tolist()
 
             # Directly add non-swapped prescriptions
-            rows.extend(prescriptions[~prescriptions["PROTOCOL_ID"].isin(protocols_to_swap)].to_dict("records"))
+            rows.extend(prescriptions[~prescriptions[PROTOCOL_ID].isin(protocols_to_swap)].to_dict("records"))
 
             # Swap selected protocols
             for protocol_id in protocols_to_swap:
@@ -117,7 +117,7 @@ class CDSS:
             rows.extend(seen.values())
 
         # Convert to DataFrame
-        recommendations = pd.DataFrame(rows).sort_values(by="PROTOCOL_ID").reset_index(drop=True)
+        recommendations = pd.DataFrame(rows).sort_values(by=PROTOCOL_ID).reset_index(drop=True)
         recommendations.attrs = self.scoring.attrs
         return recommendations
 
@@ -168,7 +168,7 @@ class CDSS:
         """
         prescriptions = self.get_prescriptions(patient_id)
         # Below protocols mean
-        return prescriptions[prescriptions['SCORE'].transform(lambda x: x < x.mean())].PROTOCOL_ID.to_list()
+        return prescriptions[prescriptions[SCORE].transform(lambda x: x < x.mean())].PROTOCOL_ID.to_list()
 
     def get_substitute(self, patient_id: int, protocol_id: int, protocol_similarity, protocol_excluded: List[int] = None):
         """
@@ -193,20 +193,20 @@ class CDSS:
         
         # Get protocol usage for the given patient and protocol
         usage = (
-            self.scoring[self.scoring["PATIENT_ID"] == patient_id]
-            .set_index("PROTOCOL_ID")["USAGE"]   
+            self.scoring[self.scoring[PATIENT_ID] == patient_id]
+            .set_index(PROTOCOL_ID)[USAGE]   
         )     
         # Get protocol similarities
         similarities = protocol_similarity[
-            (protocol_similarity["PROTOCOL_A"] == protocol_id)
+            (protocol_similarity[PROTOCOL_A] == protocol_id)
         ]
         
         # Drop rows where PROTOCOL_B is the same as PROTOCOL_A (self-similarity)
-        similarities = similarities[similarities["PROTOCOL_A"] != similarities["PROTOCOL_B"]]
+        similarities = similarities[similarities[PROTOCOL_A] != similarities[PROTOCOL_B]]
         
         # Exclude protocols in the `protocol_excluded` list from similarities
         if protocol_excluded:
-            similarities = similarities[~similarities["PROTOCOL_B"].isin(protocol_excluded)]
+            similarities = similarities[~similarities[PROTOCOL_B].isin(protocol_excluded)]
         
         # Find the minimum usage value
         min_usage = usage.min()
@@ -215,15 +215,15 @@ class CDSS:
         candidates = usage[usage == min_usage].index
         
         # Among these candidates, select the one with the highest similarity
-        candidate_similarities = similarities[similarities["PROTOCOL_B"].isin(candidates)]
+        candidate_similarities = similarities[similarities[PROTOCOL_B].isin(candidates)]
         
         # Find the maximum similarity among candidates
         if not candidate_similarities.empty:
-            max_sim = candidate_similarities["SIMILARITY"].max()
+            max_sim = candidate_similarities[SIMILARITY].max()
             
             final_candidates = candidate_similarities[
-                candidate_similarities["SIMILARITY"] == max_sim
-            ]["PROTOCOL_B"]
+                candidate_similarities[SIMILARITY] == max_sim
+            ][PROTOCOL_B]
             
             # Return the first candidate (or handle ties)
             return final_candidates.iloc[0] if not final_candidates.empty else None
@@ -245,8 +245,8 @@ class CDSS:
         list of int
             A list of top protocol IDs.
         """
-        patient_data = self.scoring[self.scoring["PATIENT_ID"] == patient_id]
-        top_protocols = patient_data.nlargest(self.n, "SCORE")["PROTOCOL_ID"].tolist()
+        patient_data = self.scoring[self.scoring[PATIENT_ID] == patient_id]
+        top_protocols = patient_data.nlargest(self.n, SCORE)[PROTOCOL_ID].tolist()
         return top_protocols
     
     def get_prescriptions(self, patient_id: int):
@@ -263,8 +263,8 @@ class CDSS:
         DataFrame
             A DataFrame containing prescription details.
         """
-        patient_data = self.scoring[self.scoring["PATIENT_ID"] == patient_id]
-        prescriptions = patient_data[patient_data["DAYS"].apply(lambda x: isinstance(x, list) and len(x) > 0)]
+        patient_data = self.scoring[self.scoring[PATIENT_ID] == patient_id]
+        prescriptions = patient_data[patient_data[DAYS].apply(lambda x: isinstance(x, list) and len(x) > 0)]
         return prescriptions
 
     def get_scores(self, patient_id: int, protocol_id: int):
@@ -286,5 +286,5 @@ class CDSS:
         
         # Filter scoring DataFrame for the given patient and protocol
         return self.scoring[
-            (self.scoring["PATIENT_ID"] == patient_id) & (self.scoring["PROTOCOL_ID"] == protocol_id)
+            (self.scoring[PATIENT_ID] == patient_id) & (self.scoring[PROTOCOL_ID] == protocol_id)
         ].iloc[0].to_dict()
