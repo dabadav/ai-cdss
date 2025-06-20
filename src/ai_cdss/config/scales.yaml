@@ -17,3 +17,11 @@ keys:
   - BI
   VAS:
   - Visual Analog Scale
+  FM_A:
+  - Fugl-Meyer.FM_A
+  FM_B:
+  - Fugl-Meyer.FM_B
+  FM_C:
+  - Fugl-Meyer.FM_C
+  FM_D:
+  - Fugl-Meyer.FM_D
