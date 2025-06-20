@@ -1,17 +1,16 @@
-from typing import List, Optional, Dict
-from pathlib import Path
 import importlib.resources
+from pathlib import Path
+from typing import Dict, List, Optional
 
-import pandas as pd
 import numpy as np
-
-from ai_cdss.utils import MultiKeyDict
-from ai_cdss.constants import *
+import pandas as pd
 from ai_cdss import config
-
+from ai_cdss.constants import *
+from ai_cdss.utils import MultiKeyDict
 
 # ------------------------------
 # Clinical Scores
+
 
 class ClinicalSubscales:
     def __init__(self, scale_yaml_path: Optional[str] = None):
@@ -31,19 +30,29 @@ class ClinicalSubscales:
         """Compute deficit matrix given patient clinical scores."""
 
         # Retrieve max values using MultiKeyDict
-        max_subscales = [self.scales_dict.get(scale, None) for scale in patient_df.columns]
-        
+        max_subscales = [
+            self.scales_dict.get(scale, None) for scale in patient_df.columns
+        ]
+
         # Check for missing subscale values
         if None in max_subscales:
-            missing_subscales = [scale for scale, max_val in zip(patient_df.columns, max_subscales) if max_val is None]
+            missing_subscales = [
+                scale
+                for scale, max_val in zip(patient_df.columns, max_subscales)
+                if max_val is None
+            ]
             raise ValueError(f"Missing max values for subscales: {missing_subscales}")
-        
+
         # Compute deficit matrix
-        deficit_matrix = 1 - (patient_df / pd.Series(max_subscales, index=patient_df.columns))
+        deficit_matrix = 1 - (
+            patient_df / pd.Series(max_subscales, index=patient_df.columns)
+        )
         return deficit_matrix
+
 
 # ------------------------------
 # Protocol Attributes
+
 
 class ProtocolToClinicalMapper:
     def __init__(self, mapping_yaml_path: Optional[str] = None):
@@ -57,11 +66,13 @@ class ProtocolToClinicalMapper:
         # logger.info(f"Loading subscale max values from: {self.scales_path}")
         self.mapping = MultiKeyDict.from_yaml(self.mapping_path)
 
-    def map_protocol_features(self, protocol_df: pd.DataFrame, agg_func=np.mean) -> pd.DataFrame:
+    def map_protocol_features(
+        self, protocol_df: pd.DataFrame, agg_func=np.mean
+    ) -> pd.DataFrame:
         """Map protocol-level features into clinical scales using a predefined mapping."""
         # Retrieve max values using MultiKeyDict
         df_clinical = pd.DataFrame(index=protocol_df.index)
-        # Collapse using agg_func the protocol latent attributes    
+        # Collapse using agg_func the protocol latent attributes
         for clinical_scale, features in self.mapping.items():
             df_clinical[clinical_scale] = protocol_df[features].apply(agg_func, axis=1)
         df_clinical.index = protocol_df[PROTOCOL_ID]

@@ -1,6 +1,6 @@
 # constants.py
-from pathlib import Path
 from enum import Enum
+from pathlib import Path
 
 ############################
 # DATA
@@ -38,12 +38,14 @@ CLINICAL_END = "CLINICAL_TRIAL_END_DATE"
 
 STATUS = "STATUS"
 
+
 class SessionStatus(str, Enum):
     CLOSED = "CLOSED"
     NOT_PERFORMED = "NOT_PERFORMED"
 
     def __str__(self):
         return self.value
+
 
 ADHERENCE = "ADHERENCE"
 RECENT_ADHERENCE = "ADHERENCE_RECENT"
@@ -59,6 +61,7 @@ DELTA_DM = "DELTA_DM"
 PPF = "PPF"
 CONTRIB = "CONTRIB"
 
+TOTAL_PRESCRIBED = "TOTAL_PRESCRIBED"
 USAGE = "USAGE"
 USAGE_WEEK = "USAGE_WEEK"
 DAYS = "DAYS"
@@ -92,20 +95,40 @@ SIMILARITY = "SIMILARITY"
 
 # Session columns
 SESSION_COLUMNS: list[str] = [
-    "SESSION_ID", "DM_VALUE", "TOTAL_SUCCESS", "TOTAL_ERRORS", "GAME_SCORE"
+    "SESSION_ID",
+    "DM_VALUE",  # , "TOTAL_SUCCESS", "TOTAL_ERRORS", "GAME_SCORE"
 ]
-METRIC_COLUMNS: list[str] = [
-    "DM_VALUE", "PE_VALUE"
-]
+METRIC_COLUMNS: list[str] = ["DM_VALUE", "PE_VALUE"]
 TIME_COLUMNS: list[str] = [
-    "SESSION_DATE", "STARTING_HOUR", "STARTING_TIME_CATEGORY", "SECONDS_FROM_START"
+    "SESSION_DATE",
+    "STARTING_HOUR",
+    "STARTING_TIME_CATEGORY",
+    "SECONDS_FROM_START",
 ]
 
 # Common sets of columns
-BY_PP: list[str] = [PATIENT_ID, PROTOCOL_ID] # By Patient–Protocol
-BY_PPS: list[str] = [PATIENT_ID, PROTOCOL_ID, SESSION_ID] # By Patient–Protocol–Session
-BY_PPST: list[str] = [PATIENT_ID, PROTOCOL_ID, SESSION_ID, SECONDS_FROM_START] # By PPS + Time
-BY_ID: list[str] = BY_PPS + [PRESCRIPTION_ID] # By Patient–Protocol–Session + Prescription
+BY_PP: list[str] = [PATIENT_ID, PROTOCOL_ID]  # By Patient–Protocol
+BY_PPS: list[str] = [PATIENT_ID, PROTOCOL_ID, SESSION_ID]  # By Patient–Protocol–Session
+BY_PPST: list[str] = [
+    PATIENT_ID,
+    PROTOCOL_ID,
+    SESSION_ID,
+    SECONDS_FROM_START,
+]  # By PPS + Time
+BY_ID: list[str] = BY_PPS + [
+    PRESCRIPTION_ID
+]  # By Patient–Protocol–Session + Prescription
 
 # Metrics
-FINAL_METRICS = [WEEKS_SINCE_START, PPF, CONTRIB, RECENT_ADHERENCE, DELTA_DM, USAGE, USAGE_WEEK, DAYS, SCORE]
+FINAL_METRICS = [
+    PPF,
+    CONTRIB,
+    RECENT_ADHERENCE,
+    DELTA_DM,
+    WEEKS_SINCE_START,
+    SESSION_INDEX,
+    USAGE,
+    USAGE_WEEK,
+    DAYS,
+    SCORE,
+]

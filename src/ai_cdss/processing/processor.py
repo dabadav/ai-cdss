@@ -1,19 +1,28 @@
 # ai_cdss/processing/processor.py
-from typing import List, Optional, Dict
-from functools import reduce
+import logging
 from dataclasses import dataclass
-
-import pandas as pd
-from pandas import Timestamp
-from pandera.typing import DataFrame
+from functools import reduce
+from typing import Dict, List, Optional
 
 import numpy as np
+import pandas as pd
 from ai_cdss.constants import *
-from ai_cdss.models import ScoringSchema, PPFSchema, SessionSchema, TimeseriesSchema, DataUnitSet, DataUnitName
-from ai_cdss.processing.features import include_missing_sessions, apply_savgol_filter_groupwise, get_rolling_theilsen_slope
-from ai_cdss.processing.utils import safe_merge
-
-import logging
+from ai_cdss.models import (
+    DataUnitName,
+    DataUnitSet,
+    PPFSchema,
+    ScoringSchema,
+    SessionSchema,
+    TimeseriesSchema,
+)
+from ai_cdss.processing.features import (
+    apply_savgol_filter_groupwise,
+    get_rolling_theilsen_slope,
+    include_missing_sessions,
+)
+from ai_cdss.processing.utils import get_nth, safe_merge
+from pandas import Timestamp
+from pandera.typing import DataFrame
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -26,9 +35,11 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------
 # Data Processor Class
 
+
 @dataclass
 class ProcessingContext:
     scoring_date: Timestamp = None
+
 
 class DataProcessor:
     """
@@ -53,11 +64,12 @@ class DataProcessor:
     alpha : float
         The smoothing factor for EWMA, controlling how much past values influence the trend.
     """
+
     def __init__(
         self,
-        weights: List[float] = [1,1,1], 
+        weights: List[float] = [1, 1, 1],
         alpha: float = 0.5,
-        context: Optional[ProcessingContext] = None
+        context: Optional[ProcessingContext] = None,
     ):
         """
         Initialize the data processor with optional weights for scoring.
@@ -69,7 +81,7 @@ class DataProcessor:
     def process_data(
         self,
         data: DataUnitSet,
-        ) -> DataFrame[ScoringSchema]:
+    ) -> DataFrame[ScoringSchema]:
         """
         Process and score patient-protocol combinations using session, timeseries, and PPF data.
         When bootstrapping patient, score is based on PPF only.
@@ -89,77 +101,126 @@ class DataProcessor:
         DataFrame[ScoringSchema]
             Final scored dataframe with protocol recommendations.
         """
-        
+
         # Load data from DataUnitSet container
         session_unit = data.get(DataUnitName.SESSIONS)
         ppf_unit = data.get(DataUnitName.PPF)
+
         session_data = session_unit.data
         ppf_data = ppf_unit.data
-
         # Get scoring date from context (today)
         scoring_date = self._get_scoring_date()
+
         # Impute sessions that were not performed, assigning a date and NOT_PERFORMED status
         session_data = include_missing_sessions(session_data)
+
+        session_data[CLINICAL_START] = session_data[CLINICAL_START].dt.normalize()
+        session_data[CLINICAL_END] = session_data[CLINICAL_END].dt.normalize()
+
+        # Compute upper bound: min(scoring_date, session_data[CLINICAL_END])
+        date_upper_bound = session_data[CLINICAL_END].where(
+            session_data[CLINICAL_END] < scoring_date, scoring_date
+        )
+
         # Filter sessions in study range
         session_data = session_data[
-            (session_data[SESSION_DATE] >= session_data[CLINICAL_START]) &
-            (session_data[SESSION_DATE] <= session_data[CLINICAL_END])
+            (session_data[SESSION_DATE] >= session_data[CLINICAL_START])
+            & (session_data[SESSION_DATE] <= date_upper_bound)
         ]
+
         # Weeks since start
-        weeks_since_start_df = self.build_week_since_start(session_data, scoring_date)
+        weeks_since_start_df = self.build_week_since_start(session_data)
 
         # --- Feature Building ---
         if not session_data.empty:
 
             # Compute Session Features
-            dm_df = self.build_delta_dm(session_data[BY_PPS + [SESSION_DATE, DM_VALUE]].dropna())  # DELTA_DM
-            adherence_df = self.build_recent_adherence(session_data)                               # ADHERENCE_RECENT
-            usage_df = self.build_usage(session_data)                                              # USAGE
-            usage_week_df = self.build_week_usage(session_data, scoring_date=scoring_date)         # USAGE_WEEK
-            days_df = self.build_prescription_days(session_data, scoring_date=scoring_date)        # DAYS
-            
+            dm_df = self.build_delta_dm(
+                session_data[BY_PPS + [SESSION_DATE, DM_VALUE]].dropna()
+            )  # DELTA_DM
+            adherence_df = self.build_recent_adherence(session_data)  # ADHERENCE_RECENT
+            usage_df = self.build_usage(session_data)  # USAGE
+            usage_week_df = self.build_week_usage(
+                session_data, scoring_date=scoring_date
+            )  # USAGE_WEEK
+            days_df = self.build_prescription_days(
+                session_data, scoring_date=scoring_date
+            )  # DAYS
+
             # Combine Session Features
-            feat_pps_df = reduce(lambda l, r: pd.merge(l, r, on=BY_PP + [SESSION_DATE], how='left'), [adherence_df, dm_df, weeks_since_start_df])
-            feat_pp_df  = reduce(lambda l, r: pd.merge(l, r, on=BY_PP, how='left'),  [ppf_data, usage_df, usage_week_df, days_df, feat_pps_df])
-            feat_pp_df  = feat_pp_df.sort_values(by=BY_PP + [SESSION_DATE])
+            feat_pps_df = reduce(
+                lambda l, r: pd.merge(l, r, on=BY_PP + [SESSION_DATE], how="left"),
+                [adherence_df, dm_df, weeks_since_start_df],
+            )
+            feat_pp_df = reduce(
+                lambda l, r: pd.merge(l, r, on=BY_PP, how="left"),
+                [ppf_data, usage_df, usage_week_df, days_df, feat_pps_df],
+            )
+            feat_pp_df = feat_pp_df.sort_values(by=BY_PP + [SESSION_DATE])
+            # feat_pp_df = feat_pp_df.rename({SESSION_INDEX: TOTAL_PRESCRIBED}, axis=1)
 
             # Store the whole scored DataFrame as a csv
-            missing_cols = set(session_data.columns) - set(feat_pp_df.columns)
-            log_df = feat_pp_df.merge(
-                session_data[BY_PP + [SESSION_DATE] + list(missing_cols)], 
-                on=BY_PP + [SESSION_DATE], 
-                how='left'
-            )
-            log_filepath = DEFAULT_LOG_SCORING_FILEPATH.format(scoring_date=scoring_date)
-            log_df.to_csv(log_filepath, index=False)
-            logger.info(f"Logged complete scoring data at {log_filepath}")
-            
+            # missing_cols = set(session_data.columns) - set(feat_pp_df.columns)
+            # log_df = feat_pp_df.merge(
+            #     session_data[BY_PP + [SESSION_DATE] + list(missing_cols)],
+            #     on=BY_PP + [SESSION_DATE],
+            #     how='left'
+            # )
+            # log_filepath = DEFAULT_LOG_SCORING_FILEPATH.format(scoring_date=scoring_date)
+            # log_df.to_csv(log_filepath, index=False)
+            # logger.info(f"Logged complete scoring data at {log_filepath}")
+
             # Aggregate to patient protocol level
             scoring_input = feat_pp_df.groupby(BY_PP).agg("last").reset_index()
-
             # Fill features
             scoring_input = self._init_metrics(scoring_input)
 
             # Weekly imputation of DM and ADHERENCE
-            scoring_input = self._impute_metrics(scoring_input)
-        
+            delta_nth = get_nth(feat_pp_df, DELTA_DM, BY_PP, SESSION_INDEX, n=1)
+            delta_medians = (
+                delta_nth.groupby(PATIENT_ID)[DELTA_DM].median().reset_index()
+            )
+            scoring_input = self._impute_metrics(scoring_input, DELTA_DM, delta_medians)
+
+            adherence_last = get_nth(
+                feat_pp_df, RECENT_ADHERENCE, BY_PP, SESSION_INDEX, n=-1
+            )
+            adherence_medians = (
+                adherence_last.groupby(PATIENT_ID)[RECENT_ADHERENCE]
+                .median()
+                .reset_index()
+            )
+            scoring_input = self._impute_metrics(
+                scoring_input, RECENT_ADHERENCE, adherence_medians
+            )
+
         # If we are bootstrapping a study, and no patient prescriptions yet
         else:
-            
+
             # Initialize feature df with expected columns
-            scoring_columns = BY_PP + [DELTA_DM, RECENT_ADHERENCE, USAGE, USAGE_WEEK, DAYS]
+            scoring_columns = BY_PP + [
+                DELTA_DM,
+                RECENT_ADHERENCE,
+                USAGE,
+                USAGE_WEEK,
+                DAYS,
+            ]
             feat_agg = pd.DataFrame(columns=scoring_columns)
-            
+
             # Merge for scoring
-            scoring_input = reduce(lambda l, r: safe_merge(l, r, on=BY_PP), [ppf_data, feat_agg])
-            
+            scoring_input = reduce(
+                lambda l, r: safe_merge(l, r, on=BY_PP), [ppf_data, feat_agg]
+            )
+
             # Add weeks since study start
-            scoring_input = scoring_input.merge(weeks_since_start_df, on=PATIENT_ID, how="left")
+            scoring_input = scoring_input.merge(
+                weeks_since_start_df, on=PATIENT_ID, how="left"
+            )
 
         # --- Scoring Data ---
         scored_df = self.compute_score(scoring_input)
         scored_df.attrs = ppf_data.attrs
-        
+
         return scored_df[BY_PP + FINAL_METRICS]
 
     def compute_score(self, data):
@@ -175,16 +236,18 @@ class DataProcessor:
         -------
         pd.DataFrame
             Scored DataFrame sorted by patient and protocol.
-        """       
+        """
         # Compute objective function score alpha*Adherence + beta*DM + gamma*PPF
         score = self._compute_score(data)
-        
+
         # Sort the output dataframe
         score.sort_values(by=BY_PP, inplace=True)
 
         return score
 
-    def _impute_metrics(self, data: pd.DataFrame) -> pd.DataFrame:
+    def _impute_metrics(
+        self, data: pd.DataFrame, column: str, values: pd.DataFrame
+    ) -> pd.DataFrame:
         """Weekly imputation using own patient data on PP given Feature df
 
         Impute the non-prescribed protocols of last week, based on this week data
@@ -193,7 +256,19 @@ class DataProcessor:
 
         Impute protocols with DAYS []
         """
-        return data
+        data_imputed = data.copy()
+        # Merge to bring in patient-specific median values
+        merged = data_imputed.merge(
+            values[["PATIENT_ID", column]],
+            on="PATIENT_ID",
+            how="left",
+            suffixes=("", "_median"),
+        )
+        # Fill NaNs in the column with the corresponding patient-specific median
+        merged[column] = merged[column].fillna(merged[f"{column}_median"])
+        # Drop helper column
+        merged.drop(columns=[f"{column}_median"], inplace=True)
+        return merged
 
     def _init_metrics(self, data: pd.DataFrame) -> pd.DataFrame:
         """
@@ -210,14 +285,20 @@ class DataProcessor:
             Safe dataframe with no NaNs.
         """
         # When no prescriptions add empty list instead of NaN
-        data[DAYS] = data[DAYS].apply(lambda x: [] if x is None or (not isinstance(x, list) and pd.isna(x)) else x)
-        # When no sessions performed add a 0
+        data[DAYS] = data[DAYS].apply(
+            lambda x: [] if x is None or (not isinstance(x, list) and pd.isna(x)) else x
+        )
+        # Fill with 0
         data[USAGE] = data[USAGE].astype("Int64").fillna(0)
         data[USAGE_WEEK] = data[USAGE_WEEK].astype("Int64").fillna(0)
+        data[TOTAL_PRESCRIBED] = data[TOTAL_PRESCRIBED].astype("Int64").fillna(0)
+
+        # Fill with current source scoring week of data
+        data[WEEKS_SINCE_START] = data[WEEKS_SINCE_START].dropna().unique().max()
 
         # How to initliaze DM and Adherence? -> Later weeks?
         return data
-    
+
     def _get_scoring_date(self):
         return self.context.scoring_date or pd.Timestamp.today().normalize()
 
@@ -240,7 +321,11 @@ class DataProcessor:
             DataFrame with EWMA column replacing the original.
         """
         return df.assign(
-            **{f"{value_col}{sufix}": df.groupby(by=group_cols)[value_col].transform(lambda x: x.ewm(alpha=self.alpha, adjust=True).mean())}
+            **{
+                f"{value_col}{sufix}": df.groupby(by=group_cols)[value_col].transform(
+                    lambda x: x.ewm(alpha=self.alpha, adjust=True).mean()
+                )
+            }
         )
 
     def _compute_score(self, scoring: pd.DataFrame) -> pd.DataFrame:
@@ -266,9 +351,9 @@ class DataProcessor:
         scoring_df = scoring.copy()
         # weighted nan-compativle sum of factors
         scoring_df[SCORE] = (
-            scoring_df[RECENT_ADHERENCE].astype("float64").fillna(0.) * self.weights[0]
-            + scoring_df[DELTA_DM].astype("float64").fillna(0.) * self.weights[1]
-            + scoring_df[PPF].astype("float64").fillna(0.) * self.weights[2]
+            scoring_df[RECENT_ADHERENCE].astype("float64").fillna(0.0) * self.weights[0]
+            + scoring_df[DELTA_DM].astype("float64").fillna(0.0) * self.weights[1]
+            + scoring_df[PPF].astype("float64").fillna(0.0) * self.weights[2]
         )
         return scoring_df
 
@@ -283,19 +368,25 @@ class DataProcessor:
         grouped[DM_SMOOTH] = grouped.groupby(BY_PP)[DM_VALUE].transform(
             apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER
         )
-        
+
         # Compute slope
-        grouped[DELTA_DM] = grouped.groupby(BY_PP)[DM_SMOOTH].transform(
-            lambda g: get_rolling_theilsen_slope(
-                g,
-                grouped.loc[g.index, SESSION_INDEX],
-                THEILSON_REGRESSION_WINDOW_SIZE
+        grouped[DELTA_DM] = (
+            grouped.groupby(BY_PP)[DM_SMOOTH]
+            .transform(
+                lambda g: get_rolling_theilsen_slope(
+                    g,
+                    grouped.loc[g.index, SESSION_INDEX],
+                    THEILSON_REGRESSION_WINDOW_SIZE,
+                )
             )
-        ).fillna(0)
+            .fillna(0)
+        )
 
         return grouped[BY_PP + [SESSION_DATE, DM_VALUE, DELTA_DM]]
 
-    def build_recent_adherence(self, session_df: DataFrame[SessionSchema]) -> pd.DataFrame:
+    def build_recent_adherence(
+        self, session_df: DataFrame[SessionSchema]
+    ) -> pd.DataFrame:
         """
         This feature builder must return adherence for patient protocols, with the following considerations:
         - Adherence computed as SESSION_TIME / PRESCRIBED_SESSION_TIME
@@ -316,15 +407,19 @@ class DataProcessor:
             if day_skipped:
                 group[ADHERENCE] = np.nan
             return group
-        
-        df = df.groupby(by=[PATIENT_ID, SESSION_DATE], group_keys=False).apply(day_skip_to_nan)
+
+        df = df.groupby(by=[PATIENT_ID, SESSION_DATE], group_keys=False).apply(
+            day_skip_to_nan
+        )
 
         df = df.sort_values(by=BY_PP + [SESSION_DATE, WEEKDAY_INDEX])
-        df['SESSION_INDEX'] = df.groupby(BY_PP).cumcount() + 1
+        df[SESSION_INDEX] = (df.groupby(BY_PP).cumcount() + 1).astype("Int64")
 
         # For a given patient protocol, take the array of adherences and mean aggregate with recency bias.
         df = self._compute_ewma(df, ADHERENCE, BY_PP, sufix="_RECENT")
-        return df[BY_PPS + [SESSION_DATE, STATUS, SESSION_INDEX, ADHERENCE, RECENT_ADHERENCE]]
+        return df[
+            BY_PPS + [SESSION_DATE, STATUS, SESSION_INDEX, ADHERENCE, RECENT_ADHERENCE]
+        ]
 
     def build_usage(self, session_df: DataFrame[SessionSchema]) -> pd.DataFrame:
         """
@@ -344,7 +439,9 @@ class DataProcessor:
             .astype({USAGE: "Int64"})
         )
 
-    def build_week_usage(self, session_df: DataFrame[SessionSchema], scoring_date: Timestamp = None) -> pd.DataFrame:
+    def build_week_usage(
+        self, session_df: DataFrame[SessionSchema], scoring_date: Timestamp
+    ) -> pd.DataFrame:
         """
         This feature builder must return how many times protocols are used in this week in this format:
         PATIENT_ID  PROTOCOL_ID  USAGE_WEEK
@@ -379,20 +476,36 @@ class DataProcessor:
 
         return usage
 
-
-    def build_week_since_start(self, patient_df: DataFrame[SessionSchema], scoring_date: Timestamp = None) -> pd.DataFrame:
+    def build_week_since_start(
+        self, patient_df: DataFrame[SessionSchema]
+    ) -> pd.DataFrame:
         df = patient_df.copy()
 
         # Normalize session date and clinical trial start to the beginning of the week (Monday)
-        session_week_start = df[SESSION_DATE] - pd.to_timedelta(df[SESSION_DATE].dt.weekday, unit='D')
-        trial_week_start = df[CLINICAL_START] - pd.to_timedelta(df[CLINICAL_START].dt.weekday, unit='D')
+        session_week_start = df[SESSION_DATE] - pd.to_timedelta(
+            df[SESSION_DATE].dt.weekday, unit="D"
+        )
+        trial_week_start = df[CLINICAL_START] - pd.to_timedelta(
+            df[CLINICAL_START].dt.weekday, unit="D"
+        )
 
         # Compute weeks since clinical trial start
-        df[WEEKS_SINCE_START] = ((session_week_start - trial_week_start) / pd.Timedelta(weeks=1)).astype("int64")
+        df[WEEKS_SINCE_START] = (
+            (session_week_start - trial_week_start) / pd.Timedelta(weeks=1)
+        ).astype("Int64")
 
         return df[[PATIENT_ID, PROTOCOL_ID, SESSION_DATE, WEEKS_SINCE_START]]
 
-    def build_prescription_days(self, session_df: DataFrame[SessionSchema], scoring_date: Timestamp = None) -> pd.DataFrame:
+    def build_number_prescriptions(
+        self, session: DataFrame[SessionSchema]
+    ) -> pd.DataFrame:
+        df = session.copy()
+        df[TOTAL_PRESCRIBED] = df.groupby(BY_PP).cumcount() + 1
+        return df
+
+    def build_prescription_days(
+        self, session_df: DataFrame[SessionSchema], scoring_date: Timestamp
+    ) -> pd.DataFrame:
         """
         This feature builder must return active prescriptions signaled as:
         PRESCRIPTION_ENDING_DATE == 2100-01-01 00:00:00
@@ -403,20 +516,22 @@ class DataProcessor:
         12          233         [0]
         """
         # If no scoring date is given, use today's date at 00:00
-        week_start = scoring_date - pd.Timedelta(days=scoring_date.weekday())  # Monday 00:00
+        week_start = scoring_date - pd.Timedelta(
+            days=scoring_date.weekday()
+        )  # Monday 00:00
         week_start = week_start.normalize()
-        
+
         # Filter activities where the prescription is still active in this week.
         # i.e., prescriptions whose ending date is on or after the start of this week
-        active_prescriptions = session_df[session_df[PRESCRIPTION_ENDING_DATE] > week_start]
-        
+        active_prescriptions = session_df[
+            session_df[PRESCRIPTION_ENDING_DATE] > week_start
+        ]
+
         # Group by patient and protocol, collect all unique weekday indices (0–6) where active prescriptions occurred
         prescribed_days = (
-            active_prescriptions
-            .groupby(BY_PP)[WEEKDAY_INDEX]
+            active_prescriptions.groupby(BY_PP)[WEEKDAY_INDEX]
             .agg(lambda x: sorted(x.unique()))
             .rename(DAYS)
             .reset_index()
         )
         return prescribed_days
-
