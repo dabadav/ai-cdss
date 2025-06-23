@@ -11,6 +11,13 @@ data:
   FM_TOTAL: 66
   MA_DISTAL: 4
   VAS: 10
+  MOCA_VISUO: 5
+  MOCA_NAMING: 3
+  MOCA_ATTENTION: 6
+  MOCA_LANGUAGE: 3
+  MOCA_ABSTRACTION: 2
+  MOCA_RECALL: 5
+  MOCA_ORIENTATION: 6
 keys:
   BARTHEL:
   - Barthel Index
@@ -25,3 +32,17 @@ keys:
   - Fugl-Meyer.FM_C
   FM_D:
   - Fugl-Meyer.FM_D
+  MOCA_VISUO:
+  - MoCA.Visuospatial/Executive
+  MOCA_NAMING:
+  - MoCA.Naming
+  MOCA_ATTENTION:
+  - MoCA.Attention
+  MOCA_LANGUAGE:
+  - MoCA.Language
+  MOCA_ABSTRACTION:
+  - MoCA.Abstraction
+  MOCA_RECALL:
+  - MoCA.Delayed Recall
+  MOCA_ORIENTATION:
+  - MoCA.Orientation

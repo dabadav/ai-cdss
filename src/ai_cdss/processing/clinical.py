@@ -47,6 +47,7 @@ class ClinicalSubscales:
         deficit_matrix = 1 - (
             patient_df / pd.Series(max_subscales, index=patient_df.columns)
         )
+        deficit_matrix.rename(self.scales_dict._keys, axis=1, inplace=True)
         return deficit_matrix
 
 

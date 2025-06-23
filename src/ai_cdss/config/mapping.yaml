@@ -1,31 +1,4 @@
 data:
-  # Functional Independence
-  BARTHEL:
-    - DAILY_LIVING_ACTIVITY  # Barthel Index measures independence in ADLs.
-
-  # Motor Function (Spasticity & Strength)
-  ASH_PROXIMAL:
-    - BODY_PART_ARM
-    - BODY_PART_SHOULDER
-    - COORDINATION  # Ashworth scale for proximal limb spasticity.
-
-  MA_DISTAL:
-    - BODY_PART_FINGER
-    - BODY_PART_WRIST
-    - GRASPING
-    - PINCHING  # Motor Assessment for distal motor function.
-
-  # Fatigue & Pain
-  FATIGUE:
-    - DIFFICULTY_COGNITIVE
-    - DIFFICULTY_MOTOR
-    - PROCESSING_SPEED
-    - ATTENTION  # Fatigue relates to cognitive/motor difficulty.
-
-  VAS:
-    - DIFFICULTY_COGNITIVE
-    - DIFFICULTY_MOTOR  # Visual Analog Scale (VAS) for perceived effort.
-
   # Fugl-Meyer Subscales (Motor Control & Coordination)
   FM_A:
     - BODY_PART_ARM
@@ -48,21 +21,49 @@ data:
     - RANGE_OF_MOTION_H
     - RANGE_OF_MOTION_V  # Coordination & Speed
 
-  FM_TOTAL:
-    - BODY_PART_ARM
-    - BODY_PART_WRIST
-    - BODY_PART_FINGER
-    - COORDINATION  # Full Upper Limb Score
+  MOCA_VISUO:
+    - VISUALSPATIAL_PROCESSING_AWARENESS_NEGLECT
+    - DAILY_LIVING_ACTIVITY
 
-  # Activity & Movement Quality
-  ACT_AU:
-    - BODY_PART_TRUNK  # Activity Autonomy linked to balance.
+  MOCA_NAMING:
+    - VISUAL_LANGUAGE
 
-  ACT_QOM:
-    - COORDINATION  # Quality of Movement related to balance & coordination.
+  MOCA_ATTENTION:
+    - ATTENTION
+    - MEMORY_WM
+    - PROCESSING_SPEED
+
+  MOCA_LANGUAGE:
+    - VISUAL_LANGUAGE
+    - SYMBOLIC_UNDERSTANDING
+    - SEMANTIC_PROCESSING
+
+  MOCA_ABSTRACTION:
+    - MATH
+
+  MOCA_RECALL:
+    - MEMORY_SEMANTIC
+
+  MOCA_ORIENTATION:
+    - COORDINATION
+
 keys:
   BARTHEL:
   - Barthel Index
   - BI
   VAS:
   - Visual Analog Scale
+  MOCA_VISUO:
+  - MoCA.Visuospatial/Executive
+  MOCA_NAMING:
+  - MoCA.Naming
+  MOCA_ATTENTION:
+  - MoCA.Attention
+  MOCA_LANGUAGE:
+  - MoCA.Language
+  MOCA_ABSTRACTION:
+  - MoCA.Abstraction
+  MOCA_RECALL:
+  - MoCA.Delayed Recall
+  MOCA_ORIENTATION:
+  - MoCA.Orientation

@@ -3,6 +3,7 @@
 import pandas as pd
 from ai_cdss.loaders import DataLoader
 from ai_cdss.processing import DataProcessor
+from ai_cdss.processing.clinical import ClinicalSubscales
 from ai_cdss.processing.processor import ProcessingContext
 from IPython.display import display
 
@@ -11,15 +12,23 @@ timestamp = pd.Timestamp("2025-06-26 10:28:06")
 processor = DataProcessor(context=ProcessingContext(scoring_date=timestamp))
 
 # %%
-# from ai_cdss.interface import CDSSInterface
+patients = loader.interface.fetch_patients_by_study([2])
+patient_ids = patients.PATIENT_ID.unique().tolist()
 
-# cdss_client = CDSSInterface(loader, processor)
-# cdss_client.recommend_for_study(study_id=[405], days=7, protocols_per_day=5, n=12)
+# %%
+# subscales_map = ClinicalSubscales()
+# scales = loader.load_patient_scales(patient_ids)
+# subscales_map.compute_deficit_matrix(scales)
+
+# %%
+from ai_cdss.interface import CDSSInterface
+
+cdss_client = CDSSInterface(loader, processor)
+cdss_client.recommend_for_study(study_id=[2], days=7, protocols_per_day=5, n=12)
 
 # %%2
 from ai_cdss.constants import *
 
-patient_ids = [12]
 patient = loader.load_patient_data(patient_ids)
 display(patient.data)
 session = loader.load_session_data(patient_ids)

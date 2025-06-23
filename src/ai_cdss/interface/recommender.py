@@ -47,7 +47,7 @@ class CDSSInterface:
 
         if patient_data is None or patient_data.empty:  # No patients for given study
             raise ValueError(f"No patients found for study ID: {study_id}")
-        patient_list = patient_data["PATIENT_ID"].tolist()
+        patient_list = patient_data[PATIENT_ID].tolist()
         logger.debug(f"Fetched {len(patient_list)} patients.")
 
         # PPF is a requirement in this pipline
@@ -109,7 +109,7 @@ class CDSSInterface:
         """
         Compute and persist the Patient-Protocol Fit (PPF) matrix for a single patient.
         """
-        patient = self.loader.load_patient_subscales(patient_id)
+        patient = self.loader.load_patient_scales(patient_id)
 
         try:
             patient = patient.loc[
@@ -128,7 +128,9 @@ class CDSSInterface:
         patient_def = ClinicalSubscales().compute_deficit_matrix(patient)
         protocol_map = ProtocolToClinicalMapper().map_protocol_features(protocol)
 
-        missing_subscales = protocol_map.columns.difference(patient.columns)
+        missing_subscales = protocol_map.columns.difference(patient_def.columns)
+        print(patient_def.columns)
+        print(protocol_map.columns)
         if not missing_subscales.empty:
             raise ValueError(
                 f"Patient data is missing required subscales: {', '.join(missing_subscales)}"

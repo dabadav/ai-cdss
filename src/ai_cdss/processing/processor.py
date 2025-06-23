@@ -114,8 +114,11 @@ class DataProcessor:
         # Impute sessions that were not performed, assigning a date and NOT_PERFORMED status
         session_data = include_missing_sessions(session_data)
 
-        session_data[CLINICAL_START] = session_data[CLINICAL_START].dt.normalize()
-        session_data[CLINICAL_END] = session_data[CLINICAL_END].dt.normalize()
+        for col in [CLINICAL_START, CLINICAL_END]:
+            if not pd.api.types.is_datetime64_any_dtype(session_data[col]):
+                session_data[col] = pd.to_datetime(session_data[col], errors="coerce")
+
+            session_data[col] = session_data[col].dt.normalize()
 
         # Compute upper bound: min(scoring_date, session_data[CLINICAL_END])
         date_upper_bound = session_data[CLINICAL_END].where(
@@ -201,6 +204,7 @@ class DataProcessor:
             scoring_columns = BY_PP + [
                 DELTA_DM,
                 RECENT_ADHERENCE,
+                SESSION_INDEX,
                 USAGE,
                 USAGE_WEEK,
                 DAYS,
@@ -214,8 +218,11 @@ class DataProcessor:
 
             # Add weeks since study start
             scoring_input = scoring_input.merge(
-                weeks_since_start_df, on=PATIENT_ID, how="left"
+                weeks_since_start_df, on=BY_PP, how="left"
             )
+
+        print("Columns in score:", scoring_input.columns.tolist())
+        print("Trying to sort by:", BY_PP)
 
         # --- Scoring Data ---
         scored_df = self.compute_score(scoring_input)
@@ -291,7 +298,7 @@ class DataProcessor:
         # Fill with 0
         data[USAGE] = data[USAGE].astype("Int64").fillna(0)
         data[USAGE_WEEK] = data[USAGE_WEEK].astype("Int64").fillna(0)
-        data[TOTAL_PRESCRIBED] = data[TOTAL_PRESCRIBED].astype("Int64").fillna(0)
+        data[SESSION_INDEX] = data[SESSION_INDEX].astype("Int64").fillna(0)
 
         # Fill with current source scoring week of data
         data[WEEKS_SINCE_START] = data[WEEKS_SINCE_START].dropna().unique().max()
