@@ -1,30 +1,40 @@
 # %%
 
+import cProfile
+import io
+import pstats
+
 import pandas as pd
+from ai_cdss.interface import CDSSInterface
 from ai_cdss.loaders import DataLoader
 from ai_cdss.processing import DataProcessor
-from ai_cdss.processing.clinical import ClinicalSubscales
-from ai_cdss.processing.processor import ProcessingContext
 from IPython.display import display
 
 loader = DataLoader(rgs_mode="plus")
 timestamp = pd.Timestamp("2025-06-26 10:28:06")
-processor = DataProcessor(context=ProcessingContext(scoring_date=timestamp))
+processor = DataProcessor()
+pr = cProfile.Profile()
+pr.enable()
 
-# %%
-patients = loader.interface.fetch_patients_by_study([2])
-patient_ids = patients.PATIENT_ID.unique().tolist()
-
-# %%
-# subscales_map = ClinicalSubscales()
-# scales = loader.load_patient_scales(patient_ids)
-# subscales_map.compute_deficit_matrix(scales)
-
-# %%
-from ai_cdss.interface import CDSSInterface
-
+# The code you want to profile:
 cdss_client = CDSSInterface(loader, processor)
-cdss_client.recommend_for_study(study_id=[2], days=7, protocols_per_day=5, n=12)
+print(
+    cdss_client.recommend_for_study(
+        study_id=[2],
+        days=7,
+        protocols_per_day=5,
+        n=12,
+        scoring_date=timestamp,
+    )
+)
+
+pr.disable()
+s = io.StringIO()
+sortby = "cumulative"
+ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+ps.print_stats(30)  # Show top 30 lines
+print(s.getvalue())
+
 
 # %%2
 from ai_cdss.constants import *

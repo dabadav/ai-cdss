@@ -1,168 +1,165 @@
 import datetime
 import logging
+import time
 import uuid
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from ai_cdss.cdss import CDSS
-from ai_cdss.constants import BY_PP, PATIENT_ID, PPF_PARQUET_FILEPATH
+from ai_cdss.constants import BY_PP, DAYS, DELTA_DM, PPF, RECENT_ADHERENCE
 from ai_cdss.loaders import DataLoader
-from ai_cdss.models import DataUnitSet
-from ai_cdss.processing import (
-    ClinicalSubscales,
-    DataProcessor,
-    ProtocolToClinicalMapper,
-)
-from ai_cdss.processing.features import compute_ppf
+from ai_cdss.processing import DataProcessor
+from ai_cdss.services.data_preparation import RecommendationDataService
+from ai_cdss.services.ppf_service import PPFService
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
 
 logger = logging.getLogger(__name__)
 
 
 class CDSSInterface:
+    """
+    Main orchestrator for generating clinical decision support recommendations.
+    Coordinates data preparation, processing, and persistence for study cohorts.
+    """
 
-    def __init__(self, loader: DataLoader, processor: DataProcessor):
+    def __init__(
+        self,
+        loader: DataLoader,
+        processor: DataProcessor,
+        data_service: Optional[RecommendationDataService] = None,
+        ppf_service: Optional[PPFService] = None,
+    ):
         self.loader = loader
         self.processor = processor
+        self.ppf_service = ppf_service or PPFService(loader)
+        self.data_service = data_service or RecommendationDataService(loader)
 
     def recommend_for_study(
-        self, study_id: List[int], n: int, days: int, protocols_per_day: int
-    ) -> Dict[str, str]:
+        self,
+        study_id: List[int],
+        n: int,
+        days: int,
+        protocols_per_day: int,
+        scoring_date: Optional[pd.Timestamp] = None,
+    ) -> Dict[str, Any]:
         """
         Generate recommendations for all patients in a study.
-
-        Args:
-            study_id: Identifier for the study cohort.
-            n: Number of protocols to recommend.
-            days: Number of days to plan for.
-            protocols_per_day: Number of protocols per day.
-
-        Returns:
-            A dictionary with a success message.
+        Returns a detailed result dictionary.
         """
-        # Loading
-        logger.info(f"Starting recommendation generation for study: {study_id}")
-
-        patient_data = self.loader.interface.fetch_patients_by_study(study_ids=study_id)
-
-        if patient_data is None or patient_data.empty:  # No patients for given study
-            raise ValueError(f"No patients found for study ID: {study_id}")
-        patient_list = patient_data[PATIENT_ID].tolist()
-        logger.debug(f"Fetched {len(patient_list)} patients.")
-
-        # PPF is a requirement in this pipline
-        ppf = self.loader.load_ppf_data(patient_list)
-        missing = ppf.metadata.get("missing_patients", [])
-        if missing:
-            logger.info(f"Running PPF computation for patients: {missing}")
-            self.compute_patient_fit(missing)
-
-        session = self.loader.load_session_data(patient_list)
-        protocol_similarity = self.loader.load_protocol_similarity()
-
-        rgs_data = DataUnitSet([session, ppf])
-
-        # Processing
-        scores = self.processor.process_data(rgs_data)
-        cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
-
-        unique_id = uuid.uuid4()
-        datetime_now = datetime.datetime.now()
-
-        # Recommendations
-        for patient in patient_list:
-
-            recommendations = cdss.recommend(patient, protocol_similarity)
-
-            # Transform dataframes
-            prescription_df = recommendations.explode("DAYS").rename(
-                columns={"DAYS": "WEEKDAY"}
+        logger.info("Starting recommendation generation for study: %s", study_id)
+        start_time = time.time()
+        try:
+            patient_list, rgs_data, protocol_similarity = self.data_service.prepare(
+                study_id
             )
-            metrics_df = pd.melt(
-                recommendations,
-                id_vars=BY_PP,
-                value_vars=["DELTA_DM", "ADHERENCE_RECENT", "PPF"],
-                var_name="KEY",
-                value_name="VALUE",
+            scores = self.processor.process_data(
+                rgs_data, scoring_date or pd.Timestamp.today()
             )
+            cdss = CDSS(
+                scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day
+            )
+            unique_id = uuid.uuid4()
+            datetime_now = datetime.datetime.now()
 
-            # Save prescriptions
-            for _, row in prescription_df.iterrows():
-                self.loader.interface.add_prescription_staging_entry(
-                    PrescriptionStagingRow.from_row(
-                        row, recommendation_id=unique_id, start=datetime_now
-                    )
+            total_recommendations = 0
+            patient_results = []
+
+            for patient in patient_list:
+                recommendations = cdss.recommend(patient, protocol_similarity)
+                total_recommendations += len(recommendations)
+                prescription_df, metrics_df = self._transform_recommendation_dataframes(
+                    recommendations
+                )
+                self._save_prescriptions(prescription_df, unique_id, datetime_now)
+                self._save_metrics(metrics_df, unique_id, datetime_now)
+                patient_results.append(
+                    {"patient_id": patient, "num_recommendations": len(recommendations)}
                 )
 
-            # Save metrics
-            for _, row in metrics_df.iterrows():
-                self.loader.interface.add_recsys_metric_entry(
-                    RecsysMetricsRow.from_row(
-                        row, recommendation_id=unique_id, metric_date=datetime_now
-                    )
-                )
+            elapsed = time.time() - start_time
+            logger.info("Successfully generated recommendations for study %s", study_id)
+            return {
+                "status": "success",
+                "study_id": study_id,
+                "run_id": str(unique_id),
+                "patients_processed": len(patient_list),
+                "total_recommendations": total_recommendations,
+                "per_patient": patient_results,
+                "start_time": datetime_now.isoformat(),
+                "elapsed_seconds": elapsed,
+                "message": f"Recommendations generated for study {study_id}",
+            }
+        except Exception as e:
+            logger.error(
+                "Failed to generate recommendations for study %s: %s", study_id, e
+            )
+            return {
+                "status": "failure",
+                "study_id": study_id,
+                "error": str(e),
+                "message": f"Failed to generate recommendations for study {study_id}",
+            }
 
-        logger.info(f"Successfully generated recommendations for study {study_id}")
-        return {"message": f"Recommendations generated for study {study_id}"}
+    def _transform_recommendation_dataframes(
+        self, recommendations: pd.DataFrame
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """
+        Transform the recommendations DataFrame into prescription and metrics DataFrames.
+        """
+        prescription_df = recommendations.explode(DAYS).rename(
+            columns={DAYS: "WEEKDAY"}
+        )
+        metrics_df = pd.melt(
+            recommendations,
+            id_vars=BY_PP,
+            value_vars=[DELTA_DM, RECENT_ADHERENCE, PPF],
+            var_name="KEY",
+            value_name="VALUE",
+        )
+        return prescription_df, metrics_df
+
+    def _save_prescriptions(
+        self,
+        prescription_df: pd.DataFrame,
+        unique_id: uuid.UUID,
+        datetime_now: datetime.datetime,
+    ) -> None:
+        """
+        Persist prescription data.
+        """
+        for _, row in prescription_df.iterrows():
+            self.loader.interface.add_prescription_staging_entry(
+                PrescriptionStagingRow.from_row(
+                    row, recommendation_id=unique_id, start=datetime_now
+                )
+            )
+
+    def _save_metrics(
+        self,
+        metrics_df: pd.DataFrame,
+        unique_id: uuid.UUID,
+        datetime_now: datetime.datetime,
+    ) -> None:
+        """
+        Persist metrics data.
+        """
+        for _, row in metrics_df.iterrows():
+            self.loader.interface.add_recsys_metric_entry(
+                RecsysMetricsRow.from_row(
+                    row, recommendation_id=unique_id, metric_date=datetime_now
+                )
+            )
 
     def compute_patient_fit(self, patient_id: List[int]) -> dict:
         """
         Compute and persist the Patient-Protocol Fit (PPF) matrix for a single patient.
+        Delegates to PPFService.
         """
-        patient = self.loader.load_patient_scales(patient_id)
-
-        try:
-            patient = patient.loc[
-                patient_id
-            ]  #### Remove after load_patient_subscales db implementation
-        except KeyError:
-            raise ValueError(f"Patient clinical data not found for ID: {patient_id}")
-
-        if patient.empty:
-            raise ValueError(f"Patient data not found for ID: {patient_id}")
-
-        protocol = self.loader.load_protocol_attributes()
-        if protocol.empty:
-            raise ValueError("Protocol data could not be loaded.")
-
-        patient_def = ClinicalSubscales().compute_deficit_matrix(patient)
-        protocol_map = ProtocolToClinicalMapper().map_protocol_features(protocol)
-
-        missing_subscales = protocol_map.columns.difference(patient_def.columns)
-        print(patient_def.columns)
-        print(protocol_map.columns)
-        if not missing_subscales.empty:
-            raise ValueError(
-                f"Patient data is missing required subscales: {', '.join(missing_subscales)}"
-            )
-        patient_def = patient_def[protocol_map.columns]
-
-        ppf, contrib = compute_ppf(patient_def, protocol_map)
-        ppf_contrib = pd.merge(ppf, contrib, on=BY_PP, how="left")
-        ppf_contrib.attrs = {"SUBSCALES": list(protocol_map.columns)}
-
-        if not ppf_contrib.empty:
-            try:
-                if not PPF_PARQUET_FILEPATH.exists():
-                    ppf_contrib.to_parquet(PPF_PARQUET_FILEPATH, index=False)
-                else:
-                    existing = pd.read_parquet(PPF_PARQUET_FILEPATH)
-                    keys = ppf_contrib[BY_PP]
-                    merged = existing.merge(keys, on=BY_PP, how="left", indicator=True)
-                    filtered = existing[merged["_merge"] == "left_only"]
-                    updated = pd.concat([filtered, ppf_contrib], ignore_index=True)
-                    updated.attrs = {"SUBSCALES": list(protocol_map.columns)}
-                    updated.to_parquet(PPF_PARQUET_FILEPATH)
-
-                return {
-                    "message": f"Computation successful for patient {patient_id}",
-                    "patient_id": patient_id,
-                    "subscales_used": list(protocol_map.columns),
-                    "saved_to": str(PPF_PARQUET_FILEPATH.absolute()),
-                }
-
-            except Exception as e:
-                raise RuntimeError(f"Failed to save results to Parquet: {e}")
-
-        else:
-            raise ValueError(f"No PPF data to save for patient {patient_id}")
+        ppf_contrib = self.ppf_service.compute_patient_fit(patient_id)
+        file_path = self.ppf_service.persist_ppf(ppf_contrib)
+        return {
+            "message": f"Computation and persistence successful for patient {patient_id}",
+            "patient_id": patient_id,
+            "subscales_used": list(ppf_contrib.attrs.get("SUBSCALES", [])),
+            "saved_to": file_path,
+        }
