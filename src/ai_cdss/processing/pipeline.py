@@ -163,7 +163,7 @@ class DataPipeline:
         ]
         feat_agg = pd.DataFrame(columns=scoring_columns)
         scoring_input = reduce(
-            lambda l, r: safe_merge(l, r, on=BY_PP), [ppf_data, feat_agg]
+            lambda l, r: pd.merge(l, r, on=BY_PP, how="left"), [ppf_data, feat_agg]
         )
         scoring_input = scoring_input.merge(weeks_since_start_df, on=BY_PP, how="left")
         return scoring_input

@@ -6,7 +6,16 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 from ai_cdss.cdss import CDSS
-from ai_cdss.constants import BY_PP, DAYS, DELTA_DM, PPF, RECENT_ADHERENCE
+from ai_cdss.constants import (
+    BY_PP,
+    CONTRIB,
+    DAYS,
+    DELTA_DM,
+    PATIENT_ID,
+    PPF,
+    RECENT_ADHERENCE,
+    SCORE,
+)
 from ai_cdss.loaders import DataLoader
 from ai_cdss.processing import DataProcessor
 from ai_cdss.services.data_preparation import RecommendationDataService
@@ -60,21 +69,15 @@ class CDSSInterface:
             )
             unique_id = uuid.uuid4()
             datetime_now = datetime.datetime.now()
-
-            total_recommendations = 0
-            patient_results = []
-
-            for patient in patient_list:
-                recommendations = cdss.recommend(patient, protocol_similarity)
-                total_recommendations += len(recommendations)
-                prescription_df, metrics_df = self._transform_recommendation_dataframes(
-                    recommendations
+            patient_results = [
+                self._process_patient(
+                    patient, cdss, protocol_similarity, scores, unique_id, datetime_now
                 )
-                self._save_prescriptions(prescription_df, unique_id, datetime_now)
-                self._save_metrics(metrics_df, unique_id, datetime_now)
-                patient_results.append(
-                    {"patient_id": patient, "num_recommendations": len(recommendations)}
-                )
+                for patient in patient_list
+            ]
+            total_recommendations = sum(
+                r["num_recommendations"] for r in patient_results
+            )
 
             elapsed = time.time() - start_time
             logger.info("Successfully generated recommendations for study %s", study_id)
@@ -91,32 +94,89 @@ class CDSSInterface:
             }
         except Exception as e:
             logger.error(
-                "Failed to generate recommendations for study %s: %s", study_id, e
+                "Failed to generate recommendations for study %s: %s (%s)",
+                study_id,
+                e,
+                type(e).__name__,
             )
             return {
                 "status": "failure",
                 "study_id": study_id,
-                "error": str(e),
+                "error": f"{type(e).__name__}: {e}",
                 "message": f"Failed to generate recommendations for study {study_id}",
             }
 
-    def _transform_recommendation_dataframes(
-        self, recommendations: pd.DataFrame
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def _process_patient(
+        self,
+        patient,
+        cdss,
+        protocol_similarity,
+        scores,
+        unique_id,
+        datetime_now,
+    ):
         """
-        Transform the recommendations DataFrame into prescription and metrics DataFrames.
+        Process recommendations and metrics for a single patient.
+
+        This helper handles recommendation generation, prescription and metrics transformation,
+        persistence, and error handling for one patient in a batch run.
+
+        Args:
+            patient: The patient ID to process.
+            cdss: The CDSS instance for generating recommendations.
+            protocol_similarity: Protocol similarity data for recommendations.
+            scores: DataFrame of all scored protocols.
+            unique_id: UUID for this batch run.
+            datetime_now: Timestamp for this batch run.
+
+        Returns:
+            dict: A result dictionary with patient_id, num_recommendations, status, and (on failure) error.
+        """
+        try:
+            recommendations = cdss.recommend(patient, protocol_similarity)
+            prescription_df = self._transform_recommendations(recommendations)
+            self._save_prescriptions(prescription_df, unique_id, datetime_now)
+            patient_scores = scores[scores[PATIENT_ID] == patient]
+            all_metrics_df = self._transform_metrics(patient_scores)
+            self._save_metrics(all_metrics_df, unique_id, datetime_now)
+            return {
+                "patient_id": patient,
+                "num_recommendations": len(recommendations),
+                "status": "success",
+            }
+        except Exception as e:
+            logger.error(
+                "Failed to process patient %s: %s (%s)", patient, e, type(e).__name__
+            )
+            return {
+                "patient_id": patient,
+                "num_recommendations": 0,
+                "status": "failure",
+                "error": f"{type(e).__name__}: {e}",
+            }
+
+    def _transform_recommendations(self, recommendations: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transform the recommendations DataFrame into prescription DataFramee.
+        Only for recommended protocols.
         """
         prescription_df = recommendations.explode(DAYS).rename(
             columns={DAYS: "WEEKDAY"}
         )
+        return prescription_df
+
+    def _transform_metrics(self, scores: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transform the full scored protocols DataFrame into a metrics DataFrame for all protocols.
+        """
         metrics_df = pd.melt(
-            recommendations,
+            scores,
             id_vars=BY_PP,
-            value_vars=[DELTA_DM, RECENT_ADHERENCE, PPF],
+            value_vars=[PPF, DELTA_DM, RECENT_ADHERENCE, SCORE],
             var_name="KEY",
             value_name="VALUE",
         )
-        return prescription_df, metrics_df
+        return metrics_df
 
     def _save_prescriptions(
         self,
