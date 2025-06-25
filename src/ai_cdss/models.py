@@ -37,7 +37,7 @@ class Granularity(Enum):
                 Granularity.PATIENT_ID: [PATIENT_ID],
             }[self]
         except KeyError:
-            raise ValueError(f"Unsupported Granularity: {self}")
+            raise ValueError("Unsupported Granularity: %s" % self)
 
 
 class DataUnitName(str, Enum):
@@ -236,8 +236,9 @@ def safe_check_types(schema_model: Type[pa.DataFrameModel]):
 
             if df.empty:
                 logger.warning(
-                    f"Returned DataFrame from `{func.__name__}` is empty. "
-                    f"Kwargs: {kwargs}"
+                    "Returned DataFrame from `%s` is empty. Kwargs: %s",
+                    func.__name__,
+                    kwargs,
                 )
                 return df
 
@@ -267,7 +268,9 @@ def safe_check_types(schema_model: Type[pa.DataFrameModel]):
             # Log all skipped columns once
             if skipped_columns:
                 logger.debug(
-                    f"Skipped dtype check for empty columns in `{schema_name}`: {', '.join(skipped_columns)}"
+                    "Skipped dtype check for empty columns in `%s`: %s",
+                    schema_name,
+                    ", ".join(skipped_columns),
                 )
 
             # Reconstruct modified schema

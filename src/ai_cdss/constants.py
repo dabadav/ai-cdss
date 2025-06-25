@@ -17,6 +17,10 @@ DEFAULT_LOG_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_LOG_SCORING_FILEPATH = "scored_features_{scoring_date}.csv"
 PPF_PARQUET_FILEPATH = DEFAULT_OUTPUT_DIR / "ppf.parquet"
 
+CLINICAL_SCORES_CSV = "clinical_scores.csv"
+PROTOCOL_ATTRIBUTES_CSV = "protocol_attributes.csv"
+PROTOCOL_SIMILARITY_CSV = "protocol_similarity.csv"
+
 ############################
 # PARAMETERS
 ############################
@@ -38,6 +42,7 @@ PRESCRIPTION_ID = "PRESCRIPTION_ID"
 SESSION_ID = "SESSION_ID"
 CLINICAL_START = "CLINICAL_TRIAL_START_DATE"
 CLINICAL_END = "CLINICAL_TRIAL_END_DATE"
+CLINICAL_SCORES = "CLINICAL_SCORES"
 
 STATUS = "STATUS"
 
