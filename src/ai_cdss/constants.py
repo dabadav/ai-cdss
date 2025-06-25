@@ -26,6 +26,9 @@ SAVGOL_WINDOW_SIZE = 7
 SAVGOL_POLY_ORDER = 2
 THEILSON_REGRESSION_WINDOW_SIZE = 7
 
+# EWMA
+EWMA_ALPHA = 0.5
+
 ############################
 # ABBREVIATIONS
 ############################

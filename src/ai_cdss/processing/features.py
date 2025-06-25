@@ -133,7 +133,7 @@ def generate_expected_sessions(
     return list(pd.date_range(start=start, end=end, freq=freq))
 
 
-def compute_ewma(df, value_col, group_cols, sufix=""):
+def compute_ewma(df, value_col, group_cols, sufix="", alpha=EWMA_ALPHA):
     """
     Compute the exponentially weighted moving average (EWMA) of a value column grouped by specified columns.
 
@@ -142,6 +142,7 @@ def compute_ewma(df, value_col, group_cols, sufix=""):
         value_col (str): Name of the value column to smooth.
         group_cols (list): Columns to group by.
         sufix (str): Suffix to append to the new column name.
+        alpha (float): Smoothing factor for EWMA. Default is EWMA_ALPHA from constants.
 
     Returns:
         DataFrame: DataFrame with the new EWMA column added.
@@ -149,7 +150,7 @@ def compute_ewma(df, value_col, group_cols, sufix=""):
     return df.assign(
         **{
             f"{value_col}{sufix}": df.groupby(by=group_cols)[value_col].transform(
-                lambda x: x.ewm(alpha=0.5, adjust=True).mean()
+                lambda x: x.ewm(alpha=alpha, adjust=True).mean()
             )
         }
     )

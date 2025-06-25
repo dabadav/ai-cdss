@@ -39,7 +39,7 @@ from ai_cdss.loaders import DataLoader
 from ai_cdss.processing import DataProcessor
 
 loader = DataLoader()
-loader.load_patient_scales([775])
+loader.load_patient_subscales([775])
 
 # %%
 

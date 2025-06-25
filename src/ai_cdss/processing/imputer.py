@@ -1,5 +1,12 @@
 import pandas as pd
-from ai_cdss.constants import *
+from ai_cdss.constants import (
+    DAYS,
+    PATIENT_ID,
+    SESSION_INDEX,
+    USAGE,
+    USAGE_WEEK,
+    WEEKS_SINCE_START,
+)
 
 
 class Imputer:
@@ -8,8 +15,8 @@ class Imputer:
     ) -> pd.DataFrame:
         data_imputed = data.copy()
         merged = data_imputed.merge(
-            values[["PATIENT_ID", column]],
-            on="PATIENT_ID",
+            values[[PATIENT_ID, column]],
+            on=PATIENT_ID,
             how="left",
             suffixes=("", "_median"),
         )
