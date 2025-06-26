@@ -12,7 +12,6 @@ from ai_cdss.loaders import DataLoader
 from rgs_interface.data.interface import DatabaseInterface
 
 st.set_page_config(layout="wide")
-
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -68,7 +67,7 @@ def show_calendar(week_prescriptions):
         and "WEEKDAY" in week_prescriptions.columns
     ):
         calendar = week_prescriptions.copy()
-        calendar["tick"] = "✔"
+        calendar["PROTOCOL_ID"] = calendar["PROTOCOL_ID"].astype(str)
         # Map full weekday names to two-letter abbreviations
         weekday_map = {
             "MONDAY": "MON",
@@ -81,16 +80,77 @@ def show_calendar(week_prescriptions):
         }
         calendar["WEEKDAY"] = calendar["WEEKDAY"].map(weekday_map)
         weekday_order = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
-        pivot = calendar.pivot_table(
-            index="PROTOCOL_ID",
-            columns="WEEKDAY",
-            values="tick",
-            aggfunc="first",
-            fill_value="",
-        )
-        available_weekdays = [day for day in weekday_order if day in pivot.columns]
-        pivot = pivot[available_weekdays]
-        st.dataframe(pivot, height=460)
+        protocol_ids = calendar["PROTOCOL_ID"].unique().tolist()
+
+        # Build a set of (protocol, weekday) pairs that are scheduled
+        scheduled = set(zip(calendar["PROTOCOL_ID"], calendar["WEEKDAY"]))
+
+        # Build HTML table with dark theme and strong highlight
+        html = """
+        <style>
+        table.calendar-table {
+            border-collapse: collapse;
+            width: 90%;
+            font-size: 0.9em;
+            background-color: #23272f;
+            color: #f1f1f1;
+        }
+        table.calendar-table th, table.calendar-table td {
+            border: 1px solid #444;
+            padding: 8px;
+            text-align: center;
+            width: 50px; /* Set all columns to the same width */
+            min-width: 50px;
+            max-width: 50px;
+        }
+        table.calendar-table th {
+            background-color: #14532d;
+            color: #fff;
+        }
+        table.calendar-table tr {
+            background-color: #23272f;
+        }
+        table.calendar-table tr:nth-child(even) {
+            background-color: #2c313a;
+        }
+        table.calendar-table td.scheduled {
+            background-color: #00ff99 !important;
+            color: #23272f !important;
+            font-weight: bold;
+            font-size: 0.9em;
+            box-shadow: 0 0 8px #00ff99;
+            border: 2px solid #fff;
+        }
+        </style>
+        <table class="calendar-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>MON</th>
+                    <th>TUE</th>
+                    <th>WED</th>
+                    <th>THU</th>
+                    <th>FRI</th>
+                    <th>SAT</th>
+                    <th>SUN</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+        for pid in protocol_ids:
+            html += "<tr>"
+            html += f"<td>{pid}</td>"
+            for day in weekday_order:
+                if (pid, day) in scheduled:
+                    html += '<td class="scheduled"></td>'
+                else:
+                    html += "<td></td>"
+            html += "</tr>"
+        html += """
+            </tbody>
+        </table>
+        """
+        st.markdown(html, unsafe_allow_html=True)
     else:
         st.dataframe(week_prescriptions)
         st.info(
@@ -197,7 +257,7 @@ def plot_metrics_facet_barplot(week_metrics, prescriptions):
         chart = (
             alt.layer(bars, mean_hline)
             # alt.layer(bars, mean_hline, mean_vline)
-            .properties(width=600, height=120)
+            .properties(width=500, height=100)
             .facet(
                 row=alt.Row(
                     "METRIC_KEY:N",
@@ -205,7 +265,7 @@ def plot_metrics_facet_barplot(week_metrics, prescriptions):
                     sort=["SCORE", "PPF", "Delta DM", "Adherence"],
                 )
             )
-            .properties(title="Protocol Metrics by Type (Red dash = mean)")
+            .properties(title="Protocol Metrics (Red dash = mean)")
         )
 
         st.altair_chart(chart, use_container_width=True)
@@ -237,7 +297,7 @@ def main():
                         "No WEEKS_SINCE_START information in prescriptions data. Showing all prescriptions."
                     )
                 # --- Two-column layout ---
-                col1, col2 = st.columns([1, 1])
+                col1, col2 = st.columns([1, 1.5])
                 with col1:
                     if not week_prescriptions.empty:
                         show_calendar(week_prescriptions)
