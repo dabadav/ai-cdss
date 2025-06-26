@@ -15,6 +15,9 @@ from ai_cdss.constants import (
     PPF,
     RECENT_ADHERENCE,
     SCORE,
+    SESSION_INDEX,
+    USAGE,
+    USAGE_WEEK,
 )
 from ai_cdss.loaders import DataLoader
 from ai_cdss.processing import DataProcessor
@@ -174,7 +177,15 @@ class CDSSInterface:
         metrics_df = pd.melt(
             scores,
             id_vars=BY_PP,
-            value_vars=[PPF, DELTA_DM, RECENT_ADHERENCE, SCORE],
+            value_vars=[
+                PPF,
+                DELTA_DM,
+                RECENT_ADHERENCE,
+                SCORE,
+                USAGE,
+                USAGE_WEEK,
+                SESSION_INDEX,
+            ],
             var_name="KEY",
             value_name="VALUE",
         )

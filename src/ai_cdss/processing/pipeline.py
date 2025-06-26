@@ -2,13 +2,28 @@ import logging
 from functools import reduce
 
 import pandas as pd
-from ai_cdss.constants import *
+from ai_cdss.constants import (
+    BY_PP,
+    BY_PPS,
+    CLINICAL_END,
+    CLINICAL_START,
+    DAYS,
+    DELTA_DM,
+    DM_VALUE,
+    FINAL_METRICS,
+    PATIENT_ID,
+    RECENT_ADHERENCE,
+    SESSION_DATE,
+    SESSION_INDEX,
+    USAGE,
+    USAGE_WEEK,
+)
 from ai_cdss.models import DataUnitName
 from ai_cdss.processing.feature_builder import FeatureBuilder
 from ai_cdss.processing.features import include_missing_sessions
 from ai_cdss.processing.imputer import Imputer
 from ai_cdss.processing.scorer import Scorer
-from ai_cdss.processing.utils import get_nth, safe_merge
+from ai_cdss.processing.utils import get_nth
 
 logger = logging.getLogger(__name__)
 
