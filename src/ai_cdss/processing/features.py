@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -259,26 +259,46 @@ def compute_ppf(patient_deficiency, protocol_mapped):
     return ppf_long, contrib_long
 
 
-def compute_protocol_similarity(protocol_mapped):
-    """Compute protocol similarity."""
+def compute_protocol_similarity(
+    protocol_mapped,
+    id_col: str = "PROTOCOL_ID",
+    hot_encoded_prefix: Optional[str] = None,
+):
+    """Compute pairwise protocol similarity."""
     import gower
 
-    protocol_attributes = protocol_mapped.copy()
-    protocol_ids = protocol_attributes.PROTOCOL_ID
-    protocol_attributes.drop(columns=PROTOCOL_ID, inplace=True)
+    protocol_attributes = protocol_mapped.copy().reset_index()
+    protocol_ids = protocol_attributes[id_col]
+    protocol_attributes = protocol_attributes.drop(columns=[id_col])
 
-    hot_encoded_cols = protocol_attributes.columns.str.startswith("BODY_PART")
-    weights = np.ones(len(protocol_attributes.columns))
-    weights[hot_encoded_cols] = weights[hot_encoded_cols] / hot_encoded_cols.sum()
-    protocol_attributes = protocol_attributes.astype(float)
+    # Weighting for hot-encoded columns (if present)
+    if hot_encoded_prefix:
+        hot_encoded_cols = protocol_attributes.columns.str.startswith(
+            hot_encoded_prefix
+        )
+        weights = np.ones(len(protocol_attributes.columns))
+        if hot_encoded_cols.any():
+            weights[hot_encoded_cols] /= hot_encoded_cols.sum()
+    else:
+        weights = np.ones(len(protocol_attributes.columns))
 
+    # Ensure all attributes are numeric (float)
+    try:
+        protocol_attributes = protocol_attributes.astype(float)
+    except Exception as e:
+        raise ValueError(
+            "Non-numeric columns found. Please encode categorical variables before passing."
+        ) from e
+
+    # Compute Gower similarity
     gower_sim_matrix = gower.gower_matrix(protocol_attributes, weight=weights)
-    gower_sim_matrix = pd.DataFrame(
-        1 - gower_sim_matrix, index=protocol_ids, columns=protocol_ids
+    # Convert to dataframe with similarity (1 - distance)
+    gower_sim_df = (
+        pd.DataFrame(1 - gower_sim_matrix, index=protocol_ids, columns=protocol_ids)
+        .stack()
+        .rename_axis([PROTOCOL_A, PROTOCOL_B])
+        .reset_index()
     )
-    gower_sim_matrix.columns.name = "PROTOCOL_SIM"
+    gower_sim_df.columns = [PROTOCOL_A, PROTOCOL_B, SIMILARITY]
 
-    gower_sim_matrix = gower_sim_matrix.stack().reset_index()
-    gower_sim_matrix.columns = [PROTOCOL_A, PROTOCOL_B, SIMILARITY]
-
-    return gower_sim_matrix
+    return gower_sim_df

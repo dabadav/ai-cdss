@@ -20,6 +20,7 @@ from ai_cdss.loaders import DataLoader
 from ai_cdss.processing import DataProcessor
 from ai_cdss.services.data_preparation import RecommendationDataService
 from ai_cdss.services.ppf_service import PPFService
+from ai_cdss.services.protocol_similarity import ProtocolSimilarityService
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class CDSSInterface:
         self.processor = processor
         self.ppf_service = ppf_service or PPFService(loader)
         self.data_service = data_service or RecommendationDataService(loader)
+        self.protocol_similarity_service = ProtocolSimilarityService(loader)
 
     def recommend_for_study(
         self,
@@ -221,5 +223,18 @@ class CDSSInterface:
             "message": f"Computation and persistence successful for patient {patient_id}",
             "patient_id": patient_id,
             "subscales_used": list(ppf_contrib.attrs.get("SUBSCALES", [])),
+            "saved_to": file_path,
+        }
+
+    def compute_protocol_similarity(self) -> dict:
+        """
+        Compute and persist the protocol similarity matrix using the ProtocolSimilarityService.
+        Returns a dict with the file path and a message.
+        """
+        file_path = (
+            self.protocol_similarity_service.compute_and_persist_protocol_similarity()
+        )
+        return {
+            "message": "Protocol similarity computation and persistence successful.",
             "saved_to": file_path,
         }

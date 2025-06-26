@@ -19,7 +19,7 @@ class ClinicalSubscales:
         if scale_yaml_path:
             self.scales_path = Path(scale_yaml_path)
         else:
-            self.scales_path = importlib.resources.files(config) / "scales.yaml"
+            self.scales_path = importlib.resources.files(config) / Path(SCALES_YAML)
         if not self.scales_path.exists():
             raise FileNotFoundError(f"Scale YAML file not found at {self.scales_path}")
 
@@ -61,7 +61,7 @@ class ProtocolToClinicalMapper:
         if mapping_yaml_path:
             self.mapping_path = Path(mapping_yaml_path)
         else:
-            self.mapping_path = importlib.resources.files(config) / "mapping.yaml"
+            self.mapping_path = importlib.resources.files(config) / Path(MAPPING_YAML)
         if not self.mapping_path.exists():
             raise FileNotFoundError(f"Scale YAML file not found at {self.mapping_path}")
         # logger.info(f"Loading subscale max values from: {self.scales_path}")

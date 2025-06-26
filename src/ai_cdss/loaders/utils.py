@@ -112,13 +112,44 @@ def _load_protocol_attributes(
     file_path: Optional[Union[str, Path]] = None,
 ) -> pd.DataFrame:
     """
-    Load protocol attributes from a given file or the default directory.
+    Load protocol attributes from a given file or the default directory. If not found, load from embedded package data.
     Args:
         file_path: Path or str to the file, or None for default.
     Returns:
         pd.DataFrame
     """
-    return safe_load_csv(file_path, PROTOCOL_ATTRIBUTES_CSV)
+    import importlib.resources
+
+    from ai_cdss import data
+
+    # Determine the path to use
+    if file_path is not None:
+        file_path = Path(file_path)
+    else:
+        file_path = DEFAULT_DATA_DIR / PROTOCOL_ATTRIBUTES_CSV
+
+    # Try to load from the file system
+    if file_path.exists():
+        return safe_load_csv(file_path, PROTOCOL_ATTRIBUTES_CSV)
+
+    # If not found, try to load from embedded package data
+    try:
+        file_path = importlib.resources.files(data).joinpath(PROTOCOL_ATTRIBUTES_CSV)
+        df = safe_load_csv(file_path)
+        # Save a copy to the output dir for future use
+        save_path = DEFAULT_DATA_DIR / PROTOCOL_ATTRIBUTES_CSV
+        DEFAULT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        df.to_csv(save_path, index=True)
+        logger.info(
+            "Protocol attributes loaded from embedded package and saved to %s",
+            save_path,
+        )
+        return df
+    except Exception as e:
+        raise FileNotFoundError(
+            "Protocol attributes file not found at %s or in embedded package data: %s"
+            % (file_path, e)
+        ) from e
 
 
 def _load_protocol_similarity(

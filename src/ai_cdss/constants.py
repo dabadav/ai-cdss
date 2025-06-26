@@ -21,6 +21,9 @@ CLINICAL_SCORES_CSV = "clinical_scores.csv"
 PROTOCOL_ATTRIBUTES_CSV = "protocol_attributes.csv"
 PROTOCOL_SIMILARITY_CSV = "protocol_similarity.csv"
 
+SCALES_YAML = "scales.yaml"
+MAPPING_YAML = "mapping.yaml"
+
 ############################
 # PARAMETERS
 ############################
@@ -65,7 +68,6 @@ DM_VALUE = "DM_VALUE"
 PE_VALUE = "PE_VALUE"
 
 DELTA_DM = "DELTA_DM"
-
 PPF = "PPF"
 CONTRIB = "CONTRIB"
 
