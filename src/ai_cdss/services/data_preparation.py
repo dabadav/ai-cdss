@@ -17,7 +17,6 @@ class RecommendationDataService:
         """
         Args:
             loader (DataLoader): DataLoader instance for data access.
-            compute_patient_fit (Callable): Function to compute PPF for missing patients.
         """
         self.loader = loader
 

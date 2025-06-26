@@ -38,3 +38,9 @@ class DataLoaderBase(ABC):
     @abstractmethod
     def load_protocol_attributes(self, file_path: Optional[str] = None) -> pd.DataFrame:
         pass
+
+    @abstractmethod
+    def fetch_and_validate_patients(
+        self, study_ids: Optional[List[int]] = None
+    ) -> List[int]:
+        pass

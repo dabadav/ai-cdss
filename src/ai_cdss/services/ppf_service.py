@@ -14,8 +14,10 @@ class PPFService:
     Service for computing and persisting Patient-Protocol Fit (PPF) matrices.
     """
 
-    def __init__(self, loader):
+    def __init__(self, loader, mapping_yaml_path=None, scale_yaml_path=None):
         self.loader = loader
+        self.mapping_yaml_path = mapping_yaml_path
+        self.scale_yaml_path = scale_yaml_path
 
     def compute_patient_fit(self, patient_id: List[int]) -> pd.DataFrame:
         """
@@ -30,8 +32,12 @@ class PPFService:
         if protocol.empty:
             raise ValueError("Protocol data could not be loaded.")
 
-        patient_def = ClinicalSubscales().compute_deficit_matrix(patient)
-        protocol_map = ProtocolToClinicalMapper().map_protocol_features(protocol)
+        patient_def = ClinicalSubscales(
+            scale_yaml_path=self.scale_yaml_path
+        ).compute_deficit_matrix(patient)
+        protocol_map = ProtocolToClinicalMapper(
+            mapping_yaml_path=self.mapping_yaml_path
+        ).map_protocol_features(protocol)
 
         missing_subscales = protocol_map.columns.difference(patient_def.columns)
         if not missing_subscales.empty:
