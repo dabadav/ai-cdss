@@ -268,8 +268,17 @@ class CDSS:
         # Find the minimum usage value
         min_usage = usage.min()
 
-        # Get candidates with the lowest usage
-        candidates = usage[usage == min_usage].index
+        if min_usage == 0:
+            # Get candidates with the lowest usage
+            candidates = usage[usage == min_usage].index
+        
+        else:
+            # Get top 5 similar protocols
+            top_similar = similarities.nlargest(5, SIMILARITY)
+            # Get least used 5 similar protocol from usage
+            usage = usage[usage[PROTOCOL_B].isin(top_similar)]
+            min_usage = usage.min()
+            candidates = usage[usage == min_usage].index
 
         # Among these candidates, select the one with the highest similarity
         candidate_similarities = similarities[similarities[PROTOCOL_B].isin(candidates)]
