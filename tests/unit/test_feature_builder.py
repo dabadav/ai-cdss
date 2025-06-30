@@ -98,6 +98,17 @@ def test_get_rolling_theilsen_slope_dm_like(logger=None):
 # ---------------------------------------------------------------
 
 
+@pytest.fixture
+def patient_df():
+    return pd.DataFrame(
+        {
+            "PATIENT_ID": [1, 1, 2],
+            "CLINICAL_TRIAL_START_DATE": [datetime.datetime(2024, 1, 1)] * 3,
+            "CLINICAL_TRIAL_END_DATE": [datetime.datetime(2024, 1, 31)] * 3,
+        }
+    )
+
+
 # Also for scoring date
 @pytest.fixture
 def session_df():
@@ -128,8 +139,6 @@ def session_df():
             "PRESCRIBED_SESSION_DURATION": [30, 30, 45],
             "SESSION_DURATION": [30, 0, 45],
             "ADHERENCE": [1.0, 0.0, 1.0],
-            "CLINICAL_TRIAL_START_DATE": [datetime.datetime(2024, 1, 1)] * 3,
-            "CLINICAL_TRIAL_END_DATE": [datetime.datetime(2024, 1, 31)] * 3,
         }
     )
 
@@ -180,18 +189,20 @@ def test_build_week_usage_with_fixture(session_df, logger=None):
 # ---------------------------------------------------------------
 
 
-def test_build_week_since_start_with_fixture(session_df, logger=None):
+def test_build_week_since_start_with_fixture(patient_df, logger=None):
     print("\n--- Testing build_week_since_start ---")
     fb = FeatureBuilder()
     log = logger.info if logger else print
     log("Input DataFrame:")
     with pd.option_context("display.max_columns", None, "display.width", 1000):
-        print(session_df)
-    result = fb.build_week_since_start(session_df)
+        print(patient_df)
+    result = fb.build_week_since_start(
+        patient_df, scoring_date=pd.Timestamp("2024-01-03")
+    )
     log("Output DataFrame:")
     with pd.option_context("display.max_columns", None, "display.width", 1000):
         print(result)
-    assert {"PATIENT_ID", "PROTOCOL_ID", "WEEKS_SINCE_START"}.issubset(result.columns)
+    assert {"PATIENT_ID", "WEEKS_SINCE_START"}.issubset(result.columns)
 
 
 # ---------------------------------------------------------------
