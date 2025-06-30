@@ -127,10 +127,7 @@ class SessionSchema(pa.DataFrameModel):
     )
     session_duration: int = NullableField(alias=SESSION_DURATION, ge=0)
     adherence: float = NullableField(alias=ADHERENCE, ge=0, le=1)
-
-    total_success: int = NullableField(alias=TOTAL_SUCCESS, ge=0)
-    total_errors: int = NullableField(alias=TOTAL_ERRORS, ge=0)
-    game_score: int = NullableField(alias=GAME_SCORE, ge=0)
+    dm_value: float = NullableField(alias=DM_VALUE)
 
 
 class TimeseriesSchema(pa.DataFrameModel):

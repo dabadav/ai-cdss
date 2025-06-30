@@ -8,7 +8,6 @@ import pandas as pd
 from ai_cdss.cdss import CDSS
 from ai_cdss.constants import (
     BY_PP,
-    CONTRIB,
     DAYS,
     DELTA_DM,
     PATIENT_ID,
@@ -103,6 +102,7 @@ class CDSSInterface:
                 study_id,
                 e,
                 type(e).__name__,
+                exc_info=True,
             )
             return {
                 "status": "failure",

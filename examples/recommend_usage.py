@@ -39,10 +39,11 @@ processor = DataProcessor()
 session = loader.load_session_data(patient_list=PATIENT_LIST)
 timeseries = loader.load_timeseries_data(patient_list=PATIENT_LIST)
 ppf = loader.load_ppf_data(patient_list=PATIENT_LIST)
+patient = loader.load_patient_data(patient_list=PATIENT_LIST)
 protocol_similarity = loader.load_protocol_similarity()
 
 # Construct DataUnitSet for processing
-units = [session, ppf]
+units = [session, ppf, patient]
 data_unit_set = DataUnitSet(units)
 
 scores = processor.process_data(data_unit_set, scoring_date=pd.Timestamp.today())

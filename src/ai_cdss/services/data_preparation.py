@@ -42,6 +42,7 @@ class RecommendationDataService:
                 f"PPF data missing for patients: {missing}. Please compute PPF before proceeding."
             )
         session = self.loader.load_session_data(patient_list)
+        patient_data = self.loader.load_patient_data(patient_list)
         protocol_similarity = self.loader.load_protocol_similarity()
-        rgs_data = DataUnitSet([session, ppf])
+        rgs_data = DataUnitSet([session, patient_data, ppf])
         return patient_list, rgs_data, protocol_similarity

@@ -102,8 +102,6 @@ def generate_synthetic_session_data(shared_ids, columns_with_nulls=[]):
     for patient_id, protocol_id, session_id in shared_ids:
         session_data = {
             PATIENT_ID: patient_id,
-            CLINICAL_START: pd.to_datetime("2024-03-01"),
-            CLINICAL_END: pd.to_datetime("2024-04-30"),
             PRESCRIPTION_ID: np.random.randint(70000, 80000),
             SESSION_ID: session_id,
             PROTOCOL_ID: protocol_id,
@@ -128,12 +126,7 @@ def generate_synthetic_session_data(shared_ids, columns_with_nulls=[]):
         data.append(session_data)
 
     df = pd.DataFrame(data)
-    return DataUnit(
-        name=DataUnitName.SESSIONS,
-        data=df,
-        level=Granularity.BY_PPS,
-        schema=SessionSchema,
-    )
+    return df
 
 
 def generate_synthetic_timeseries_data(
@@ -216,13 +209,7 @@ def generate_synthetic_timeseries_data(
             data.append(row)
 
     df = pd.DataFrame(data)
-    timeseries_name = getattr(DataUnitName, "TIMESERIES", "timeseries")
-    return DataUnit(
-        name=timeseries_name,
-        data=df,
-        level=Granularity.BY_PPS,
-        schema=TimeseriesSchema,
-    )
+    return df
 
 
 def generate_synthetic_ppf_data(shared_ids, num_features=5):
@@ -262,13 +249,7 @@ def generate_synthetic_ppf_data(shared_ids, num_features=5):
 
     df = pd.DataFrame(data)
     df.attrs["SUBSCALES"] = [f"Subscale_{i+1}" for i in range(num_features)]
-
-    return DataUnit(
-        name=DataUnitName.PPF,
-        data=df,
-        level=Granularity.BY_PP,
-        schema=PPFSchema,
-    )
+    return df
 
 
 # -- Synthetic Protocol Similarity
@@ -384,3 +365,31 @@ def generate_synthetic_protocol_metric(
     )
 
     return df
+
+
+def generate_synthetic_patient_data(
+    shared_ids, base_start="2024-03-01", base_end="2024-04-30"
+):
+    """
+    Generate synthetic patient-level data including clinical trial start and end dates.
+    shared_ids: list of (patient_id, protocol_id, session_id) tuples
+    Returns a DataFrame with columns: PATIENT_ID, CLINICAL_START, CLINICAL_END.
+    """
+    import pandas as pd
+
+    base_start = pd.to_datetime(base_start)
+    base_end = pd.to_datetime(base_end)
+    patient_ids = sorted(set(pid for pid, _, _ in shared_ids))
+    data = []
+    for i, patient_id in enumerate(patient_ids):
+        # Optionally stagger start/end dates by patient_id for variety
+        start = base_start + pd.Timedelta(days=i * 2)
+        end = base_end + pd.Timedelta(days=i * 2)
+        data.append(
+            {
+                PATIENT_ID: patient_id,
+                CLINICAL_START: start,
+                CLINICAL_END: end,
+            }
+        )
+    return pd.DataFrame(data)

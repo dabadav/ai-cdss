@@ -33,7 +33,6 @@ from ai_cdss.processing.features import (
     get_rolling_theilsen_slope,
 )
 from pandas import Timestamp
-from pandera.typing import DataFrame
 
 
 class FeatureBuilder:
@@ -43,7 +42,7 @@ class FeatureBuilder:
     required for downstream modeling and analysis in the CDSS pipeline.
     """
 
-    def build_delta_dm(self, session: DataFrame) -> pd.DataFrame:
+    def build_delta_dm(self, session_df: pd.DataFrame) -> pd.DataFrame:
         """
         Compute the delta (trend) of the DM (disease measure) value for each patient-protocol group
         using a Savitzky-Golay filter and Theil-Sen regression.
@@ -54,7 +53,7 @@ class FeatureBuilder:
         Returns:
             pd.DataFrame: DataFrame with columns for patient, protocol, session date, DM value, and delta DM.
         """
-        grouped = session.copy().sort_values(by=BY_PP + [SESSION_DATE])
+        grouped = session_df.copy().sort_values(by=BY_PP + [SESSION_DATE])
         grouped[SESSION_INDEX] = grouped.groupby(BY_PP).cumcount() + 1
         grouped[DM_SMOOTH] = grouped.groupby(BY_PP)[DM_VALUE].transform(
             apply_savgol_filter_groupwise, SAVGOL_WINDOW_SIZE, SAVGOL_POLY_ORDER
@@ -72,7 +71,7 @@ class FeatureBuilder:
         )
         return grouped[BY_PP + [SESSION_DATE, DM_VALUE, DELTA_DM]]
 
-    def build_recent_adherence(self, session_df: DataFrame) -> pd.DataFrame:
+    def build_recent_adherence(self, session_df: pd.DataFrame) -> pd.DataFrame:
         """
         Compute recent adherence for each session, setting adherence to NaN for days where all sessions were not performed.
         Applies an exponentially weighted moving average (EWMA) to adherence values.
@@ -101,7 +100,7 @@ class FeatureBuilder:
             BY_PPS + [SESSION_DATE, STATUS, SESSION_INDEX, ADHERENCE, RECENT_ADHERENCE]
         ]
 
-    def build_usage(self, session_df: DataFrame) -> pd.DataFrame:
+    def build_usage(self, session_df: pd.DataFrame) -> pd.DataFrame:
         """
         Compute the total number of unique sessions (usage) per patient-protocol pair.
 
@@ -120,7 +119,7 @@ class FeatureBuilder:
         )
 
     def build_week_usage(
-        self, session_df: DataFrame, scoring_date: Timestamp
+        self, session_df: pd.DataFrame, scoring_date: Timestamp
     ) -> pd.DataFrame:
         """
         Compute the number of unique sessions (usage) per patient-protocol pair for the week containing the scoring date.
@@ -150,29 +149,33 @@ class FeatureBuilder:
         )
         return usage
 
-    def build_week_since_start(self, patient_df: DataFrame) -> pd.DataFrame:
+    def build_week_since_start(
+        self, patient_df: pd.DataFrame, scoring_date: Timestamp
+    ) -> pd.DataFrame:
         """
-        Compute the number of weeks since the clinical trial start for each session.
+        Compute the number of weeks since the clinical trial start for each patient,
+        using only the scoring date and clinical trial start date.
 
         Args:
-            patient_df (DataFrame): Input patient/session data.
+            patient_df (pd.DataFrame): DataFrame with at least [PATIENT_ID, PROTOCOL_ID, CLINICAL_TRIAL_START_DATE].
+            scoring_date (Timestamp): The date to define the week of interest.
 
         Returns:
-            pd.DataFrame: DataFrame with weeks since start for each session.
+            pd.DataFrame: DataFrame with [PATIENT_ID, PROTOCOL_ID, WEEKS_SINCE_START].
         """
-        df = patient_df.copy()
-        session_week_start = df[SESSION_DATE] - pd.to_timedelta(
-            df[SESSION_DATE].dt.weekday, unit="D"
-        )
+        df = patient_df[[PATIENT_ID, CLINICAL_START]].copy()
+        week_start = scoring_date - pd.Timedelta(days=scoring_date.weekday())
         trial_week_start = df[CLINICAL_START] - pd.to_timedelta(
             df[CLINICAL_START].dt.weekday, unit="D"
         )
-        df[WEEKS_SINCE_START] = (
-            (session_week_start - trial_week_start) / pd.Timedelta(weeks=1)
-        ).astype("Int64")
-        return df[[PATIENT_ID, PROTOCOL_ID, SESSION_DATE, WEEKS_SINCE_START]]
+        weeks_since_start = (
+            (week_start - trial_week_start) / pd.Timedelta(weeks=1)
+        ).astype(int)
 
-    def build_number_prescriptions(self, session: DataFrame) -> pd.DataFrame:
+        df[WEEKS_SINCE_START] = weeks_since_start
+        return df[[PATIENT_ID, WEEKS_SINCE_START]]
+
+    def build_number_prescriptions(self, session_df: pd.DataFrame) -> pd.DataFrame:
         """
         Compute the cumulative number of prescriptions for each patient-protocol pair.
 
@@ -182,12 +185,12 @@ class FeatureBuilder:
         Returns:
             pd.DataFrame: DataFrame with a column for total prescribed count.
         """
-        df = session.copy()
+        df = session_df.copy()
         df[TOTAL_PRESCRIBED] = df.groupby(BY_PP).cumcount() + 1
         return df
 
     def build_prescription_days(
-        self, session_df: DataFrame, scoring_date: Timestamp
+        self, session_df: pd.DataFrame, scoring_date: Timestamp
     ) -> pd.DataFrame:
         """
         Get the list of prescribed days (weekday indices) for active prescriptions in the week of the scoring date.

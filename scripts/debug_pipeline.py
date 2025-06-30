@@ -20,7 +20,7 @@ pr.enable()
 
 # The code you want to profile:
 cdss_client = CDSSInterface(loader, processor)
-print(cdss_client.compute_protocol_similarity())
+# print(cdss_client.compute_protocol_similarity())
 print(
     cdss_client.recommend_for_study(
         study_id=[2],
