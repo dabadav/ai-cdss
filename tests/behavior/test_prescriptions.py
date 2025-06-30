@@ -1,16 +1,16 @@
-from ai_cdss.data_processor import DataProcessor, safe_merge
-from ai_cdss.data_loader import DataLoaderMock, DataLoader
-from ai_cdss.cdss import CDSS
-from ai_cdss.constants import SESSION_DATE, RECENT_ADHERENCE, DELTA_DM, PPF, PATIENT_ID, PROTOCOL_ID, SCORE, DAYS, USAGE, BY_PP, BY_PPS, USAGE_WEEK
-from rgs_interface.data.schemas import RecsysMetricsRow
-from IPython.display import display
-import pandas as pd
-import pandas.testing as pdt
-from functools import reduce
+# from ai_cdss.data_processor import DataProcessor, safe_merge
+# from ai_cdss.data_loader import DataLoaderMock, DataLoader
+# from ai_cdss.cdss import CDSS
+# from ai_cdss.constants import SESSION_DATE, RECENT_ADHERENCE, DELTA_DM, PPF, PATIENT_ID, PROTOCOL_ID, SCORE, DAYS, USAGE, BY_PP, BY_PPS, USAGE_WEEK
+# from rgs_interface.data.schemas import RecsysMetricsRow
+# from IPython.display import display
+# import pandas as pd
+# import pandas.testing as pdt
+# from functools import reduce
 
 # def test_feature_computation_usage():
 #     """Test the exclusion of sessions that are outside the study range.
-    
+
 #     Patient 12 — Study 405:
 #     - Prescribed 3 protocols (233, 220, 231)
 #     - Only 2 prescriptions had sessions:
@@ -18,7 +18,7 @@ from functools import reduce
 #         - Protocol 231: 1 session
 #         - Protocol 233: 0 sessions (unused)
 #     """
-    
+
 #     patient_id = 12
 #     loader = DataLoader()
 #     session = loader.load_session_data([patient_id])
@@ -51,7 +51,7 @@ from functools import reduce
 
 # def test_feature_computation_all_sessions_usage():
 #     """Test the exclusion of sessions that are outside the study range.
-    
+
 #     Patient 12 — Study 405:
 #     - Prescribed 3 protocols (233, 220, 231)
 #     - Only 2 prescriptions had sessions:
@@ -60,7 +60,7 @@ from functools import reduce
 #         - Protocol 233: 0 sessions (unused)
 #     """
 #     from ai_cdss.data_processor import include_missing_sessions
-    
+
 #     patient_id = 12
 #     loader = DataLoader()
 #     session = loader.load_session_data([patient_id])
@@ -95,7 +95,7 @@ from functools import reduce
 
 # def test_feature_computation_usage_week():
 #     """Test the exclusion of sessions that are outside the study range.
-    
+
 #     Patient 12 — Study 405:
 #     - Prescribed 3 protocols (233, 220, 231)
 #     - Only 2 prescriptions had sessions:
@@ -103,7 +103,7 @@ from functools import reduce
 #         - Protocol 231: 1 session
 #         - Protocol 233: 0 sessions (unused)
 #     """
-    
+
 #     patient_id = 12
 #     loader = DataLoader()
 #     session = loader.load_session_data([patient_id])
@@ -192,8 +192,8 @@ from functools import reduce
 
 #     missing_cols = set(session.columns) - set(feat_pp_df.columns)
 #     log_df = feat_pp_df.merge(
-#         session[BY_PP + ['SESSION_DATE'] + list(missing_cols)], 
-#         on=BY_PP + ['SESSION_DATE'], 
+#         session[BY_PP + ['SESSION_DATE'] + list(missing_cols)],
+#         on=BY_PP + ['SESSION_DATE'],
 #         how='left'
 #     )
 #     print(f"\n Log df... \n")
@@ -232,7 +232,7 @@ from functools import reduce
 #     print(f"\nSession data... \n")
 #     # with pd.option_context('display.max_columns', None):
 #     #     display(session)
-   
+
 #     processor = DataProcessor()
 #     adherence = processor.build_recent_adherence(session)
 #     print(f"\n Adherence... \n")
@@ -248,11 +248,11 @@ from functools import reduce
 #     Scenario:
 
 #     insert PRESCRIPTIONS FOR PATIENT
-#     insert SESSIONS EXCEPT FOR ONE DAY 
-    
-#     INSERT INTO `prescription_plus` (`PRESCRIPTION_ID`, `PATIENT_ID`, `PROTOCOL_ID`, `STARTING_DATE`, `ENDING_DATE`, `WEEKDAY`, `SESSION_DURATION`, `AR_MODE`) VALUES (NULL, '13', '205', '2025-06-16 00:00:01', '2025-06-30 00:00:01', 'THURSDAY', '300', 'NONE'); 
+#     insert SESSIONS EXCEPT FOR ONE DAY
+
+#     INSERT INTO `prescription_plus` (`PRESCRIPTION_ID`, `PATIENT_ID`, `PROTOCOL_ID`, `STARTING_DATE`, `ENDING_DATE`, `WEEKDAY`, `SESSION_DURATION`, `AR_MODE`) VALUES (NULL, '13', '205', '2025-06-16 00:00:01', '2025-06-30 00:00:01', 'THURSDAY', '300', 'NONE');
 #     INSERT INTO `session_plus` (`SESSION_ID`, `PRESCRIPTION_ID`, `STARTING_DATE`, `ENDING_DATE`, `STATUS`, `PLATFORM`, `DEVICE`, `SESSION_LOG_PARSED`) VALUES (NULL, '8327', '2025-06-19 12:56:49', '2025-06-19 12:59:49', 'CLOSED', 'OTHER', NULL, '0');
-    
+
 #     Expected Behavior:
 #     - Do not penalize adherence
 #     - Adherence for whole day sessions is considered NaN
@@ -263,7 +263,7 @@ from functools import reduce
 #     print(f"\nSession data... \n")
 #     with pd.option_context('display.max_columns', None):
 #         display(session)
-   
+
 #     processor = DataProcessor()
 #     adherence = processor.build_recent_adherence(session)
 #     print(f"\n Adherence... \n")
@@ -316,7 +316,7 @@ from functools import reduce
 #         # display_adherence = display_adherence[display_adherence.PROTOCOL_ID == 220]
 #         display(display_days)
 
-    # assert False
+# assert False
 
 # def test_feature_computation_dm():
 #     """Test dm slope / delta generation
@@ -337,7 +337,7 @@ from functools import reduce
 #     # assert False
 
 # def test_feature_aggregation():
-    
+
 #     patient_id = 12
 #     loader = DataLoader()
 #     session = loader.load_session_data([patient_id])
@@ -354,7 +354,7 @@ from functools import reduce
 #     adherence_df = processor.build_recent_adherence(session)    # ADHERENCE_RECENT
 #     usage_df = processor.build_usage(session)                   # USAGE
 #     days_df = processor.build_prescription_days(session)        # DAYS
-    
+
 #     print(f"\nDM data... \n")
 #     with pd.option_context('display.max_columns', None):
 #         display(dm_df)
@@ -374,7 +374,7 @@ from functools import reduce
 #     # Combine Session Features
 #     feat_pp_df = reduce(lambda l, r: pd.merge(l, r, on=BY_PP, how='left'), [ppf, usage_df, days_df])
 #     feat_pps_df = reduce(lambda l, r: pd.merge(l, r, on=BY_PPS, how='left'), [adherence_df, dm_df])
-    
+
 #     print(f"\nFeatures protocol-level data... \n")
 #     with pd.option_context('display.max_columns', None):
 #         display(feat_pp_df)
@@ -387,8 +387,8 @@ from functools import reduce
 
 # def test_week_skip_patient():
 #     """
-#     Test Scenario where patient skips a whole week 
-    
+#     Test Scenario where patient skips a whole week
+
 #     Expected behavior:
 #     -> PRESCRIPTIONS REPEATED
 #     """
@@ -426,7 +426,7 @@ from functools import reduce
 #     assert week_skipped == True
 
 #     recommendations = cdss.recommend(patient_id=patient_id, protocol_similarity=protocol_similarity)
-    
+
 #     print(f"\nDisplay of Recommendations df... \n")
 #     with pd.option_context('display.width', 1000):
 #         display(recommendations)
@@ -449,19 +449,19 @@ from functools import reduce
 #         # If the prescription is still ongoing, cap the end_date at today
 #         if end_date is None:
 #             return expected_dates  # no valid end date
-        
+
 #         # Find the first occurrence of the target weekday on or after start_date
 #         if start_date.weekday() != target_weekday:
 #             days_until_target = (target_weekday - start_date.weekday()) % 7
 #             start_date = start_date + pd.Timedelta(days=days_until_target)
-        
+
 #         # Generate dates every 7 days (weekly) from the adjusted start_date up to end_date
 #         current_date = start_date
 
 #         while current_date <= end_date:
 #             expected_dates.append(current_date)
 #             current_date += pd.Timedelta(days=7)
-        
+
 #         return expected_dates
 
 #     def mock_generate_expected_sessions(start, end, weekday):
@@ -484,7 +484,7 @@ from functools import reduce
 #             return []
 
 #         return list(pd.date_range(start=start, end=end, freq=freq))
-    
+
 #     # Edge Case: start date is the weekday
 #     start = pd.Timestamp("2025-06-16")  # Monday
 #     end = start + pd.Timedelta(days=7)
@@ -492,7 +492,7 @@ from functools import reduce
 #     expected = mock_generate_expected_sessions(start, end, weekday)
 #     actual = generate_expected_sessions(start, end, weekday)
 #     assert list(actual) == list(expected), "Edge Case 1 failed"
-    
+
 #     # Edge Case 2: end date is the weekday
 #     start = pd.Timestamp("2025-06-10")  # Tuesday
 #     end = pd.Timestamp("2025-06-16")    # Monday (should catch next Monday)
@@ -584,7 +584,7 @@ from functools import reduce
 #     print(f'\n Session data ...\n')
 #     with pd.option_context('display.max_columns', None, 'display.width', 1000):
 #         display(session)
-        
+
 #     assert False
 
 # def test_filter_study_sessions():
