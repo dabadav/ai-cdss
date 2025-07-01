@@ -42,7 +42,7 @@ class CDSS:
 
     def __init__(
         self,
-        scoring: DataFrame[ScoringSchema],
+        scoring: pd.DataFrame,
         n: int = 12,
         days: int = 7,
         protocols_per_day: int = 5,
@@ -55,124 +55,70 @@ class CDSS:
         self.days = days
         self.protocols_per_day = protocols_per_day
 
-    def recommend(
-        self, patient_id: int, protocol_similarity
-    ) -> DataFrame[ScoringSchema]:
+    ###########################################################################
+    # Recommendation method
+    ###########################################################################
+
+    def recommend(self, patient_id: int, protocol_similarity) -> pd.DataFrame:
         """
         Recommend prescriptions for a patient.
-
-        Parameters
-        ----------
-        patient_id : int
-            The ID of the patient.
-        protocol_similarity : DataFrame
-            A DataFrame containing protocol similarity scores.
-
-        Returns
-        -------
-        DataFrame
-            A DataFrame mapping recommended protocol IDs to their scheduling details.
         """
-        # Get scores for patient
-        patient_data = self.scoring[self.scoring[PATIENT_ID] == patient_id]
-        if patient_data.empty:
-            return pd.DataFrame()
+        if not self._has_patient_data(patient_id):
+            raise ValueError(f"Patient {patient_id} has no data.")
 
-        # Get current prescriptions (which already include scores)
-        prescriptions = self.get_prescriptions(patient_id)
+        prescriptions = self._get_prescriptions(patient_id)
 
-        # Track protocol rows to output
-        rows = []
+        if self._is_week_skipped(prescriptions):
+            return self._repeat_prescriptions(prescriptions)
 
-        if not prescriptions.empty:
+        if prescriptions.empty:
+            return self._generate_new_recommendations(patient_id)
 
-            # ALL_PRESCRIPTIONS_WEEK_USAGE = 0, Repeat prescriptions
-            week_skipped = not prescriptions.apply(
-                lambda x: True if x[USAGE_WEEK] >= len(x[DAYS]) else False, axis=1
-            ).any()
+        return self._update_existing_recommendations(
+            patient_id, prescriptions, protocol_similarity
+        )
 
-            # Check this condition
-            if week_skipped:
-                logger.info(
-                    f"Patient {patient_id}, skipped the whole week, cdss repeating prescriptions."
-                )
-                # Convert to DataFrame
-                recommendations = prescriptions
-                recommendations.attrs = self.scoring.attrs
-                return recommendations
+    ###########################################################################
+    # Patient Bootstrap
+    ###########################################################################
 
-            # Identify which protocols need substitution
-            protocols_to_swap = self.decide_prescription_swap(patient_id)
-            protocols_excluded = prescriptions[PROTOCOL_ID].tolist()
+    def _generate_new_recommendations(self, patient_id: int) -> pd.DataFrame:
+        # Generate a new schedule of protocols for a patient with no prescriptions
+        top_protocols = self._get_top_protocols(patient_id)
+        schedule = self._schedule_protocols(top_protocols)
 
-            # Directly add non-swapped prescriptions
-            rows.extend(
-                prescriptions[
-                    ~prescriptions[PROTOCOL_ID].isin(protocols_to_swap)
-                ].to_dict("records")
-            )
-
-            # Swap selected protocols
-            for protocol_id in protocols_to_swap:
-                substitute = self.get_substitute(
-                    patient_id,
-                    protocol_id,
-                    protocol_similarity,
-                    protocol_excluded=protocols_excluded,
-                )
-                if substitute:
-                    protocols_excluded.append(substitute)
-                    substitute_row = self.get_scores(patient_id, substitute)
-                    substitute_row["DAYS"] = prescriptions.loc[
-                        prescriptions["PROTOCOL_ID"] == protocol_id, "DAYS"
-                    ].values[0]
-                    substitute_row["PROTOCOL_ID"] = substitute
-                    substitute_row["PATIENT_ID"] = patient_id
-                    rows.append(substitute_row)
-
-        else:
-            # No prescriptions → Generate new schedule
-            top_protocols = self.get_top_protocols(patient_id)
-            schedule = self.schedule_protocols(
-                top_protocols
-            )  # {day: [protocol_id, ...]}
-
-            seen = {}  # protocol_id: row
-            for day, protocol_ids in schedule.items():
-                for protocol_id in protocol_ids:
-                    if protocol_id not in seen:
-                        row = self.get_scores(patient_id, protocol_id)
-                        row["DAYS"] = [day]
-                        row["PROTOCOL_ID"] = protocol_id
-                        row["PATIENT_ID"] = patient_id
-                        seen[protocol_id] = row
-                    else:
-                        seen[protocol_id]["DAYS"].append(day)
-
-            rows.extend(seen.values())
-
-        # Convert to DataFrame
+        # Build the recommendations DataFrame
+        rows: list[dict] = []
+        seen = {}
+        for day, protocol_ids in schedule.items():
+            for protocol_id in protocol_ids:
+                if protocol_id not in seen:
+                    row = self._get_scores(patient_id, protocol_id)
+                    row["DAYS"] = [day]
+                    row["PROTOCOL_ID"] = protocol_id
+                    row["PATIENT_ID"] = patient_id
+                    seen[protocol_id] = row
+                else:
+                    seen[protocol_id]["DAYS"].append(day)
+        rows.extend(seen.values())
         recommendations = (
-            pd.DataFrame(rows).sort_values(by=PROTOCOL_ID).reset_index(drop=True)
+            pd.DataFrame(rows).sort_values(by="PROTOCOL_ID").reset_index(drop=True)
         )
         recommendations.attrs = self.scoring.attrs
         return recommendations
 
-    def schedule_protocols(self, protocols: List[int]):
+    def _get_top_protocols(self, patient_id: int) -> List[int]:
+        """
+        Select the top N protocols for a patient based on scores.
+        """
+        patient_data = self.scoring[self.scoring[PATIENT_ID] == patient_id]
+        top_protocols = patient_data.nlargest(self.n, SCORE)[PROTOCOL_ID].tolist()
+        return top_protocols
+
+    def _schedule_protocols(self, protocols: List[int]) -> Dict[int, List[int]]:
         """
         Distribute protocols across days while ensuring constraints.
-
-        Parameters
-        ----------
-        protocols : list of int
-            List of protocol IDs to distribute.
-
-        Returns
-        -------
-        dict
-            A dictionary mapping days to scheduled protocols.
         """
-
         schedule: Dict[int, List[int]] = {
             day: [] for day in range(0, self.days)
         }  # Days are 1-indexed
@@ -191,167 +137,241 @@ class CDSS:
                 if protocol not in schedule[day]:
                     schedule[day].append(protocol)
 
-        return schedule
+        return schedule  # protocol: [day, ...]
 
-    def decide_prescription_swap(self, patient_id: int) -> List[int]:
+    ###########################################################################
+    # Prescription Updates (Substitution Logic)
+    ###########################################################################
+
+    def _update_existing_recommendations(
+        self, patient_id: int, prescriptions: pd.DataFrame, protocol_similarity
+    ) -> pd.DataFrame:
+        """
+        Update recommendations by swapping out underperforming protocols for better alternatives.
+        """
+        # Identify protocols to swap and those to exclude from substitution
+        protocols_to_swap: list[int] = self._decide_prescription_swap(patient_id)
+        protocols_excluded: list[int] = prescriptions[PROTOCOL_ID].tolist()
+
+        # Start with prescriptions that are not being swapped
+        updated_rows: list[dict] = prescriptions[
+            ~prescriptions[PROTOCOL_ID].isin(protocols_to_swap)
+        ].to_dict("records")
+
+        # Swap out underperforming protocols
+        for protocol_id in protocols_to_swap:
+            substitute_row = self._swap_protocol(
+                patient_id,
+                protocol_id,
+                prescriptions,
+                protocol_similarity,
+                protocols_excluded=protocols_excluded,
+            )
+            logger.debug(
+                "Swapping %s for %s for patient %s",
+                protocol_id,
+                substitute_row[PROTOCOL_ID],
+                patient_id,
+            )
+            updated_rows.append(substitute_row)
+            protocols_excluded.append(substitute_row[PROTOCOL_ID])
+
+        # Create the recommendations DataFrame
+        recommendations = (
+            pd.DataFrame(updated_rows)
+            .sort_values(by=PROTOCOL_ID)
+            .reset_index(drop=True)
+        )
+        recommendations.attrs = self.scoring.attrs
+        return recommendations
+
+    ###########################################################################
+    # Marginal Value Theorem (Swapping Criteria)
+
+    def _decide_prescription_swap(self, patient_id: int) -> List[int]:
         """
         Determine which prescriptions to swap based on their score.
-
-        Parameters
-        ----------
-        patient_id : int
-            The ID of the patient.
-
-        Returns
-        -------
-        list of int
-            List of protocol IDs to be swapped.
         """
-        prescriptions = self.get_prescriptions(patient_id)
+        prescriptions = self._get_prescriptions(patient_id)
         # Below protocols mean
         return prescriptions[
             prescriptions[SCORE].transform(lambda x: x < x.mean())
         ].PROTOCOL_ID.to_list()
 
-    def get_substitute(
+    ###########################################################################
+    # Substitution Logic
+
+    def _swap_protocol(
         self,
         patient_id: int,
         protocol_id: int,
+        prescriptions: pd.DataFrame,
         protocol_similarity,
-        protocol_excluded: Optional[List[int]] = None,
-    ):
+        protocols_excluded: list[int],
+    ) -> dict:
+        """
+        Find and return a substitute protocol row for a given protocol_id, or the same protocol if not found (all protocols are prescribed).
+        """
+        substitute = self._get_substitute(
+            patient_id,
+            protocol_id,
+            protocol_similarity,
+            protocols_excluded=protocols_excluded,
+        )
+        if substitute:
+            substitute_row = self._get_scores(patient_id, substitute)
+            substitute_row[DAYS] = prescriptions.loc[
+                prescriptions[PROTOCOL_ID] == protocol_id, DAYS
+            ].values[0]
+            substitute_row[PROTOCOL_ID] = substitute
+            substitute_row[PATIENT_ID] = patient_id
+            return substitute_row
+
+        # Else return same protocol
+        return self._get_scores(patient_id, protocol_id)
+
+    def _get_substitute(
+        self,
+        patient_id: int,
+        protocol_id: int,
+        protocol_similarity: pd.DataFrame,
+        protocols_excluded: Optional[List[int]] = None,
+    ) -> Optional[int]:
         """
         Find a suitable substitute for a given protocol.
-
-        Behavior:
-        - Choose 0 usage protocols starting from highest similarity.
-        once they are all used,
-        - Pick from top 5 similar protocols the least used?
-
-        Parameters
-        ----------
-        patient_id : int
-            The ID of the patient.
-        protocol_id : int
-            The protocol to be substituted.
-        protocol_similarity : DataFrame
-            A DataFrame containing protocol similarity scores.
-        protocol_excluded : list of int, optional
-            List of protocols to exclude from consideration, by default None.
-
-        Returns
-        -------
-        int
-            The ID of the substitute protocol, or None if no suitable substitute is found.
+        Returns the protocol ID of the substitute, or None if not found.
         """
+        usage = self._get_patient_protocol_usage(patient_id)
+        similarities = self._get_protocol_similarities(
+            protocol_id, protocol_similarity, protocols_excluded
+        )
 
-        # Get protocol usage for the given patient and protocol
-        usage = self.scoring[self.scoring[PATIENT_ID] == patient_id].set_index(
+        # Try to find unused protocols first
+        unused_candidates = self._get_unused_candidates(usage)
+        if unused_candidates:
+            logger.info(
+                "No usage for %s, selecting most similar from %s",
+                protocol_id,
+                unused_candidates,
+            )
+            return self._select_most_similar(unused_candidates, similarities)
+
+        # Otherwise, pick from top 5 similar protocols the least used
+        top_similar_protocols = self._get_top_similar_protocols(similarities, top_n=5)
+        least_used_candidates = self._get_least_used_candidates(
+            usage, top_similar_protocols
+        )
+        if least_used_candidates:
+            logger.info(
+                "No unused protocols for %s, selecting least used from %s",
+                protocol_id,
+                least_used_candidates,
+            )
+            return self._select_most_similar(least_used_candidates, similarities)
+
+        # If no candidates found
+        return None
+
+    ###########################################################################
+    # USAGE
+
+    def _get_patient_protocol_usage(self, patient_id: int) -> pd.Series:
+        """Return protocol usage for the given patient."""
+        return self.scoring[self.scoring[PATIENT_ID] == patient_id].set_index(
             PROTOCOL_ID
         )[USAGE]
-        # Get protocol similarities
-        similarities = protocol_similarity[
-            (protocol_similarity[PROTOCOL_A] == protocol_id)
-        ]
 
-        # Drop rows where PROTOCOL_B is the same as PROTOCOL_A (self-similarity)
+    def _get_unused_candidates(self, usage: pd.Series) -> List[int]:
+        """Return protocol IDs with zero usage."""
+        unused = usage[usage == 0].index.tolist()
+        return unused
+
+    def _get_least_used_candidates(
+        self, usage: pd.Series, candidate_protocols: List[int]
+    ) -> List[int]:
+        """Return protocol IDs among candidates with the least usage."""
+        candidate_usage = usage[usage.index.isin(candidate_protocols)]
+        if candidate_usage.empty:
+            return []
+        min_usage = candidate_usage.min()
+        return candidate_usage[candidate_usage == min_usage].index.tolist()
+
+    ###########################################################################
+    # SIMILARITY
+
+    def _get_protocol_similarities(
+        self,
+        protocol_id: int,
+        protocol_similarity: pd.DataFrame,
+        protocol_excluded: Optional[List[int]],
+    ) -> pd.DataFrame:
+        """Return similarities for a protocol, excluding self and any excluded protocols."""
+        similarities = protocol_similarity[
+            protocol_similarity[PROTOCOL_A] == protocol_id
+        ]
         similarities = similarities[
             similarities[PROTOCOL_A] != similarities[PROTOCOL_B]
         ]
-
-        # Exclude protocols in the `protocol_excluded` list from similarities
         if protocol_excluded:
             similarities = similarities[
                 ~similarities[PROTOCOL_B].isin(protocol_excluded)
             ]
+        return similarities
 
-        # Find the minimum usage value
-        min_usage = usage.min()
+    def _get_top_similar_protocols(
+        self, similarities: pd.DataFrame, top_n: int = 5
+    ) -> List[int]:
+        """Return the protocol IDs of the top N most similar protocols."""
+        return similarities.nlargest(top_n, SIMILARITY)[PROTOCOL_B].tolist()
 
-        if min_usage == 0:
-            # Get candidates with the lowest usage
-            candidates = usage[usage == min_usage].index
-        
-        else:
-            # Get top 5 similar protocols
-            top_similar = similarities.nlargest(5, SIMILARITY)
-            # Get least used 5 similar protocol from usage
-            usage = usage[usage[PROTOCOL_B].isin(top_similar)]
-            min_usage = usage.min()
-            candidates = usage[usage == min_usage].index
-
-        # Among these candidates, select the one with the highest similarity
+    def _select_most_similar(
+        self, candidates: List[int], similarities: pd.DataFrame
+    ) -> Optional[int]:
+        """Return the candidate protocol with the highest similarity."""
         candidate_similarities = similarities[similarities[PROTOCOL_B].isin(candidates)]
+        if candidate_similarities.empty:
+            return None
+        max_sim = candidate_similarities[SIMILARITY].max()
+        final_candidates = candidate_similarities[
+            candidate_similarities[SIMILARITY] == max_sim
+        ][PROTOCOL_B]
+        return final_candidates.iloc[0] if not final_candidates.empty else None
 
-        # Find the maximum similarity among candidates
-        if not candidate_similarities.empty:
-            max_sim = candidate_similarities[SIMILARITY].max()
+    ###########################################################################
+    # Validation Utilities
+    ###########################################################################
 
-            final_candidates = candidate_similarities[
-                candidate_similarities[SIMILARITY] == max_sim
-            ][PROTOCOL_B]
-
-            # Return the first candidate (or handle ties)
-            return final_candidates.iloc[0] if not final_candidates.empty else None
-
-        else:
-            raise ValueError(f"No candidates for protocol {protocol_id}?")
-
-    def get_top_protocols(self, patient_id: int) -> List[int]:
+    def _is_week_skipped(self, prescriptions: pd.DataFrame) -> bool:
         """
-        Select the top N protocols for a patient based on scores.
-
-        Parameters
-        ----------
-        patient_id : int
-            The ID of the patient.
-
-        Returns
-        -------
-        list of int
-            A list of top protocol IDs.
+        Check if the prescriptions are skipped for the whole week.
         """
+        return prescriptions.apply(
+            lambda x: True if x[USAGE_WEEK] >= len(x[DAYS]) else False, axis=1
+        ).any()
+
+    def _has_patient_data(self, patient_id: int) -> bool:
+        """Check if patient has scoring data."""
         patient_data = self.scoring[self.scoring[PATIENT_ID] == patient_id]
-        top_protocols = patient_data.nlargest(self.n, SCORE)[PROTOCOL_ID].tolist()
-        return top_protocols
+        return not patient_data.empty
 
-    def get_prescriptions(self, patient_id: int):
-        """
-        Retrieve the current prescriptions for a patient.
+    def _repeat_prescriptions(self, prescriptions) -> pd.DataFrame:
+        """Repeat existing prescriptions when week was skipped."""
+        logger.info(
+            "Patient %s, skipped the whole week, cdss repeating prescriptions.",
+            prescriptions[PATIENT_ID].iloc[0] if not prescriptions.empty else "unknown",
+        )
+        df = prescriptions.copy()
+        df.attrs = getattr(self.scoring, "attrs", {})
+        return df  # type: ignore
 
-        Parameters
-        ----------
-        patient_id : int
-            The ID of the patient.
+    ###########################################################################
+    # General Utilities
+    ###########################################################################
 
-        Returns
-        -------
-        DataFrame
-            A DataFrame containing prescription details.
-        """
-        patient_data = self.scoring[self.scoring[PATIENT_ID] == patient_id]
-        prescriptions = patient_data[
-            patient_data[DAYS].apply(lambda x: isinstance(x, list) and len(x) > 0)
-        ]
-        return prescriptions
-
-    def get_scores(self, patient_id: int, protocol_id: int):
+    def _get_scores(self, patient_id: int, protocol_id: int):
         """
         Retrieve scores for a given patient and protocol.
-
-        Parameters
-        ----------
-        patient_id : int
-            The ID of the patient.
-        protocol_id : int
-            The ID of the protocol.
-
-        Returns
-        -------
-        dict
-            A dictionary containing score details for the specified patient and protocol.
         """
-
         # Filter scoring DataFrame for the given patient and protocol
         return (
             self.scoring[
@@ -361,3 +381,13 @@ class CDSS:
             .iloc[0]
             .to_dict()
         )
+
+    def _get_prescriptions(self, patient_id: int):
+        """
+        Retrieve the current prescriptions for a patient.
+        """
+        patient_data = self.scoring[self.scoring[PATIENT_ID] == patient_id]
+        prescriptions = patient_data[
+            patient_data[DAYS].apply(lambda x: isinstance(x, list) and len(x) > 0)
+        ]
+        return prescriptions
