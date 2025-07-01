@@ -5,8 +5,8 @@
 
 from .models import SessionSchema, TimeseriesSchema, PPFSchema, PCMSchema, ScoringSchema
 from .cdss import CDSS
-from .data_loader import DataLoader
-from .data_processor import DataProcessor, ClinicalSubscales, ProtocolToClinicalMapper
+from .loaders import DataLoader
+from .processing import DataProcessor, ClinicalSubscales, ProtocolToClinicalMapper
 
 __all__ = [
     "SessionSchema",

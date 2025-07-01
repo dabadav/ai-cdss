@@ -11,9 +11,56 @@ data:
   FM_TOTAL: 66
   MA_DISTAL: 4
   VAS: 10
+  MOCA_VISUO: 5
+  MOCA_NAMING: 3
+  MOCA_ATTENTION: 6
+  MOCA_LANGUAGE: 3
+  MOCA_ABSTRACTION: 2
+  MOCA_RECALL: 5
+  MOCA_ORIENTATION: 6
+  MOCA_TOTAL: 30
+  ARAT_GRASP: 15
+  ARAT_GRIP: 10
+  ARAT_PINCH: 18
+  ARAT_GROSS: 14
+  ARAT_TOTAL: 57
 keys:
   BARTHEL:
   - Barthel Index
   - BI
   VAS:
   - Visual Analog Scale
+  FM_A:
+  - Fugl-Meyer.FM_A
+  FM_B:
+  - Fugl-Meyer.FM_B
+  FM_C:
+  - Fugl-Meyer.FM_C
+  FM_D:
+  - Fugl-Meyer.FM_D
+  MOCA_VISUO:
+  - MoCA.Visuospatial/Executive
+  MOCA_NAMING:
+  - MoCA.Naming
+  MOCA_ATTENTION:
+  - MoCA.Attention
+  MOCA_LANGUAGE:
+  - MoCA.Language
+  MOCA_ABSTRACTION:
+  - MoCA.Abstraction
+  MOCA_RECALL:
+  - MoCA.Delayed Recall
+  MOCA_ORIENTATION:
+  - MoCA.Orientation
+  MOCA_TOTAL:
+  - MoCA.Total
+  ARAT_GRASP:
+  - ARAT.Grasp
+  ARAT_GRIP:
+  - ARAT.Grip
+  ARAT_PINCH:
+  - ARAT.Pinch
+  ARAT_GROSS:
+  - ARAT.Gross movement
+  ARAT_TOTAL:
+  - ARAT.Total
