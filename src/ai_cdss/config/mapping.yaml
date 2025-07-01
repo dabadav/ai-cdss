@@ -1,68 +1,72 @@
 data:
-  # Functional Independence
-  BARTHEL:
-    - DAILY_LIVING_ACTIVITY  # Barthel Index measures independence in ADLs.
-
-  # Motor Function (Spasticity & Strength)
-  ASH_PROXIMAL:
-    - BODY_PART_ARM
-    - BODY_PART_SHOULDER
-    - COORDINATION  # Ashworth scale for proximal limb spasticity.
-
-  MA_DISTAL:
-    - BODY_PART_FINGER
-    - BODY_PART_WRIST
+  # Motor Features
+  ARAT_GRASP:
+    - REACHING
     - GRASPING
-    - PINCHING  # Motor Assessment for distal motor function.
 
-  # Fatigue & Pain
-  FATIGUE:
-    - DIFFICULTY_COGNITIVE
-    - DIFFICULTY_MOTOR
-    - PROCESSING_SPEED
-    - ATTENTION  # Fatigue relates to cognitive/motor difficulty.
+  ARAT_GRIP:
+    - OBJECT_MANIPULATION
 
-  VAS:
-    - DIFFICULTY_COGNITIVE
-    - DIFFICULTY_MOTOR  # Visual Analog Scale (VAS) for perceived effort.
-
-  # Fugl-Meyer Subscales (Motor Control & Coordination)
-  FM_A:
-    - BODY_PART_ARM
-    - BODY_PART_SHOULDER
-    - RANGE_OF_MOTION_H
-    - RANGE_OF_MOTION_V  # Upper Limb Motor
-
-  FM_B:
-    - BODY_PART_WRIST
+  ARAT_PINCH:
+    - PINCHING
     - PRONATION_SUPINATION
-    - RANGE_OF_MOTION_H  # Wrist Motor
 
-  FM_C:
-    - BODY_PART_FINGER
-    - GRASPING
-    - PINCHING  # Hand Motor
+  ARAT_GROSS:
+    - PROXIMAL_COORDINATION
+    - PROCESSING_SPEED
+    - MOTOR_PLANNING
+    - ROM_VERTICAL
+    - ROM_HORIZONTAL
 
-  FM_D:
-    - COORDINATION
-    - RANGE_OF_MOTION_H
-    - RANGE_OF_MOTION_V  # Coordination & Speed
+  MOCA_ATTENTION:
+    - ATTENTION
+    - SUSTAINED_ATTENTION
+    - DISTRACTOR_INHIBITION
+    - STIMULUS_RESPONSE
 
-  FM_TOTAL:
-    - BODY_PART_ARM
-    - BODY_PART_WRIST
-    - BODY_PART_FINGER
-    - COORDINATION  # Full Upper Limb Score
+  MOCA_VISUO:
+    - OBJECT_TRACKING
+    - MOTOR_PLANNING_COORDINATION
 
-  # Activity & Movement Quality
-  ACT_AU:
-    - BODY_PART_TRUNK  # Activity Autonomy linked to balance.
+  MOCA_RECALL:
+    - MEMORY_WM
+    - RECALL
+    - SEMANTIC_MEMORY
 
-  ACT_QOM:
-    - COORDINATION  # Quality of Movement related to balance & coordination.
+  MOCA_NAMING:
+    - WORD_RETRIEVAL
+    - SEMANTIC_PROCESSING
+    - VERBAL_REHEARSAL
+
+  MOCA_LANGUAGE:
+    - WORD_RETRIEVAL
+    - SEMANTIC_PROCESSING
+    - VERBAL_REHEARSAL
+
+  MOCA_ORIENTATION:
+    - SPATIAL_CONTEXT
+
+  MOCA_ABSTRACTION:
+    - SEMANTIC_GROUPING
+    - SEMANTIC_RULE_EXECUTION
+
 keys:
   BARTHEL:
   - Barthel Index
   - BI
   VAS:
   - Visual Analog Scale
+  MOCA_VISUO:
+  - MoCA.Visuospatial/Executive
+  MOCA_NAMING:
+  - MoCA.Naming
+  MOCA_ATTENTION:
+  - MoCA.Attention
+  MOCA_LANGUAGE:
+  - MoCA.Language
+  MOCA_ABSTRACTION:
+  - MoCA.Abstraction
+  MOCA_RECALL:
+  - MoCA.Delayed Recall
+  MOCA_ORIENTATION:
+  - MoCA.Orientation

@@ -5,6 +5,8 @@ doc/source/auto_examples
 doc/source/generated
 doc/source/sg_execution_times.rst
 
+!src/ai_cdss/data
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
