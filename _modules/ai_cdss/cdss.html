@@ -419,11 +419,11 @@ window.addEventListener("load", () => mermaid.run());
 
         <span class="n">prescriptions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_prescriptions</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_week_skipped</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">):</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_repeat_prescriptions</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">)</span>
-
         <span class="k">if</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_new_recommendations</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_week_skipped</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_repeat_prescriptions</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_existing_recommendations</span><span class="p">(</span>
             <span class="n">patient_id</span><span class="p">,</span> <span class="n">prescriptions</span><span class="p">,</span> <span class="n">protocol_similarity</span>
@@ -697,8 +697,10 @@ window.addEventListener("load", () => mermaid.run());
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Check if the prescriptions are skipped for the whole week.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
-            <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="kc">True</span> <span class="k">if</span> <span class="n">x</span><span class="p">[</span><span class="n">USAGE_WEEK</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">DAYS</span><span class="p">])</span> <span class="k">else</span> <span class="kc">False</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+        <span class="c1"># Apply a lambda function to each row: check if USAGE_WEEK &gt;= number of DAYS for that prescription</span>
+        <span class="c1"># If True for any row, .any() will return True (week is skipped for at least one prescription)</span>
+        <span class="k">return</span> <span class="ow">not</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="n">USAGE_WEEK</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">DAYS</span><span class="p">]),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
         <span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_has_patient_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
