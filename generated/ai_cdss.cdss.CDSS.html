@@ -388,26 +388,8 @@ It allows protocol recommendations, scheduling, and prescription adjustments.</p
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.cdss.CDSS.decide_prescription_swap" title="ai_cdss.cdss.CDSS.decide_prescription_swap"><code class="xref py py-obj docutils literal notranslate"><span class="pre">decide_prescription_swap</span></code></a>(patient_id)</p></td>
-<td><p>Determine which prescriptions to swap based on their score.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.cdss.CDSS.get_prescriptions" title="ai_cdss.cdss.CDSS.get_prescriptions"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_prescriptions</span></code></a>(patient_id)</p></td>
-<td><p>Retrieve the current prescriptions for a patient.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.cdss.CDSS.get_scores" title="ai_cdss.cdss.CDSS.get_scores"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_scores</span></code></a>(patient_id, protocol_id)</p></td>
-<td><p>Retrieve scores for a given patient and protocol.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.cdss.CDSS.get_substitute" title="ai_cdss.cdss.CDSS.get_substitute"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_substitute</span></code></a>(patient_id, protocol_id, ...)</p></td>
-<td><p>Find a suitable substitute for a given protocol.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.cdss.CDSS.get_top_protocols" title="ai_cdss.cdss.CDSS.get_top_protocols"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_top_protocols</span></code></a>(patient_id)</p></td>
-<td><p>Select the top N protocols for a patient based on scores.</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.cdss.CDSS.recommend" title="ai_cdss.cdss.CDSS.recommend"><code class="xref py py-obj docutils literal notranslate"><span class="pre">recommend</span></code></a>(patient_id, protocol_similarity)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.cdss.CDSS.recommend" title="ai_cdss.cdss.CDSS.recommend"><code class="xref py py-obj docutils literal notranslate"><span class="pre">recommend</span></code></a>(patient_id, protocol_similarity)</p></td>
 <td><p>Recommend prescriptions for a patient.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.cdss.CDSS.schedule_protocols" title="ai_cdss.cdss.CDSS.schedule_protocols"><code class="xref py py-obj docutils literal notranslate"><span class="pre">schedule_protocols</span></code></a>(protocols)</p></td>
-<td><p>Distribute protocols across days while ensuring constraints.</p></td>
 </tr>
 </tbody>
 </table>
@@ -418,155 +400,7 @@ It allows protocol recommendations, scheduling, and prescription adjustments.</p
 <dd><p>Recommend prescriptions for a patient.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema" title="ai_cdss.models.ScoringSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScoringSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>patient_id</strong><span class="classifier">int</span></dt><dd><p>The ID of the patient.</p>
-</dd>
-<dt><strong>protocol_similarity</strong><span class="classifier">DataFrame</span></dt><dd><p>A DataFrame containing protocol similarity scores.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>DataFrame</dt><dd><p>A DataFrame mapping recommended protocol IDs to their scheduling details.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.cdss.CDSS.schedule_protocols">
-<span class="sig-name descname"><span class="pre">schedule_protocols</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">protocols</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/cdss.html#CDSS.schedule_protocols"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.cdss.CDSS.schedule_protocols" title="Link to this definition">#</a></dt>
-<dd><p>Distribute protocols across days while ensuring constraints.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>protocols</strong><span class="classifier">list of int</span></dt><dd><p>List of protocol IDs to distribute.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>dict</dt><dd><p>A dictionary mapping days to scheduled protocols.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.cdss.CDSS.decide_prescription_swap">
-<span class="sig-name descname"><span class="pre">decide_prescription_swap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/cdss.html#CDSS.decide_prescription_swap"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.cdss.CDSS.decide_prescription_swap" title="Link to this definition">#</a></dt>
-<dd><p>Determine which prescriptions to swap based on their score.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]</span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>patient_id</strong><span class="classifier">int</span></dt><dd><p>The ID of the patient.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>list of int</dt><dd><p>List of protocol IDs to be swapped.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.cdss.CDSS.get_substitute">
-<span class="sig-name descname"><span class="pre">get_substitute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">protocol_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">protocol_similarity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">protocol_excluded</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/cdss.html#CDSS.get_substitute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.cdss.CDSS.get_substitute" title="Link to this definition">#</a></dt>
-<dd><p>Find a suitable substitute for a given protocol.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>patient_id</strong><span class="classifier">int</span></dt><dd><p>The ID of the patient.</p>
-</dd>
-<dt><strong>protocol_id</strong><span class="classifier">int</span></dt><dd><p>The protocol to be substituted.</p>
-</dd>
-<dt><strong>protocol_similarity</strong><span class="classifier">DataFrame</span></dt><dd><p>A DataFrame containing protocol similarity scores.</p>
-</dd>
-<dt><strong>protocol_excluded</strong><span class="classifier">list of int, optional</span></dt><dd><p>List of protocols to exclude from consideration, by default None.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>int</dt><dd><p>The ID of the substitute protocol, or None if no suitable substitute is found.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.cdss.CDSS.get_top_protocols">
-<span class="sig-name descname"><span class="pre">get_top_protocols</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/cdss.html#CDSS.get_top_protocols"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.cdss.CDSS.get_top_protocols" title="Link to this definition">#</a></dt>
-<dd><p>Select the top N protocols for a patient based on scores.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]</span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>patient_id</strong><span class="classifier">int</span></dt><dd><p>The ID of the patient.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>list of int</dt><dd><p>A list of top protocol IDs.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.cdss.CDSS.get_prescriptions">
-<span class="sig-name descname"><span class="pre">get_prescriptions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/cdss.html#CDSS.get_prescriptions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.cdss.CDSS.get_prescriptions" title="Link to this definition">#</a></dt>
-<dd><p>Retrieve the current prescriptions for a patient.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>patient_id</strong><span class="classifier">int</span></dt><dd><p>The ID of the patient.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>DataFrame</dt><dd><p>A DataFrame containing prescription details.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.cdss.CDSS.get_scores">
-<span class="sig-name descname"><span class="pre">get_scores</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">protocol_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/cdss.html#CDSS.get_scores"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.cdss.CDSS.get_scores" title="Link to this definition">#</a></dt>
-<dd><p>Retrieve scores for a given patient and protocol.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>patient_id</strong><span class="classifier">int</span></dt><dd><p>The ID of the patient.</p>
-</dd>
-<dt><strong>protocol_id</strong><span class="classifier">int</span></dt><dd><p>The ID of the protocol.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>dict</dt><dd><p>A dictionary containing score details for the specified patient and protocol.</p>
-</dd>
-</dl>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
 </dd>
 </dl>
 </dd></dl>
@@ -624,12 +458,6 @@ It allows protocol recommendations, scheduling, and prescription adjustments.</p
     <ul class="nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.cdss.CDSS"><code class="docutils literal notranslate"><span class="pre">CDSS</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.cdss.CDSS.recommend"><code class="docutils literal notranslate"><span class="pre">CDSS.recommend()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.cdss.CDSS.schedule_protocols"><code class="docutils literal notranslate"><span class="pre">CDSS.schedule_protocols()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.cdss.CDSS.decide_prescription_swap"><code class="docutils literal notranslate"><span class="pre">CDSS.decide_prescription_swap()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.cdss.CDSS.get_substitute"><code class="docutils literal notranslate"><span class="pre">CDSS.get_substitute()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.cdss.CDSS.get_top_protocols"><code class="docutils literal notranslate"><span class="pre">CDSS.get_top_protocols()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.cdss.CDSS.get_prescriptions"><code class="docutils literal notranslate"><span class="pre">CDSS.get_prescriptions()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.cdss.CDSS.get_scores"><code class="docutils literal notranslate"><span class="pre">CDSS.get_scores()</span></code></a></li>
 </ul>
 </li>
 </ul>

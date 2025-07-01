@@ -367,140 +367,164 @@
 <h1>ai_cdss.DataLoader<a class="headerlink" href="#ai-cdss-dataloader" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="ai_cdss.DataLoader">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ai_cdss.</span></span><span class="sig-name descname"><span class="pre">DataLoader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgs_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'plus'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader" title="Link to this definition">#</a></dt>
-<dd><p>Loads data from database and CSV files.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>rgs_mode</strong><span class="classifier">str, optional</span></dt><dd><p>Mode for fetching RGS data. Default is “plus”.</p>
-</dd>
-</dl>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ai_cdss.</span></span><span class="sig-name descname"><span class="pre">DataLoader</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rgs_mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'plus'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader" title="Link to this definition">#</a></dt>
+<dd><p>Loads data from database and CSV files for the Clinical Decision Support System.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>rgs_mode (str, optional): Mode for fetching RGS data. Default is “plus”.</p>
 </dd>
 </dl>
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_patient_clinical_data" title="ai_cdss.DataLoader.load_patient_clinical_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_patient_clinical_data</span></code></a>(patient_list)</p></td>
-<td><p>Load patient clinical data from the RGS interface.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.fetch_and_validate_patients" title="ai_cdss.DataLoader.fetch_and_validate_patients"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fetch_and_validate_patients</span></code></a>(study_ids)</p></td>
+<td><p>Fetch patient data for the given study IDs and validate that patients exist.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_patient_data" title="ai_cdss.DataLoader.load_patient_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_patient_data</span></code></a>(patient_list)</p></td>
+<td><p>Load all data specific to a patient clinical trial.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_patient_subscales" title="ai_cdss.DataLoader.load_patient_subscales"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_patient_subscales</span></code></a>(patient_list)</p></td>
+<td><p>Load and decode patient clinical scale data for the given patient list.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_ppf_data" title="ai_cdss.DataLoader.load_ppf_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_ppf_data</span></code></a>(patient_list)</p></td>
-<td><p>Load PPF (precomputed patient-protocol fit) from internal data.</p></td>
+<td><p>Load PPF (precomputed patient-protocol fit) data from internal storage.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_protocol_similarity" title="ai_cdss.DataLoader.load_protocol_similarity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_protocol_similarity</span></code></a>()</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_protocol_attributes" title="ai_cdss.DataLoader.load_protocol_attributes"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_protocol_attributes</span></code></a>([file_path])</p></td>
+<td><p>Load protocol attributes from internal storage or a specified file path.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_protocol_similarity" title="ai_cdss.DataLoader.load_protocol_similarity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_protocol_similarity</span></code></a>()</p></td>
 <td><p>Load protocol similarity data from internal storage.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_session_data" title="ai_cdss.DataLoader.load_session_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_session_data</span></code></a>(patient_list)</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_session_data" title="ai_cdss.DataLoader.load_session_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_session_data</span></code></a>(patient_list)</p></td>
 <td><p>Load session data from the RGS interface.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_timeseries_data" title="ai_cdss.DataLoader.load_timeseries_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_timeseries_data</span></code></a>(patient_list)</p></td>
-<td><p>Load timeseries data from the RGS interface.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="pst-scrollable-table-container"><table class="table">
-<tbody>
-<tr class="row-odd"><td><p><strong>load_patient_subscales</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-even"><td><p><strong>load_protocol_attributes</strong></p></td>
-<td></td>
-</tr>
-<tr class="row-odd"><td><p><strong>load_protocol_init</strong></p></td>
-<td></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataLoader.load_timeseries_data" title="ai_cdss.DataLoader.load_timeseries_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_timeseries_data</span></code></a>(patient_list)</p></td>
+<td><p>Load timeseries data for the given patient list.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_session_data">
-<span class="sig-name descname"><span class="pre">load_session_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_session_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_session_data" title="Link to this definition">#</a></dt>
-<dd><p>Load session data from the RGS interface.
-New patients without prescriptions are not included in this table</p>
+<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_patient_data">
+<span class="sig-name descname"><span class="pre">load_patient_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader.load_patient_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_patient_data" title="Link to this definition">#</a></dt>
+<dd><p>Load all data specific to a patient clinical trial.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.SessionSchema.html#ai_cdss.models.SessionSchema" title="ai_cdss.models.SessionSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">SessionSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>DataFrame[SessionSchema]</dt><dd><p>Session data for the specified patients.</p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">DataUnit</span></code>]</span></p>
 </dd>
 </dl>
+<dl class="simple">
+<dt>Args:</dt><dd><p>patient_list (List[int]): List of patient IDs.</p>
+</dd>
+<dt>Returns:</dt><dd><p>Union[pd.DataFrame, DataUnit]: Patient data as a DataFrame or DataUnit.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_session_data">
+<span class="sig-name descname"><span class="pre">load_session_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader.load_session_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_session_data" title="Link to this definition">#</a></dt>
+<dd><p>Load session data from the RGS interface.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">DataUnit</span></code>]</span></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Args:</dt><dd><p>patient_list (List[int]): List of patient IDs.</p>
+</dd>
+<dt>Returns:</dt><dd><p>Union[pd.DataFrame, DataUnit]: Session data as a DataFrame or DataUnit.</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataLoader.load_timeseries_data">
-<span class="sig-name descname"><span class="pre">load_timeseries_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_timeseries_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_timeseries_data" title="Link to this definition">#</a></dt>
-<dd><p>Load timeseries data from the RGS interface.
-New patients without prescriptions are not included in this table</p>
+<span class="sig-name descname"><span class="pre">load_timeseries_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader.load_timeseries_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_timeseries_data" title="Link to this definition">#</a></dt>
+<dd><p>Load timeseries data for the given patient list.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.TimeseriesSchema.html#ai_cdss.models.TimeseriesSchema" title="ai_cdss.models.TimeseriesSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">TimeseriesSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>DataFrame[TimeseriesSchema]</dt><dd><p>Timeseries data for the specified patients.</p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">DataUnit</span></code>]</span></p>
 </dd>
 </dl>
+<dl class="simple">
+<dt>Args:</dt><dd><p>patient_list (List[int]): List of patient IDs.</p>
+</dd>
+<dt>Returns:</dt><dd><p>Union[pd.DataFrame, DataUnit]: Timeseries data as a DataFrame or DataUnit.</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataLoader.load_ppf_data">
-<span class="sig-name descname"><span class="pre">load_ppf_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_ppf_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_ppf_data" title="Link to this definition">#</a></dt>
-<dd><p>Load PPF (precomputed patient-protocol fit) from internal data.</p>
+<span class="sig-name descname"><span class="pre">load_ppf_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader.load_ppf_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_ppf_data" title="Link to this definition">#</a></dt>
+<dd><p>Load PPF (precomputed patient-protocol fit) data from internal storage.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.PPFSchema.html#ai_cdss.models.PPFSchema" title="ai_cdss.models.PPFSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">PPFSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>DataFrame[PPFSchema]</dt><dd><p>PPF data indexed by PROTOCOL_ID.</p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">DataUnit</span></code>]</span></p>
 </dd>
 </dl>
+<dl class="simple">
+<dt>Args:</dt><dd><p>patient_list (List[int]): List of patient IDs.</p>
+</dd>
+<dt>Returns:</dt><dd><p>Union[pd.DataFrame, DataUnit]: PPF data as a DataFrame or DataUnit.</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_patient_clinical_data">
-<span class="sig-name descname"><span class="pre">load_patient_clinical_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_patient_clinical_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_patient_clinical_data" title="Link to this definition">#</a></dt>
-<dd><p>Load patient clinical data from the RGS interface.</p>
+<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_patient_subscales">
+<span class="sig-name descname"><span class="pre">load_patient_subscales</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_list</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader.load_patient_subscales"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_patient_subscales" title="Link to this definition">#</a></dt>
+<dd><p>Load and decode patient clinical scale data for the given patient list.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>patient_list</strong><span class="classifier">List[int]</span></dt><dd><p>List of patient IDs to fetch clinical data for.</p>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">DataUnit</span></code>]</span></p>
 </dd>
 </dl>
+<dl class="simple">
+<dt>Args:</dt><dd><p>patient_list (List[int]): List of patient IDs.</p>
 </dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>DataFrame containing clinical data for the specified patients.</p>
+<dt>Returns:</dt><dd><p>Union[pd.DataFrame, DataUnit]: Decoded patient scale data indexed by PATIENT_ID.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataLoader.load_protocol_attributes">
+<span class="sig-name descname"><span class="pre">load_protocol_attributes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader.load_protocol_attributes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_protocol_attributes" title="Link to this definition">#</a></dt>
+<dd><p>Load protocol attributes from internal storage or a specified file path.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>file_path (str, optional): Path to the protocol attributes file.</p>
+</dd>
+<dt>Returns:</dt><dd><p>pd.DataFrame: Protocol attributes data.</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataLoader.load_protocol_similarity">
-<span class="sig-name descname"><span class="pre">load_protocol_similarity</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_loader.html#DataLoader.load_protocol_similarity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_protocol_similarity" title="Link to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">load_protocol_similarity</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader.load_protocol_similarity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.load_protocol_similarity" title="Link to this definition">#</a></dt>
 <dd><p>Load protocol similarity data from internal storage.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.PCMSchema.html#ai_cdss.models.PCMSchema" title="ai_cdss.models.PCMSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">PCMSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>DataFrame[ProtocolSimilaritySchema]</dt><dd><p>Protocol similarity data with columns: PROTOCOL_ID_1, PROTOCOL_ID_2, SIMILARITY_SCORE.</p>
+<dl class="simple">
+<dt>Returns:</dt><dd><p>pd.DataFrame: Protocol similarity data with columns: PROTOCOL_ID_1, PROTOCOL_ID_2, SIMILARITY_SCORE.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ai_cdss.DataLoader.fetch_and_validate_patients">
+<span class="sig-name descname"><span class="pre">fetch_and_validate_patients</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">study_ids</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/loaders/db_loader.html#DataLoader.fetch_and_validate_patients"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataLoader.fetch_and_validate_patients" title="Link to this definition">#</a></dt>
+<dd><p>Fetch patient data for the given study IDs and validate that patients exist.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">List</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">int</span></code>]</span></p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Args:</dt><dd><p>study_ids (List[int]): List of study cohort identifiers to fetch patients for.</p>
+</dd>
+<dt>Returns:</dt><dd><p>List[int]: List of patient IDs associated with the provided study IDs.</p>
+</dd>
+<dt>Raises:</dt><dd><p>ValueError: If no patients are found for the given study IDs.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -557,11 +581,14 @@ New patients without prescriptions are not included in this table</p>
   <nav class="bd-toc-nav page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader"><code class="docutils literal notranslate"><span class="pre">DataLoader</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_patient_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_patient_data()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_session_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_session_data()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_timeseries_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_timeseries_data()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_ppf_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_ppf_data()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_patient_clinical_data"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_patient_clinical_data()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_patient_subscales"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_patient_subscales()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_protocol_attributes"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_protocol_attributes()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.load_protocol_similarity"><code class="docutils literal notranslate"><span class="pre">DataLoader.load_protocol_similarity()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataLoader.fetch_and_validate_patients"><code class="docutils literal notranslate"><span class="pre">DataLoader.fetch_and_validate_patients()</span></code></a></li>
 </ul>
 </li>
 </ul>

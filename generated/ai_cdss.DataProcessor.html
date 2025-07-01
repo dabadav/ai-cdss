@@ -49,8 +49,6 @@
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/design-tabs.js?v=f930bc37"></script>
-    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'generated/ai_cdss.DataProcessor';</script>
     <script src="../_static/modal.js?v=f3ac3e3f"></script>
     <link rel="index" title="Index" href="../genindex.html" />
@@ -369,180 +367,30 @@
 <h1>ai_cdss.DataProcessor<a class="headerlink" href="#ai-cdss-dataprocessor" title="Link to this heading">#</a></h1>
 <dl class="py class">
 <dt class="sig sig-object py" id="ai_cdss.DataProcessor">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ai_cdss.</span></span><span class="sig-name descname"><span class="pre">DataProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">weights</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[1,</span> <span class="pre">1,</span> <span class="pre">1]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor" title="Link to this definition">#</a></dt>
-<dd><p>A class for processing data and computing a final weighted score.</p>
-<p>The final score is computed as:</p>
-<div class="math notranslate nohighlight">
-\[S = \alpha \cdot A + \beta \cdot DM + \gamma \cdot PPF\]</div>
-<p>where:</p>
-<ul class="simple">
-<li><p><span class="math notranslate nohighlight">\(A\)</span> is Adherence</p></li>
-<li><p><span class="math notranslate nohighlight">\(DM\)</span> is the Difficulty Modulator</p></li>
-<li><p><span class="math notranslate nohighlight">\(PPF\)</span> is the Patient Prescription Factor</p></li>
-</ul>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>weights</strong><span class="classifier">List[float]</span></dt><dd><p>List of weights <span class="math notranslate nohighlight">\(\alpha\)</span>, <span class="math notranslate nohighlight">\(\beta\)</span>, <span class="math notranslate nohighlight">\(\gamma\)</span> for computing the final score.</p>
-</dd>
-<dt><strong>alpha</strong><span class="classifier">float</span></dt><dd><p>The smoothing factor for EWMA, controlling how much past values influence the trend.</p>
-</dd>
-</dl>
-</dd>
-</dl>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ai_cdss.</span></span><span class="sig-name descname"><span class="pre">DataProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/processing/processor.html#DataProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible facade for the new DataPipeline.
+Provides the same interface as the old DataProcessor.</p>
 <p class="rubric">Methods</p>
 <div class="pst-scrollable-table-container"><table class="autosummary longtable table">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.build_prescription_days" title="ai_cdss.DataProcessor.build_prescription_days"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_prescription_days</span></code></a>(session_df[, ...])</p></td>
-<td><p>This feature builder must return active prescriptions signaled as: PRESCRIPTION_ENDING_DATE == 2100-01-01 00:00:00</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.build_recent_adherence" title="ai_cdss.DataProcessor.build_recent_adherence"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_recent_adherence</span></code></a>(session_df)</p></td>
-<td><p>This feature builder must return adherence for patient protocols, with the following considerations: - Adherence computed as SESSION_TIME / PRESCRIBED_SESSION_TIME - Adherence is considered 0 if presribed session is not performed     - BUT is not considered if no session was performed that day.</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.build_usage" title="ai_cdss.DataProcessor.build_usage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_usage</span></code></a>(session_df)</p></td>
-<td><p>This feature builder must return how many times protocols are used in this format: PATIENT_ID  PROTOCOL_ID  USAGE 12          220          2 12          231          1 12          233          0</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.build_week_usage" title="ai_cdss.DataProcessor.build_week_usage"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_week_usage</span></code></a>(session_df[, scoring_date])</p></td>
-<td><p>This feature builder must return how many times protocols are used in this week in this format: PATIENT_ID  PROTOCOL_ID  USAGE_WEEK 12          220          2 12          231          1 12          233          0</p></td>
-</tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.compute_score" title="ai_cdss.DataProcessor.compute_score"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_score</span></code></a>(data, protocol_metrics)</p></td>
-<td><p>Initializes metrics based on legacy data and computes score</p></td>
-</tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.process_data" title="ai_cdss.DataProcessor.process_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_data</span></code></a>(session_data, timeseries_data, ...)</p></td>
-<td><p>Process and score patient-protocol combinations using session, timeseries, and PPF data.</p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<div class="pst-scrollable-table-container"><table class="table">
-<tbody>
-<tr class="row-odd"><td><p><strong>build_delta_dm</strong></p></td>
-<td></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ai_cdss.DataProcessor.process_data" title="ai_cdss.DataProcessor.process_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">process_data</span></code></a>(data, scoring_date)</p></td>
+<td><p>Backward-compatible method for processing data.</p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <dl class="py method">
 <dt class="sig sig-object py" id="ai_cdss.DataProcessor.process_data">
-<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeseries_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ppf_data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">init_data</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.process_data" title="Link to this definition">#</a></dt>
-<dd><p>Process and score patient-protocol combinations using session, timeseries, and PPF data.
-When bootstrapping patient, score is based on PPF only.
-Otherwise a weighted sum of DELTA_DM, ADHERENCE_RECENT and PPF determines the score.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code>[<a class="reference internal" href="ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema" title="ai_cdss.models.ScoringSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScoringSchema</span></code></a>]</span></p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt><strong>session_data</strong><span class="classifier">DataFrame[SessionSchema]</span></dt><dd><p>Session-level data including adherence and scheduling information.</p>
-</dd>
-<dt><strong>timeseries_data</strong><span class="classifier">DataFrame[TimeseriesSchema]</span></dt><dd><p>Timepoint-level data including DMs and performance metrics.</p>
-</dd>
-<dt><strong>ppf_data</strong><span class="classifier">DataFrame[PPFSchema]</span></dt><dd><p>Patient-protocol fitness values and contributions.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt>DataFrame[ScoringSchema]</dt><dd><p>Final scored dataframe with protocol recommendations.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.compute_score">
-<span class="sig-name descname"><span class="pre">compute_score</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">protocol_metrics</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.compute_score"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.compute_score" title="Link to this definition">#</a></dt>
-<dd><p>Initializes metrics based on legacy data and computes score</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><dl class="simple">
-<dt><strong>data</strong><span class="classifier">pd.DataFrame</span></dt><dd><p>Aggregated session and timeseries data per patient-protocol.</p>
-</dd>
-</dl>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><dl class="simple">
-<dt>pd.DataFrame</dt><dd><p>Scored DataFrame sorted by patient and protocol.</p>
-</dd>
-</dl>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.build_recent_adherence">
-<span class="sig-name descname"><span class="pre">build_recent_adherence</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.build_recent_adherence"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.build_recent_adherence" title="Link to this definition">#</a></dt>
-<dd><p>This feature builder must return adherence for patient protocols, with the following considerations:
-- Adherence computed as SESSION_TIME / PRESCRIBED_SESSION_TIME
-- Adherence is considered 0 if presribed session is not performed</p>
-<blockquote>
-<div><ul class="simple">
-<li><p>BUT is not considered if no session was performed that day.</p></li>
-</ul>
-</div></blockquote>
-<p>Additionally a recency bias is applied.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.build_usage">
-<span class="sig-name descname"><span class="pre">build_usage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_df</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.build_usage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.build_usage" title="Link to this definition">#</a></dt>
-<dd><p>This feature builder must return how many times protocols are used in this format:
-PATIENT_ID  PROTOCOL_ID  USAGE
-12          220          2
-12          231          1
-12          233          0</p>
-<p>Protocols that have not been yet prescribed for a patient are not returned.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.build_week_usage">
-<span class="sig-name descname"><span class="pre">build_week_usage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scoring_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.build_week_usage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.build_week_usage" title="Link to this definition">#</a></dt>
-<dd><p>This feature builder must return how many times protocols are used in this week in this format:
-PATIENT_ID  PROTOCOL_ID  USAGE_WEEK
-12          220          2
-12          231          1
-12          233          0</p>
-<p>Protocols that have not been yet prescribed for a patient are not returned.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="ai_cdss.DataProcessor.build_prescription_days">
-<span class="sig-name descname"><span class="pre">build_prescription_days</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">session_df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scoring_date</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/data_processor.html#DataProcessor.build_prescription_days"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.build_prescription_days" title="Link to this definition">#</a></dt>
-<dd><p>This feature builder must return active prescriptions signaled as:
-PRESCRIPTION_ENDING_DATE == 2100-01-01 00:00:00</p>
-<p>In the following format, (encoding weekdays from 0-6):
-PATIENT_ID  PROTOCOL_ID DAYS
-12          220         [2]
-12          233         [0]</p>
-<dl class="field-list simple">
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
-</dd>
-</dl>
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scoring_date</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/processing/processor.html#DataProcessor.process_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.DataProcessor.process_data" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible method for processing data.
+Delegates to DataPipeline.process.</p>
 </dd></dl>
 
 </dd></dl>
 
 <section id="examples-using-ai-cdss-dataprocessor">
 <span id="sphx-glr-backreferences-ai-cdss-dataprocessor"></span><h2>Examples using <code class="docutils literal notranslate"><span class="pre">ai_cdss.DataProcessor</span></code><a class="headerlink" href="#examples-using-ai-cdss-dataprocessor" title="Link to this heading">#</a></h2>
-<div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the DataLoader, DataProcessor, and CDSS to load data and generate a 7-day protocol plan."><img alt="" src="../_images/sphx_glr_recommend_usage_thumb.png" />
+<div class="sphx-glr-thumbnails"><div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the DataLoader, DataProcessor, and CDSS to load data and generate a 7-day protocol plan for testing/CI purposes."><img alt="" src="../_images/sphx_glr_recommend_usage_thumb.png" />
 <p><a class="reference internal" href="../auto_examples/recommend_usage.html#sphx-glr-auto-examples-recommend-usage-py"><span class="std std-ref">Basic usage of CDSS to generate a protocol recommendation.</span></a></p>
   <div class="sphx-glr-thumbnail-title">Basic usage of CDSS to generate a protocol recommendation.</div>
 </div></div></section>
@@ -597,11 +445,6 @@ PATIENT_ID  PROTOCOL_ID DAYS
     <ul class="nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor"><code class="docutils literal notranslate"><span class="pre">DataProcessor</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.process_data"><code class="docutils literal notranslate"><span class="pre">DataProcessor.process_data()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.compute_score"><code class="docutils literal notranslate"><span class="pre">DataProcessor.compute_score()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.build_recent_adherence"><code class="docutils literal notranslate"><span class="pre">DataProcessor.build_recent_adherence()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.build_usage"><code class="docutils literal notranslate"><span class="pre">DataProcessor.build_usage()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.build_week_usage"><code class="docutils literal notranslate"><span class="pre">DataProcessor.build_week_usage()</span></code></a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#ai_cdss.DataProcessor.build_prescription_days"><code class="docutils literal notranslate"><span class="pre">DataProcessor.build_prescription_days()</span></code></a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples-using-ai-cdss-dataprocessor">Examples using <code class="docutils literal notranslate"><span class="pre">ai_cdss.DataProcessor</span></code></a></li>

@@ -29,7 +29,7 @@ how a particular technique you’ve read about can be applied using MNE-Python.
 
 .. raw:: html
 
-    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the DataLoader, DataProcessor, and CDSS to load data and generate a 7-day protocol plan.">
+    <div class="sphx-glr-thumbcontainer" tooltip="This example demonstrates how to use the DataLoader, DataProcessor, and CDSS to load data and generate a 7-day protocol plan for testing/CI purposes.">
 
 .. only:: html
 

@@ -384,11 +384,11 @@
 <tbody>
 <tr class="row-even"><td><p>PATIENT_ID</p></td>
 <td><p>int64</p></td>
-<td><p>nullable</p></td>
+<td><p>—</p></td>
 </tr>
 <tr class="row-odd"><td><p>PRESCRIPTION_ID</p></td>
 <td><p>int64</p></td>
-<td><p>nullable</p></td>
+<td><p>—</p></td>
 </tr>
 <tr class="row-even"><td><p>SESSION_ID</p></td>
 <td><p>int64</p></td>
@@ -400,11 +400,11 @@
 </tr>
 <tr class="row-even"><td><p>PRESCRIPTION_STARTING_DATE</p></td>
 <td><p>datetime64[ns]</p></td>
-<td><p>nullable</p></td>
+<td><p>—</p></td>
 </tr>
 <tr class="row-odd"><td><p>PRESCRIPTION_ENDING_DATE</p></td>
 <td><p>datetime64[ns]</p></td>
-<td><p>nullable</p></td>
+<td><p>—</p></td>
 </tr>
 <tr class="row-even"><td><p>SESSION_DATE</p></td>
 <td><p>datetime64[ns]</p></td>
@@ -416,7 +416,7 @@
 </tr>
 <tr class="row-even"><td><p>STATUS</p></td>
 <td><p>str</p></td>
-<td><p>nullable; isin: [‘CLOSED’, ‘ABORTED’, ‘ONGOING’]</p></td>
+<td><p>nullable; isin: [‘CLOSED’, ‘NOT_PERFORMED’]</p></td>
 </tr>
 <tr class="row-odd"><td><p>REAL_SESSION_DURATION</p></td>
 <td><p>int64</p></td>
@@ -434,17 +434,9 @@
 <td><p>float64</p></td>
 <td><p>nullable; ≥ 0; ≤ 1</p></td>
 </tr>
-<tr class="row-odd"><td><p>TOTAL_SUCCESS</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 0</p></td>
-</tr>
-<tr class="row-even"><td><p>TOTAL_ERRORS</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 0</p></td>
-</tr>
-<tr class="row-odd"><td><p>GAME_SCORE</p></td>
-<td><p>int64</p></td>
-<td><p>nullable; ≥ 0</p></td>
+<tr class="row-odd"><td><p>DM_VALUE</p></td>
+<td><p>float64</p></td>
+<td><p>nullable</p></td>
 </tr>
 </tbody>
 </table>

@@ -346,19 +346,99 @@ window.addEventListener("load", () => mermaid.run());
                   
   <h1>Source code for ai_cdss.models</h1><div class="highlight"><pre>
 <span></span><span class="c1"># ai_cdss/models.py</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Type</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">functools</span><span class="w"> </span><span class="kn">import</span> <span class="n">partial</span><span class="p">,</span> <span class="n">wraps</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Type</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ai_cdss.constants</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pandera.errors</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaError</span>
 
 <span class="n">NullableField</span> <span class="o">=</span> <span class="n">partial</span><span class="p">(</span><span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># Set up logging</span>
 <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
+
+<span class="c1"># ---------------------------------------------------------------------</span>
+<span class="c1"># Dataclasses</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">Granularity</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="n">PATIENT_ID</span> <span class="o">=</span> <span class="s2">&quot;PATIENT_ID&quot;</span>
+    <span class="n">BY_PP</span> <span class="o">=</span> <span class="s2">&quot;BY_PP&quot;</span>
+    <span class="n">BY_PPS</span> <span class="o">=</span> <span class="s2">&quot;BY_PPS&quot;</span>
+    <span class="n">BY_PPST</span> <span class="o">=</span> <span class="s2">&quot;BY_PPST&quot;</span>
+    <span class="n">BY_ID</span> <span class="o">=</span> <span class="s2">&quot;BY_ID&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">id_cols</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="n">Granularity</span><span class="o">.</span><span class="n">BY_PP</span><span class="p">:</span> <span class="n">BY_PP</span><span class="p">,</span>
+                <span class="n">Granularity</span><span class="o">.</span><span class="n">BY_PPS</span><span class="p">:</span> <span class="n">BY_PPS</span><span class="p">,</span>
+                <span class="n">Granularity</span><span class="o">.</span><span class="n">BY_PPST</span><span class="p">:</span> <span class="n">BY_PPST</span><span class="p">,</span>
+                <span class="n">Granularity</span><span class="o">.</span><span class="n">BY_ID</span><span class="p">:</span> <span class="n">BY_ID</span><span class="p">,</span>
+                <span class="n">Granularity</span><span class="o">.</span><span class="n">PATIENT_ID</span><span class="p">:</span> <span class="p">[</span><span class="n">PATIENT_ID</span><span class="p">],</span>
+            <span class="p">}[</span><span class="bp">self</span><span class="p">]</span>
+        <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Unsupported Granularity: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DataUnitName</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+    <span class="n">PATIENT</span> <span class="o">=</span> <span class="s2">&quot;patient&quot;</span>
+    <span class="n">SESSIONS</span> <span class="o">=</span> <span class="s2">&quot;sessions&quot;</span>
+    <span class="n">PPF</span> <span class="o">=</span> <span class="s2">&quot;ppf&quot;</span>
+
+
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DataUnit</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    A unit of data with an associated granularity and optional metadata.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">name</span><span class="p">:</span> <span class="n">DataUnitName</span>
+    <span class="n">data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="n">level</span><span class="p">:</span> <span class="n">Granularity</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">schema</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Type</span><span class="p">[</span><span class="n">pa</span><span class="o">.</span><span class="n">DataFrameModel</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">id_cols</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">.</span><span class="n">id_cols</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate the data using the attached schema, if present.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">SchemaError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span>
+                    <span class="s2">&quot;Schema validation failed for DataUnit &#39;</span><span class="si">%s</span><span class="s2">&#39;: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">e</span>
+                <span class="p">)</span>
+                <span class="k">raise</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;DataUnit.name must not be None&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;DataUnit.level (granularity) must not be None&quot;</span><span class="p">)</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">DataUnitSet</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">units</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">DataUnit</span><span class="p">]):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">DataUnit</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">unit</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">unit</span> <span class="k">for</span> <span class="n">unit</span> <span class="ow">in</span> <span class="n">units</span><span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n">DataUnitName</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataUnit</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">units</span><span class="p">[</span><span class="n">name</span><span class="o">.</span><span class="n">value</span><span class="p">]</span>
+
+
 <span class="c1"># ---------------------------------------------------------------------</span>
 <span class="c1"># RGS Data Input</span>
+
 
 <div class="viewcode-block" id="SessionSchema">
 <a class="viewcode-back" href="../../generated/ai_cdss.models.SessionSchema.html#ai_cdss.models.SessionSchema">[docs]</a>
@@ -368,31 +448,36 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="c1"># Patient profile</span>
-    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PATIENT_ID&#39;</span><span class="p">)</span>
+    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PATIENT_ID</span><span class="p">)</span>
 
     <span class="c1"># Identifiers</span>
-    <span class="n">prescription_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PRESCRIPTION_ID&#39;</span><span class="p">)</span>
-    <span class="n">session_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;SESSION_ID&#39;</span><span class="p">)</span>
-    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PROTOCOL_ID&#39;</span><span class="p">)</span>
+    <span class="n">prescription_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PRESCRIPTION_ID</span><span class="p">)</span>
+    <span class="n">session_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">SESSION_ID</span><span class="p">)</span>
+    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PROTOCOL_ID</span><span class="p">)</span>
 
     <span class="c1"># Prescription</span>
-    <span class="n">prescription_starting_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PRESCRIPTION_STARTING_DATE&#39;</span><span class="p">)</span>
-    <span class="n">prescription_ending_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PRESCRIPTION_ENDING_DATE&#39;</span><span class="p">)</span>
-    
-    <span class="c1"># Session</span>
-    <span class="n">session_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;SESSION_DATE&#39;</span><span class="p">)</span>
-    <span class="n">weekday</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;WEEKDAY_INDEX&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Weekday Index (0=Monday, 6=Sunday)&quot;</span><span class="p">)</span>
-    <span class="n">status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;STATUS&#39;</span><span class="p">,</span> <span class="n">isin</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;CLOSED&quot;</span><span class="p">,</span> <span class="s2">&quot;ABORTED&quot;</span><span class="p">,</span> <span class="s2">&quot;ONGOING&quot;</span><span class="p">])</span>
-    
-    <span class="c1"># Metrics</span>
-    <span class="n">real_session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;REAL_SESSION_DURATION&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">prescribed_session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;PRESCRIBED_SESSION_DURATION&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;SESSION_DURATION&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">adherence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;ADHERENCE&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">prescription_starting_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PRESCRIPTION_STARTING_DATE</span><span class="p">)</span>
+    <span class="n">prescription_ending_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PRESCRIPTION_ENDING_DATE</span><span class="p">)</span>
 
-    <span class="n">total_success</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;TOTAL_SUCCESS&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">total_errors</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;TOTAL_ERRORS&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">game_score</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s1">&#39;GAME_SCORE&#39;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span></div>
+    <span class="c1"># Session</span>
+    <span class="n">session_date</span><span class="p">:</span> <span class="n">pa</span><span class="o">.</span><span class="n">DateTime</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">SESSION_DATE</span><span class="p">)</span>
+    <span class="n">weekday</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">WEEKDAY_INDEX</span><span class="p">,</span>
+        <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">le</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Weekday Index (0=Monday, 6=Sunday)&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">status</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">STATUS</span><span class="p">,</span> <span class="n">isin</span><span class="o">=</span><span class="p">[</span><span class="n">e</span><span class="o">.</span><span class="n">value</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">SessionStatus</span><span class="p">])</span>
+
+    <span class="c1"># Metrics</span>
+    <span class="n">real_session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">REAL_SESSION_DURATION</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">prescribed_session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">PRESCRIBED_SESSION_DURATION</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span>
+    <span class="p">)</span>
+    <span class="n">session_duration</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">SESSION_DURATION</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">adherence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">ADHERENCE</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">dm_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">DM_VALUE</span><span class="p">)</span></div>
+
 
 
 <div class="viewcode-block" id="TimeseriesSchema">
@@ -401,22 +486,24 @@ window.addEventListener("load", () => mermaid.run());
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Schema for timeseries session data. Includes measurements per-second of difficulty modulators (DM) and performance estimates (PE).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+
     <span class="c1"># Identifiers</span>
-    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">session_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;SESSION_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-    
+    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PATIENT_ID</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">session_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">SESSION_ID</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PROTOCOL_ID</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
     <span class="c1"># Protocol</span>
-    <span class="n">game_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;GAME_MODE&quot;</span><span class="p">)</span>
-    
+    <span class="n">game_mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">GAME_MODE</span><span class="p">)</span>
+
     <span class="c1"># Time</span>
-    <span class="n">timepoint</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;SECONDS_FROM_START&quot;</span><span class="p">)</span>
-    
+    <span class="n">timepoint</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">SECONDS_FROM_START</span><span class="p">)</span>
+
     <span class="c1"># Metrics</span>
-    <span class="n">dm_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;DM_KEY&quot;</span><span class="p">)</span>
-    <span class="n">dm_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;DM_VALUE&quot;</span><span class="p">)</span>
-    <span class="n">pe_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PE_KEY&quot;</span><span class="p">)</span>
-    <span class="n">pe_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PE_VALUE&quot;</span><span class="p">)</span></div>
+    <span class="n">dm_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">DM_KEY</span><span class="p">)</span>
+    <span class="n">dm_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">DM_VALUE</span><span class="p">)</span>
+    <span class="n">pe_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PE_KEY</span><span class="p">)</span>
+    <span class="n">pe_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">NullableField</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PE_VALUE</span><span class="p">)</span></div>
+
 
 
 <div class="viewcode-block" id="PPFSchema">
@@ -425,11 +512,13 @@ window.addEventListener("load", () => mermaid.run());
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Schema for Patient-Protocol Fit (PPF) data. Represents how well a protocol fits a patient, including a PPF score and feature contributions.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">)</span>
-    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">)</span>
 
-    <span class="n">ppf</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PPF&quot;</span><span class="p">)</span>
-    <span class="n">contrib</span><span class="p">:</span> <span class="nb">object</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;CONTRIB&quot;</span><span class="p">)</span></div>
+    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PATIENT_ID</span><span class="p">)</span>
+    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PROTOCOL_ID</span><span class="p">)</span>
+
+    <span class="n">ppf</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PPF</span><span class="p">)</span>
+    <span class="n">contrib</span><span class="p">:</span> <span class="nb">object</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">CONTRIB</span><span class="p">)</span></div>
+
 
 
 <div class="viewcode-block" id="PCMSchema">
@@ -438,13 +527,16 @@ window.addEventListener("load", () => mermaid.run());
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Schema for protocol similarity matrix. Include pairwise similarity scores between protocols based on clinical domain overlap.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">protocol_a</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_A&quot;</span><span class="p">)</span>
-    <span class="n">protocol_b</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_B&quot;</span><span class="p">)</span>
-    <span class="n">similarity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;SIMILARITY&quot;</span><span class="p">)</span></div>
+
+    <span class="n">protocol_a</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PROTOCOL_A</span><span class="p">)</span>
+    <span class="n">protocol_b</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">PROTOCOL_B</span><span class="p">)</span>
+    <span class="n">similarity</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="n">SIMILARITY</span><span class="p">)</span></div>
+
 
 
 <span class="c1"># ---------------------------------------------------------------------</span>
 <span class="c1"># Recommender Output</span>
+
 
 <div class="viewcode-block" id="ScoringSchema">
 <a class="viewcode-back" href="../../generated/ai_cdss.models.ScoringSchema.html#ai_cdss.models.ScoringSchema">[docs]</a>
@@ -455,20 +547,38 @@ window.addEventListener("load", () => mermaid.run());
 
     <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">:</span>
         <span class="n">coerce</span> <span class="o">=</span> <span class="kc">True</span>
-    
-    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PATIENT_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a positive integer.&quot;</span><span class="p">)</span>
-    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PROTOCOL_ID&quot;</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a positive integer.&quot;</span><span class="p">)</span>
-    <span class="n">adherence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;ADHERENCE_RECENT&quot;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a probability (0-1).&quot;</span><span class="p">)</span>
-    <span class="n">dm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;DELTA_DM&quot;</span><span class="p">)</span> <span class="c1"># , ge=-1, le=1, description=&quot;Must be between (-1, 1).&quot;)</span>
-    <span class="n">ppf</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;PPF&quot;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a probability (0-1).&quot;</span><span class="p">)</span>
+
+    <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">PATIENT_ID</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a positive integer.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">protocol_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">PROTOCOL_ID</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a positive integer.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">adherence</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">RECENT_ADHERENCE</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a probability (0-1).&quot;</span>
+    <span class="p">)</span>
+    <span class="n">dm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">DELTA_DM</span>
+    <span class="p">)</span>  <span class="c1"># , ge=-1, le=1, description=&quot;Must be between (-1, 1).&quot;)</span>
+    <span class="n">ppf</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">PPF</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Must be a probability (0-1).&quot;</span>
+    <span class="p">)</span>
     <span class="n">contrib</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;CONTRIB&quot;</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">coerce</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">score</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;SCORE&quot;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Score must be a positive float.&quot;</span><span class="p">)</span>
-    <span class="n">usage</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;USAGE&quot;</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Usage count must be a non-negative integer.&quot;</span><span class="p">)</span>
-    <span class="n">days</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;DAYS&quot;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Days of the week the protocol is prescribed.&quot;</span><span class="p">)</span></div>
+    <span class="n">score</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">SCORE</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Score must be a positive float.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">usage</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">USAGE</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Usage count must be a non-negative integer.&quot;</span>
+    <span class="p">)</span>
+    <span class="n">days</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Field</span><span class="p">(</span>
+        <span class="n">alias</span><span class="o">=</span><span class="n">DAYS</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Days of the week the protocol is prescribed.&quot;</span>
+    <span class="p">)</span></div>
+
 
 
 <span class="c1"># ---------------------------------------------------------------------</span>
 <span class="c1"># Validation Decorator</span>
+
 
 <span class="k">def</span><span class="w"> </span><span class="nf">safe_check_types</span><span class="p">(</span><span class="n">schema_model</span><span class="p">:</span> <span class="n">Type</span><span class="p">[</span><span class="n">pa</span><span class="o">.</span><span class="n">DataFrameModel</span><span class="p">]):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -476,26 +586,29 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">    schema_model: A pandera DataFrameModel class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">schema</span> <span class="o">=</span> <span class="n">schema_model</span><span class="o">.</span><span class="n">to_schema</span><span class="p">()</span>
-    <span class="n">schema_name</span> <span class="o">=</span> <span class="n">schema_model</span><span class="o">.</span><span class="vm">__name__</span> <span class="c1"># Get the name of the schema model class</span>
+    <span class="n">schema_name</span> <span class="o">=</span> <span class="n">schema_model</span><span class="o">.</span><span class="vm">__name__</span>  <span class="c1"># Get the name of the schema model class</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">decorator</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">):</span>
         <span class="nd">@wraps</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
             <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            
+
             <span class="k">if</span> <span class="n">df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Returned DataFrame from `</span><span class="si">{</span><span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">` is empty. &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;Kwargs: </span><span class="si">{</span><span class="n">kwargs</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;Returned DataFrame from `</span><span class="si">%s</span><span class="s2">` is empty. Kwargs: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">func</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                    <span class="n">kwargs</span><span class="p">,</span>
                 <span class="p">)</span>
                 <span class="k">return</span> <span class="n">df</span>
-            
+
             <span class="n">modified_columns</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="n">skipped_columns</span> <span class="o">=</span> <span class="p">[]</span>
 
             <span class="k">for</span> <span class="n">col_name</span><span class="p">,</span> <span class="n">col_schema</span> <span class="ow">in</span> <span class="n">schema</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="k">if</span> <span class="n">col_schema</span><span class="o">.</span><span class="n">nullable</span> <span class="ow">and</span> <span class="n">df</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
-                    <span class="n">skipped_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">col_name</span><span class="p">)</span>                    <span class="c1"># Skip dtype validation for this nullable column with all nulls</span>
+                    <span class="n">skipped_columns</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                        <span class="n">col_name</span>
+                    <span class="p">)</span>  <span class="c1"># Skip dtype validation for this nullable column with all nulls</span>
                     <span class="n">modified_columns</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">Column</span><span class="p">(</span>
                         <span class="n">dtype</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                         <span class="n">checks</span><span class="o">=</span><span class="n">col_schema</span><span class="o">.</span><span class="n">checks</span><span class="p">,</span>
@@ -510,11 +623,13 @@ window.addEventListener("load", () => mermaid.run());
                 <span class="k">else</span><span class="p">:</span>
                     <span class="c1"># Keep original schema if dtype validation is needed</span>
                     <span class="n">modified_columns</span><span class="p">[</span><span class="n">col_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">col_schema</span>
-            
+
             <span class="c1"># Log all skipped columns once</span>
             <span class="k">if</span> <span class="n">skipped_columns</span><span class="p">:</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Skipped dtype check for empty columns in `</span><span class="si">{</span><span class="n">schema_name</span><span class="si">}</span><span class="s2">`: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">skipped_columns</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="s2">&quot;Skipped dtype check for empty columns in `</span><span class="si">%s</span><span class="s2">`: </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="n">schema_name</span><span class="p">,</span>
+                    <span class="s2">&quot;, &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">skipped_columns</span><span class="p">),</span>
                 <span class="p">)</span>
 
             <span class="c1"># Reconstruct modified schema</span>
@@ -532,6 +647,7 @@ window.addEventListener("load", () => mermaid.run());
             <span class="k">return</span> <span class="n">validated_df</span>
 
         <span class="k">return</span> <span class="n">wrapper</span>
+
     <span class="k">return</span> <span class="n">decorator</span>
 </pre></div>
 
