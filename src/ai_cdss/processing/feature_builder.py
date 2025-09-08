@@ -118,7 +118,12 @@ class FeatureBuilder:
             .astype({USAGE: "Int64"})
         )
 
-    def build_week_usage(self, session_df: pd.DataFrame, patient_df: pd.DataFrame, scoring_date: pd.Timestamp) -> pd.DataFrame:
+    def build_week_usage(
+        self,
+        session_df: pd.DataFrame,
+        patient_df: pd.DataFrame,
+        scoring_date: pd.Timestamp,
+    ) -> pd.DataFrame:
         """
         Compute the number of unique sessions (usage) per patient-protocol pair for the
         week containing scoring_date, where the week is aligned to each patient's
@@ -132,8 +137,18 @@ class FeatureBuilder:
         Returns:
             DataFrame with weekly usage counts per patient and protocol.
         """
+        # Ensure datetime types
+        patient_df = patient_df.copy()
+        session_df = session_df.copy()
+        patient_df[CLINICAL_START] = pd.to_datetime(
+            patient_df[CLINICAL_START], errors="coerce"
+        )
+        session_df[SESSION_DATE] = pd.to_datetime(
+            session_df[SESSION_DATE], errors="coerce"
+        )
+
         # anchor weekday per patient (0=Mon..6=Sun)
-        anchors = patient_df[[PATIENT_ID, PROTOCOL_ID, CLINICAL_START]].copy()
+        anchors = patient_df[[PATIENT_ID, CLINICAL_START]].copy()
         anchors["anchor_weekday"] = anchors[CLINICAL_START].dt.weekday
 
         # current weekday from scoring_date
@@ -143,18 +158,22 @@ class FeatureBuilder:
         delta = (current_wd - anchors["anchor_weekday"]) % 7
 
         # patient-specific week window [start, end)
-        anchors["week_start"] = (scoring_date - pd.to_timedelta(delta, unit="D")).normalize()
+        anchors["week_start"] = scoring_date.normalize() - pd.to_timedelta(
+            delta, unit="D"
+        )
         anchors["week_end"] = anchors["week_start"] + pd.Timedelta(days=7)
 
         # attach the window to each session row
         df = session_df.merge(
-            anchors[[PATIENT_ID, PROTOCOL_ID, "week_start", "week_end"]],
-            on=[PATIENT_ID, PROTOCOL_ID],
+            anchors[[PATIENT_ID, "week_start", "week_end"]],
+            on=[PATIENT_ID],
             how="left",
         )
 
         # keep sessions inside each patient's window
-        in_window = (df[SESSION_DATE] >= df["week_start"]) & (df[SESSION_DATE] < df["week_end"])
+        in_window = (df[SESSION_DATE] >= df["week_start"]) & (
+            df[SESSION_DATE] < df["week_end"]
+        )
         df = df.loc[in_window]
 
         usage = (
@@ -165,7 +184,9 @@ class FeatureBuilder:
         )
         return usage
 
-    def build_week_since_start(self, patient_df: pd.DataFrame, scoring_date: pd.Timestamp) -> pd.DataFrame:
+    def build_week_since_start(
+        self, patient_df: pd.DataFrame, scoring_date: pd.Timestamp
+    ) -> pd.DataFrame:
         """
         Compute whole weeks since each patient's clinical start as of scoring_date.
         Example: started 8 days ago -> week 1.
