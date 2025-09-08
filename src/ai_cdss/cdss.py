@@ -343,7 +343,30 @@ class CDSS:
 
     def _is_week_skipped(self, prescriptions: pd.DataFrame) -> bool:
         """
-        Check if the prescriptions are skipped for the whole week.
+        Return True if and only if all prescriptions scheduled this week were skipped
+        (i.e., no session was performed at all).
+
+        We consider only rows that have at least one scheduled day this week
+        (len(DAYS) > 0). For the week to be 'skipped', each of those rows must
+        have USAGE_WEEK == 0.
+        """
+        if prescriptions.empty:
+            return False  # can't say 'skipped' if nothing is scheduled
+
+        # Keep only prescriptions that actually have days scheduled this week
+        scheduled_mask = prescriptions[DAYS].apply(lambda d: len(d) > 0)
+        scheduled = prescriptions[scheduled_mask]
+
+        if scheduled.empty:
+            return False  # nothing scheduled -> not 'skipped' (adjust if you prefer True)
+
+        # Week is skipped if and only if none of the scheduled prescriptions recorded any usage
+        return (scheduled[USAGE_WEEK] == 0).all()
+    
+    def _is_partially_week_skipped(self, prescriptions: pd.DataFrame) -> bool:
+        """
+        Check if all prescriptions are partially skipped for the whole week.
+        True only if all prescriptions were used less than the number of scheduled days
         """
         # Apply a lambda function to each row: check if USAGE_WEEK >= number of DAYS for that prescription
         # If True for any row, .any() will return True (week is skipped for at least one prescription)

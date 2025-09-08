@@ -2120,7 +2120,7 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
 name = "rgs-interface"
-version = "0.4.0"
+version = "0.4.1"
 description = "Fetch data from Eodyne production database"
 optional = false
 python-versions = ">=3.12,<4.0"
@@ -2143,8 +2143,8 @@ typer = ">=0.16.0,<0.17.0"
 [package.source]
 type = "git"
 url = "https://github.com/dabadav/rgs-interface.git"
-reference = "v0.4.0"
-resolved_reference = "a3b055abf2f7abd4b721efc6453f785d486a26a0"
+reference = "v0.4.1"
+resolved_reference = "3c8f8e3c80e4e5a254caac1df38bdfb603b0dc72"
 
 [[package]]
 name = "rich"
@@ -2994,4 +2994,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<4.0"
-content-hash = "a89ee27ca7d556848a7c09f5222664328ffe8a66f07f592990547621f42101f6"
+content-hash = "4a517b52406f4fafb5d3254babe4e31ac122f7bc3d9245bca0c2e45d5823f811"

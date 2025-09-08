@@ -119,28 +119,63 @@ class FeatureBuilder:
         )
 
     def build_week_usage(
-        self, session_df: pd.DataFrame, scoring_date: Timestamp
+        self,
+        session_df: pd.DataFrame,
+        patient_df: pd.DataFrame,
+        scoring_date: pd.Timestamp,
     ) -> pd.DataFrame:
         """
-        Compute the number of unique sessions (usage) per patient-protocol pair for the week containing the scoring date.
+        Compute the number of unique sessions (usage) per patient-protocol pair for the
+        week containing scoring_date, where the week is aligned to each patient's
+        clinical start weekday (e.g., Wed→Tue if they started on a Wednesday).
 
         Args:
-            session_df (DataFrame): Input session data.
-            scoring_date (Timestamp): The date to define the week of interest.
+            session_df: rows with at least [PATIENT_ID, PROTOCOL_ID, SESSION_ID, SESSION_DATE]
+            patient_df: rows with at least [PATIENT_ID, PROTOCOL_ID, CLINICAL_START]
+            scoring_date: pd.Timestamp that defines the week of interest
 
         Returns:
-            pd.DataFrame: DataFrame with weekly usage counts per patient and protocol.
+            DataFrame with weekly usage counts per patient and protocol.
         """
-        df = session_df.copy()
+        # Ensure datetime types
+        patient_df = patient_df.copy()
+        session_df = session_df.copy()
+        patient_df[CLINICAL_START] = pd.to_datetime(
+            patient_df[CLINICAL_START], errors="coerce"
+        )
+        session_df[SESSION_DATE] = pd.to_datetime(
+            session_df[SESSION_DATE], errors="coerce"
+        )
 
-        def week_range(date):
-            week_start = date - pd.Timedelta(days=date.weekday())
-            week_start = week_start.normalize()
-            week_end = week_start + pd.Timedelta(days=7)
-            return week_start, week_end
+        # anchor weekday per patient (0=Mon..6=Sun)
+        anchors = patient_df[[PATIENT_ID, CLINICAL_START]].copy()
+        anchors["anchor_weekday"] = anchors[CLINICAL_START].dt.weekday
 
-        week_start, week_end = week_range(scoring_date)
-        df = df[(df[SESSION_DATE] >= week_start) & (df[SESSION_DATE] < week_end)]
+        # current weekday from scoring_date
+        current_wd = scoring_date.weekday()
+
+        # days to step back from scoring_date to reach this patient's "week start"
+        delta = (current_wd - anchors["anchor_weekday"]) % 7
+
+        # patient-specific week window [start, end)
+        anchors["week_start"] = scoring_date.normalize() - pd.to_timedelta(
+            delta, unit="D"
+        )
+        anchors["week_end"] = anchors["week_start"] + pd.Timedelta(days=7)
+
+        # attach the window to each session row
+        df = session_df.merge(
+            anchors[[PATIENT_ID, "week_start", "week_end"]],
+            on=[PATIENT_ID],
+            how="left",
+        )
+
+        # keep sessions inside each patient's window
+        in_window = (df[SESSION_DATE] >= df["week_start"]) & (
+            df[SESSION_DATE] < df["week_end"]
+        )
+        df = df.loc[in_window]
+
         usage = (
             df.groupby([PATIENT_ID, PROTOCOL_ID], dropna=False)[SESSION_ID]
             .nunique()
@@ -150,29 +185,26 @@ class FeatureBuilder:
         return usage
 
     def build_week_since_start(
-        self, patient_df: pd.DataFrame, scoring_date: Timestamp
+        self, patient_df: pd.DataFrame, scoring_date: pd.Timestamp
     ) -> pd.DataFrame:
         """
-        Compute the number of weeks since the clinical trial start for each patient,
-        using only the scoring date and clinical trial start date.
+        Compute whole weeks since each patient's clinical start as of scoring_date.
+        Example: started 8 days ago -> week 1.
 
         Args:
-            patient_df (pd.DataFrame): DataFrame with at least [PATIENT_ID, PROTOCOL_ID, CLINICAL_TRIAL_START_DATE].
-            scoring_date (Timestamp): The date to define the week of interest.
+            patient_df: at least [PATIENT_ID, PROTOCOL_ID, CLINICAL_START]
+            scoring_date: pd.Timestamp that defines "today"
 
         Returns:
-            pd.DataFrame: DataFrame with [PATIENT_ID, PROTOCOL_ID, WEEKS_SINCE_START].
+            DataFrame with [PATIENT_ID, PROTOCOL_ID, WEEKS_SINCE_START]
         """
         df = patient_df[[PATIENT_ID, CLINICAL_START]].copy()
-        week_start = scoring_date - pd.Timedelta(days=scoring_date.weekday())
-        trial_week_start = df[CLINICAL_START] - pd.to_timedelta(
-            df[CLINICAL_START].dt.weekday, unit="D"
-        )
-        weeks_since_start = (
-            (week_start - trial_week_start) / pd.Timedelta(weeks=1)
-        ).astype(int)
 
-        df[WEEKS_SINCE_START] = weeks_since_start
+        # floor division on whole days, matching:
+        # weeks_since(reference_date, current_date) = (current - reference).days // 7
+        days = (scoring_date.normalize() - df[CLINICAL_START].dt.normalize()).dt.days
+        df[WEEKS_SINCE_START] = (days // 7).astype("Int64")
+
         return df[[PATIENT_ID, WEEKS_SINCE_START]]
 
     def build_number_prescriptions(self, session_df: pd.DataFrame) -> pd.DataFrame:

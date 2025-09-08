@@ -168,7 +168,7 @@ def test_build_usage_with_fixture(session_df, logger=None):
 # ---------------------------------------------------------------
 
 
-def test_build_week_usage_with_fixture(session_df, logger=None):
+def test_build_week_usage_with_fixture(session_df, patient_df, logger=None):
     print("\n--- Testing build_week_usage ---")
     fb = FeatureBuilder()
     log = logger.info if logger else print
@@ -176,7 +176,7 @@ def test_build_week_usage_with_fixture(session_df, logger=None):
     log("Input DataFrame:")
     with pd.option_context("display.max_columns", None, "display.width", 1000):
         print(session_df)
-    result = fb.build_week_usage(session_df, scoring_date)
+    result = fb.build_week_usage(session_df, patient_df, scoring_date)
     log("Output DataFrame:")
     with pd.option_context("display.max_columns", None, "display.width", 1000):
         print(result)

@@ -1,6 +1,6 @@
 [project]
 name = "ai-cdss"
-version = "0.2.0"
+version = "0.2.1"
 description = "The EOD Clinical Decision Support System uses RGS data, and patient clinical scores (ARAT, MoCA) to provide data-driven recommendation to clinicians of the best RGS activities a patient should perform."
 authors = [
     {name = "Eodyne Systems SL"}
@@ -11,7 +11,7 @@ requires-python = ">=3.12,<4.0"
 dependencies = [
     "pandera (>=0.23.1,<0.24.0)",
     "gower (>=0.1.2,<0.2.0)",
-    "rgs_interface @ git+https://github.com/dabadav/rgs-interface.git@v0.4.0",
+    "rgs_interface @ git+https://github.com/dabadav/rgs-interface.git@v0.4.1",
     "pandas[parquet] (>=2.2.3,<3.0.0)",
     "scipy (>=1.15.3,<2.0.0)",
     "scikit-learn (>=1.6.1,<2.0.0)"
