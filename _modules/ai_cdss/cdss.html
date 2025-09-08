@@ -695,7 +695,30 @@ window.addEventListener("load", () => mermaid.run());
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_is_week_skipped</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prescriptions</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Check if the prescriptions are skipped for the whole week.</span>
+<span class="sd">        Return True if and only if all prescriptions scheduled this week were skipped</span>
+<span class="sd">        (i.e., no session was performed at all).</span>
+
+<span class="sd">        We consider only rows that have at least one scheduled day this week</span>
+<span class="sd">        (len(DAYS) &gt; 0). For the week to be &#39;skipped&#39;, each of those rows must</span>
+<span class="sd">        have USAGE_WEEK == 0.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># can&#39;t say &#39;skipped&#39; if nothing is scheduled</span>
+
+        <span class="c1"># Keep only prescriptions that actually have days scheduled this week</span>
+        <span class="n">scheduled_mask</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span><span class="n">DAYS</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">d</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">scheduled</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span><span class="n">scheduled_mask</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">scheduled</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>  <span class="c1"># nothing scheduled -&gt; not &#39;skipped&#39; (adjust if you prefer True)</span>
+
+        <span class="c1"># Week is skipped if and only if none of the scheduled prescriptions recorded any usage</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">scheduled</span><span class="p">[</span><span class="n">USAGE_WEEK</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span>
+    
+    <span class="k">def</span><span class="w"> </span><span class="nf">_is_partially_week_skipped</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">prescriptions</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check if all prescriptions are partially skipped for the whole week.</span>
+<span class="sd">        True only if all prescriptions were used less than the number of scheduled days</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Apply a lambda function to each row: check if USAGE_WEEK &gt;= number of DAYS for that prescription</span>
         <span class="c1"># If True for any row, .any() will return True (week is skipped for at least one prescription)</span>
