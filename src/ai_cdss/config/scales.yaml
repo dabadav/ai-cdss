@@ -3,7 +3,8 @@ data:
   ACT_QOM: 10
   ASH_PROXIMAL: 4
   BARTHEL: 100
-  FATIGUE: 63
+  FSS: 63
+  HDRS17: 52
   FM_A: 36
   FM_B: 10
   FM_C: 14
@@ -30,6 +31,7 @@ keys:
   - BI
   VAS:
   - Visual Analog Scale
+  - Other.Pain
   FM_A:
   - Fugl-Meyer.FM_A
   FM_B:
@@ -50,6 +52,7 @@ keys:
   - MoCA.Abstraction
   MOCA_RECALL:
   - MoCA.Delayed Recall
+  - MoCa.DelayedRecall
   MOCA_ORIENTATION:
   - MoCA.Orientation
   MOCA_TOTAL:
@@ -62,5 +65,10 @@ keys:
   - ARAT.Pinch
   ARAT_GROSS:
   - ARAT.Gross movement
+  - ARAT.GrossMovement
   ARAT_TOTAL:
   - ARAT.Total
+  FSS:
+  - Other.Fatigue
+  HDRS17:
+  - Other.Depression
