@@ -51,11 +51,11 @@ to load data and generate a 7-day protocol plan for testing/CI purposes.
     4  [0.139366, 0.047926, 0.094186, 0.101513, 0.026...          0.757253   
 
        DELTA_DM  WEEKS_SINCE_START  SESSION_INDEX  USAGE  USAGE_WEEK  \
-    0  0.003929                 79             14     10           0   
-    1 -0.003380                 79             11     10           0   
-    2  0.007271                 79             12     10           0   
-    3 -0.007977                 79             11     10           0   
-    4  0.004960                 79             11     10           0   
+    0  0.003929                 80             14     10           0   
+    1 -0.003380                 80             11     10           0   
+    2  0.007271                 80             12     10           0   
+    3 -0.007977                 80             11     10           0   
+    4  0.004960                 80             11     10           0   
 
                         DAYS     SCORE  
     0        [2, 3, 4, 5, 6]  1.265794  
@@ -131,7 +131,7 @@ to load data and generate a 7-day protocol plan for testing/CI purposes.
 
 .. rst-class:: sphx-glr-timing
 
-   **Total running time of the script:** (0 minutes 2.160 seconds)
+   **Total running time of the script:** (0 minutes 2.214 seconds)
 
 
 .. _sphx_glr_download_auto_examples_recommend_usage.py:
