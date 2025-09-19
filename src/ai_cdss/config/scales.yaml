@@ -52,7 +52,7 @@ keys:
   - MoCA.Abstraction
   MOCA_RECALL:
   - MoCA.Delayed Recall
-  - MoCa.DelayedRecall
+  - MoCA.DelayedRecall
   MOCA_ORIENTATION:
   - MoCA.Orientation
   MOCA_TOTAL:
