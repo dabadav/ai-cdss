@@ -611,7 +611,9 @@ window.addEventListener("load", () => mermaid.run());
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">patient_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interface</span><span class="o">.</span><span class="n">fetch_patients_by_study</span><span class="p">(</span><span class="n">study_ids</span><span class="o">=</span><span class="n">study_ids</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">patient_data</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">patient_data</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No patients found for study ID: </span><span class="si">{</span><span class="n">study_ids</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># No exception: just log and return []</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No patients found for study IDs </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">study_ids</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">[]</span>
         <span class="k">return</span> <span class="n">patient_data</span><span class="p">[</span><span class="n">PATIENT_ID</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span></div>
 </div>
 
