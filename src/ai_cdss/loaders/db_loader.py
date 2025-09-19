@@ -239,5 +239,7 @@ class DataLoader(DataLoaderBase):
         """
         patient_data = self.interface.fetch_patients_by_study(study_ids=study_ids)
         if patient_data is None or patient_data.empty:
-            raise ValueError(f"No patients found for study ID: {study_ids}")
+            # No exception: just log and return []
+            logger.warning("No patients found for study IDs %s", study_ids)
+            return []
         return patient_data[PATIENT_ID].tolist()

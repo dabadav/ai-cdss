@@ -47,6 +47,30 @@ class CDSSInterface:
         self.data_service = data_service or RecommendationDataService(loader)
         self.protocol_similarity_service = ProtocolSimilarityService(loader)
 
+    def recommend_for_patients(
+        self,
+        patient_ids: List[int],
+        n: int,
+        days: int,
+        protocols_per_day: int,
+        scoring_date: Optional[pd.Timestamp] = None,
+    ) -> Dict[str, Any]:
+        """
+        Run recommendations for one **or many** patients.
+        Returns the same structure as recommend_for_study, with 'per_patient' detailing each patient's result.
+        """
+        return self._recommend_for_patients_core(
+            patient_ids,
+            n=n,
+            days=days,
+            protocols_per_day=protocols_per_day,
+            scoring_date=scoring_date,
+            context={
+                "patient_id": patient_ids, 
+                "message": f"Recommendations generated for patients {patient_ids}"
+            },
+        )
+
     def recommend_for_study(
         self,
         study_id: List[int],
@@ -56,59 +80,93 @@ class CDSSInterface:
         scoring_date: Optional[pd.Timestamp] = None,
     ) -> Dict[str, Any]:
         """
-        Generate recommendations for all patients in a study.
-        Returns a detailed result dictionary.
+        Cohort/study run.
         """
-        logger.info("Starting recommendation generation for study: %s", study_id)
-        start_time = time.time()
-        try:
-            patient_list, rgs_data, protocol_similarity = self.data_service.prepare(
-                study_id
-            )
-            scores = self.processor.process_data(
-                rgs_data, scoring_date or pd.Timestamp.today()
-            )
-            cdss = CDSS(
-                scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day
-            )
-            unique_id = uuid.uuid4()
-            datetime_now = datetime.datetime.now()
-            patient_results = [
-                self._process_patient(
-                    patient, cdss, protocol_similarity, scores, unique_id, datetime_now
-                )
-                for patient in patient_list
-            ]
-            total_recommendations = sum(
-                r["num_recommendations"] for r in patient_results
-            )
+        # Keep validation where it belongs
+        patient_ids = self.loader.fetch_and_validate_patients(study_ids=study_id)
+        return self._recommend_for_patients_core(
+            patient_ids,
+            n=n,
+            days=days,
+            protocols_per_day=protocols_per_day,
+            scoring_date=scoring_date,
+            context={"study_id": study_id, "message": f"Recommendations generated for study {study_id}"},
+        )
 
+    def _recommend_for_patients_core(
+        self,
+        patient_ids: List[int],
+        *,
+        n: int,
+        days: int,
+        protocols_per_day: int,
+        scoring_date: Optional[pd.Timestamp],
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Internal core that runs the full pipeline for a given set of patient_ids.
+        `context` can include study_id or other metadata to echo back in the response.
+        """
+        logger.info("Starting recommendation generation for patients: %s", patient_ids)
+        start_time = time.time()
+        unique_id = uuid.uuid4()
+        datetime_now = datetime.datetime.now()
+
+        try:
+            if not patient_ids:      # catches None or empty list
+                elapsed = time.time() - start_time
+                payload = {
+                    "status": "warning",
+                    "run_id": str(unique_id),
+                    "patients_processed": 0,
+                    "total_recommendations": 0,
+                    "per_patient": [],
+                    "start_time": datetime_now.isoformat(),
+                    "elapsed_seconds": elapsed,
+                    **context,
+                    "message": (
+                        context.get("message")
+                        or f"No patients provided or resolved for context={context}"
+                    ),
+                }
+                logger.info("No patients to process. Context: %s | Result: %s", context, payload)
+                return payload
+
+
+            rgs_data, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
+            scores = self.processor.process_data(rgs_data, scoring_date or pd.Timestamp.today())
+            cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
+
+            patient_results = [
+                self._process_patient(p, cdss, protocol_similarity, scores, unique_id, datetime_now)
+                for p in patient_ids
+            ]
+            total_recommendations = sum(r.get("num_recommendations", 0) for r in patient_results)
             elapsed = time.time() - start_time
-            logger.info("Successfully generated recommendations for study %s", study_id)
-            return {
+
+            payload = {
                 "status": "success",
-                "study_id": study_id,
                 "run_id": str(unique_id),
-                "patients_processed": len(patient_list),
+                "patients_processed": len(patient_ids),
                 "total_recommendations": total_recommendations,
                 "per_patient": patient_results,
                 "start_time": datetime_now.isoformat(),
                 "elapsed_seconds": elapsed,
-                "message": f"Recommendations generated for study {study_id}",
+                **context,
             }
+            logger.info("Successfully generated recommendations. Context: %s", context)
+            return payload
+
         except Exception as e:
             logger.error(
-                "Failed to generate recommendations for study %s: %s (%s)",
-                study_id,
-                e,
-                type(e).__name__,
-                exc_info=True,
+                "Failed to generate recommendations. Context=%s Error=%s (%s)",
+                context, e, type(e).__name__, exc_info=True
             )
             return {
                 "status": "failure",
-                "study_id": study_id,
                 "error": f"{type(e).__name__}: {e}",
-                "message": f"Failed to generate recommendations for study {study_id}",
+                **context,
+                "message": f"Failed to generate recommendations",
             }
 
     def _process_patient(

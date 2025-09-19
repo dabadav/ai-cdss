@@ -20,13 +20,13 @@ class RecommendationDataService:
         """
         self.loader = loader
 
-    def prepare(self, study_ids: List[int]) -> Tuple[List[int], DataUnitSet, object]:
+    def prepare(self, patient_list: List[int]) -> Tuple[List[int], DataUnitSet, object]:
         """
         Prepare and return all data required for recommendations for a study.
         Handles missing PPF computation as needed.
 
         Args:
-            study_ids (List[int]): List of study cohort identifiers.
+            patient_list (List[int]): List of patient identifiers.
 
         Returns:
             Tuple containing:
@@ -34,7 +34,6 @@ class RecommendationDataService:
                 - rgs_data (DataUnitSet): Contains session and ppf DataUnits
                 - protocol_similarity (object)
         """
-        patient_list = self.loader.fetch_and_validate_patients(study_ids=study_ids)
         ppf = self.loader.load_ppf_data(patient_list)
         missing = ppf.metadata.get("missing_patients", [])
         if missing:
@@ -45,4 +44,4 @@ class RecommendationDataService:
         patient_data = self.loader.load_patient_data(patient_list)
         protocol_similarity = self.loader.load_protocol_similarity()
         rgs_data = DataUnitSet([session, patient_data, ppf])
-        return patient_list, rgs_data, protocol_similarity
+        return rgs_data, protocol_similarity
