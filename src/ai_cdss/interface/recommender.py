@@ -1,4 +1,5 @@
 import datetime
+from datetime import timedelta
 import logging
 import time
 import uuid
@@ -8,6 +9,7 @@ import pandas as pd
 from ai_cdss.cdss import CDSS
 from ai_cdss.constants import (
     BY_PP,
+    CLINICAL_START,
     DAYS,
     DELTA_DM,
     PATIENT_ID,
@@ -17,7 +19,9 @@ from ai_cdss.constants import (
     SESSION_INDEX,
     USAGE,
     USAGE_WEEK,
+    WEEKS_SINCE_START,
 )
+from ai_cdss.models import DataUnitName
 from ai_cdss.loaders import DataLoader
 from ai_cdss.processing import DataProcessor
 from ai_cdss.services.data_preparation import RecommendationDataService
@@ -132,13 +136,16 @@ class CDSSInterface:
                 logger.info("No patients to process. Context: %s | Result: %s", context, payload)
                 return payload
 
-
             rgs_data, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
             scores = self.processor.process_data(rgs_data, scoring_date or pd.Timestamp.today())
             cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
+            # Patient start date dict
+            patient_data = rgs_data.get(DataUnitName.PATIENT).data
+            # Dictionary with patient_id as key and clinical_start as value
+            patient_dict = dict(zip(patient_data[PATIENT_ID], patient_data[CLINICAL_START]))
 
             patient_results = [
-                self._process_patient(p, cdss, protocol_similarity, scores, unique_id, datetime_now)
+                self._process_patient(p, cdss, protocol_similarity, scores, unique_id, patient_dict[p]) # start date instead of datetime_now
                 for p in patient_ids
             ]
             total_recommendations = sum(r.get("num_recommendations", 0) for r in patient_results)
@@ -176,7 +183,7 @@ class CDSSInterface:
         protocol_similarity,
         scores,
         unique_id,
-        datetime_now,
+        datetime_start,
     ):
         """
         Process recommendations and metrics for a single patient.
@@ -190,15 +197,16 @@ class CDSSInterface:
             protocol_similarity: Protocol similarity data for recommendations.
             scores: DataFrame of all scored protocols.
             unique_id: UUID for this batch run.
-            datetime_now: Timestamp for this batch run.
+            datetime_start: Timestamp for trial start.
 
         Returns:
             dict: A result dictionary with patient_id, num_recommendations, status, and (on failure) error.
         """
         try:
+            datetime_now = datetime.datetime.now()
             recommendations = cdss.recommend(patient, protocol_similarity)
             prescription_df = self._transform_recommendations(recommendations)
-            self._save_prescriptions(prescription_df, unique_id, datetime_now)
+            self._save_prescriptions(prescription_df, unique_id, datetime_start)
             patient_scores = scores[scores[PATIENT_ID] == patient]
             all_metrics_df = self._transform_metrics(patient_scores)
             self._save_metrics(all_metrics_df, unique_id, datetime_now)
@@ -253,15 +261,18 @@ class CDSSInterface:
         self,
         prescription_df: pd.DataFrame,
         unique_id: uuid.UUID,
-        datetime_now: datetime.datetime,
+        datetime_start: datetime.datetime,
     ) -> None:
         """
         Persist prescription data.
         """
         for _, row in prescription_df.iterrows():
+            weeks = row[WEEKS_SINCE_START]
+            weeks = 0 if pd.isna(weeks) else float(weeks)
+            start = (datetime_start + timedelta(weeks=weeks)).date()
             self.loader.interface.add_prescription_staging_entry(
                 PrescriptionStagingRow.from_row(
-                    row, recommendation_id=unique_id, start=datetime_now
+                    row, recommendation_id=unique_id, start=start
                 )
             )
 
