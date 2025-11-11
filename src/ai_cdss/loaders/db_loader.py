@@ -1,3 +1,4 @@
+# %%
 import logging
 from typing import Any, Callable, List, Optional, Union
 
@@ -14,8 +15,8 @@ from ai_cdss.models import (
 from pandera.errors import SchemaError
 from rgs_interface.data.interface import DatabaseInterface
 
-from .base import DataLoaderBase
-from .utils import (
+from ai_cdss.loaders.base import DataLoaderBase
+from ai_cdss.loaders.utils import (
     _decode_subscales,
     _load_ppf_data,
     _load_protocol_attributes,

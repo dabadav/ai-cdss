@@ -81,13 +81,27 @@ class DataUnit:
             raise ValueError("DataUnit.level (granularity) must not be None")
 
 
+# class DataUnitSet:
+#     def __init__(self, units: List[DataUnit]):
+#         self.units: Dict[str, DataUnit] = {unit.name: unit for unit in units}
+
+#     def get(self, name: DataUnitName) -> DataUnit:
+#         return self.units[name.value]
+
+
 class DataUnitSet:
     def __init__(self, units: List[DataUnit]):
-        self.units: Dict[str, DataUnit] = {unit.name: unit for unit in units}
+        self.units: Dict[DataUnitName, DataUnit] = {unit.name: unit for unit in units}
 
     def get(self, name: DataUnitName) -> DataUnit:
-        return self.units[name.value]
+        return self.units[name]
 
+    def __getitem__(self, name: DataUnitName) -> DataUnit:
+        return self.units[name]
+    
+    def __repr__(self) -> str:
+        unit_names = ", ".join(self.units.keys())
+        return f"<DataUnitSet units=[{unit_names}]>"
 
 # ---------------------------------------------------------------------
 # RGS Data Input

@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Literal
+import yaml
 
 import pandas as pd
 from ai_cdss.constants import BY_ID, BY_PP, BY_PPS, DEFAULT_LOG_DIR
@@ -123,3 +124,9 @@ def safe_merge(
     merged = left.merge(right, on=on, how=how)
 
     return merged
+
+
+def load_yaml(path: str) -> dict:
+    """Load a YAML configuration file into a Python dict."""
+    with open(path, "r") as f:
+        return yaml.safe_load(f)
