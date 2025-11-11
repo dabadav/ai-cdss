@@ -124,9 +124,9 @@ def session_df():
                 datetime.datetime(2024, 1, 1),
             ],
             "PRESCRIPTION_ENDING_DATE": [
-                datetime.datetime(2024, 1, 7),
-                datetime.datetime(2024, 1, 14),
-                datetime.datetime(2024, 1, 7),
+                datetime.datetime(2024, 1, 8),
+                datetime.datetime(2024, 1, 15),
+                datetime.datetime(2024, 1, 8),
             ],
             "SESSION_DATE": [
                 datetime.datetime(2024, 1, 2),
@@ -172,7 +172,7 @@ def test_build_week_usage_with_fixture(session_df, patient_df, logger=None):
     print("\n--- Testing build_week_usage ---")
     fb = FeatureBuilder()
     log = logger.info if logger else print
-    scoring_date = pd.Timestamp("2024-01-03")
+    scoring_date = pd.Timestamp("2024-01-08")
     log("Input DataFrame:")
     with pd.option_context("display.max_columns", None, "display.width", 1000):
         print(session_df)
@@ -197,7 +197,7 @@ def test_build_week_since_start_with_fixture(patient_df, logger=None):
     with pd.option_context("display.max_columns", None, "display.width", 1000):
         print(patient_df)
     result = fb.build_week_since_start(
-        patient_df, scoring_date=pd.Timestamp("2024-01-03")
+        patient_df, scoring_date=pd.Timestamp("2024-01-08")
     )
     log("Output DataFrame:")
     with pd.option_context("display.max_columns", None, "display.width", 1000):
@@ -210,15 +210,15 @@ def test_build_week_since_start_with_fixture(patient_df, logger=None):
 # ---------------------------------------------------------------
 
 
-def test_build_prescription_days_with_fixture(session_df, logger=None):
+def test_build_prescription_days_with_fixture(session_df, patient_df, logger=None):
     print("\n--- Testing build_prescription_days ---")
     fb = FeatureBuilder()
     log = logger.info if logger else print
-    scoring_date = pd.Timestamp("2024-01-03")
+    scoring_date = pd.Timestamp("2024-01-08")
     log("Input DataFrame:")
     with pd.option_context("display.max_columns", None, "display.width", 1000):
         print(session_df)
-    result = fb.build_prescription_days(session_df, scoring_date)
+    result = fb.build_prescription_days(session_df, patient_df, scoring_date)
     log("Output DataFrame:")
     with pd.option_context("display.max_columns", None, "display.width", 1000):
         print(result)

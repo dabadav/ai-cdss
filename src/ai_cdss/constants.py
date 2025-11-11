@@ -23,6 +23,7 @@ PROTOCOL_SIMILARITY_CSV = "protocol_similarity.csv"
 
 SCALES_YAML = "scales.yaml"
 MAPPING_YAML = "mapping.yaml"
+PROTOCOL_WHITELIST_YAML = "protocol_whitelist.yaml"
 
 ############################
 # PARAMETERS
