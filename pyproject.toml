@@ -1,6 +1,6 @@
 [project]
 name = "ai-cdss"
-version = "0.2.4"
+version = "0.2.5"
 description = "The EOD Clinical Decision Support System uses RGS data, and patient clinical scores (ARAT, MoCA) to provide data-driven recommendation to clinicians of the best RGS activities a patient should perform."
 authors = [
     {name = "Eodyne Systems SL"}
