@@ -22,7 +22,14 @@
 To install the lastest stable version of the ai-cdss, use pip in a terminal:
 
 ```bash
-pip install ai_cdss-0.1.0.tar.gz
+pip install ai_cdss-0.2.6.tar.gz
+```
+Install directly from GitHub:
+
+- Lastest release:
+
+```bash
+pip install "git+https://github.com/dabadav/ai-cdss.git@v0.2.6"
 ```
 
 ## Dependencies
@@ -32,7 +39,7 @@ This project requires the following Python packages:
 - `rgs_interface` — Custom interface for DB reading and table merging.
   
   ```bash
-  pip install git+https://github.com/dabadav/rgs-interface.git@v0.2.2
+  pip install git+https://github.com/dabadav/rgs-interface.git@v0.4.1
   ```
 - `pandas[parquet]` (>=2.2.3,<3.0.0) — Pandas with Parquet support for efficient I/O.
 - `pandera` (>=0.23.1,<0.24.0) — Data validation for Pandas.
