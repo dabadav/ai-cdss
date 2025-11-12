@@ -14,6 +14,9 @@ DEFAULT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_LOG_DIR = Path.home() / ".ai_cdss" / "logs"
 DEFAULT_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
+DEFAULT_DEBUG_DIR = Path.home() / ".ai_cdss" / "debug"
+DEFAULT_DEBUG_DIR.mkdir(parents=True, exist_ok=True)
+
 DEFAULT_LOG_SCORING_FILEPATH = "scored_features_{scoring_date}.csv"
 PPF_PARQUET_FILEPATH = DEFAULT_OUTPUT_DIR / "ppf.parquet"
 

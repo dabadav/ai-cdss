@@ -20,6 +20,7 @@ from ai_cdss.constants import (
     USAGE,
     USAGE_WEEK,
     WEEKS_SINCE_START,
+    DEFAULT_DEBUG_DIR
 )
 from ai_cdss.models import DataUnitName
 from ai_cdss.loaders import DataLoader
@@ -27,6 +28,7 @@ from ai_cdss.processing import DataProcessor
 from ai_cdss.services.data_preparation import RecommendationDataService
 from ai_cdss.services.ppf_service import PPFService
 from ai_cdss.services.protocol_similarity import ProtocolSimilarityService
+from ai_cdss.interface.debug import DebugReport
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
 
 logger = logging.getLogger(__name__)
@@ -44,12 +46,16 @@ class CDSSInterface:
         processor: DataProcessor,
         data_service: Optional[RecommendationDataService] = None,
         ppf_service: Optional[PPFService] = None,
+        debug: bool = False,
     ):
         self.loader = loader
         self.processor = processor
         self.ppf_service = ppf_service or PPFService(loader)
         self.data_service = data_service or RecommendationDataService(loader)
         self.protocol_similarity_service = ProtocolSimilarityService(loader)
+        self.debug = debug
+        if self.debug:
+            self.debug_service = DebugReport(DEFAULT_DEBUG_DIR)
 
     def recommend_for_patients(
         self,
@@ -161,6 +167,15 @@ class CDSSInterface:
                 "elapsed_seconds": elapsed,
                 **context,
             }
+
+            if self.debug:
+                payload["debug"] = {
+                    "scores": {
+                        "file": self.debug_service.dump_df(scores, unique_id, "scores.csv"),
+                        "preview": self.debug_service.preview_df(scores),
+                    }
+                }
+
             logger.info("Successfully generated recommendations. Context: %s", context)
             return payload
 
@@ -206,15 +221,37 @@ class CDSSInterface:
             datetime_now = datetime.datetime.now()
             recommendations = cdss.recommend(patient, protocol_similarity)
             prescription_df = self._transform_recommendations(recommendations)
-            self._save_prescriptions(prescription_df, unique_id, datetime_start)
+
+
             patient_scores = scores[scores[PATIENT_ID] == patient]
             all_metrics_df = self._transform_metrics(patient_scores)
-            self._save_metrics(all_metrics_df, unique_id, datetime_now)
-            return {
+
+            if not self.debug:
+                self._save_prescriptions(prescription_df, unique_id, datetime_start)
+                self._save_metrics(all_metrics_df, unique_id, datetime_now)
+
+            result = {
                 "patient_id": patient,
                 "num_recommendations": len(recommendations),
                 "status": "success",
             }
+
+            if self.debug:
+                logger.info("Debug mode enabled - skipping persistence to db for patient %s", patient)
+                artifacts = self.debug_service.make_artifacts(
+                    run_id=unique_id,
+                    scores=scores[scores[PATIENT_ID] == patient],
+                    recs=recommendations,
+                    presc=prescription_df,
+                    metrics=all_metrics_df,
+                    subdir=f"patient_{patient}",   # creates <base>/<run_id>/patient_<id>/
+                    format="csv",
+                    preview=False
+                )
+                result['debug'] = artifacts
+
+            return result
+        
         except Exception as e:
             logger.error(
                 "Failed to process patient %s: %s (%s)", patient, e, type(e).__name__
