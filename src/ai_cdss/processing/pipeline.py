@@ -149,7 +149,7 @@ class DataPipeline:
                 self.feature_builder.build_usage(session_data),
                 self.feature_builder.build_week_usage(session_data, patient_data, scoring_date),
                 self.feature_builder.build_prescription_days(
-                    session_data, scoring_date
+                    session_data, patient_data, scoring_date
                 ),
             ],
         )
