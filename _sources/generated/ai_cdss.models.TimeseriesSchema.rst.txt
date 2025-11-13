@@ -1,0 +1,13 @@
+﻿ai\_cdss.models.TimeseriesSchema
+================================
+
+.. currentmodule:: ai_cdss.models
+
+.. autoclass:: TimeseriesSchema
+   :members: __doc__
+   :no-inherited-members:
+
+.. _sphx_glr_backreferences_ai_cdss.models.TimeseriesSchema:
+
+.. minigallery:: ai_cdss.models.TimeseriesSchema
+    :add-heading:

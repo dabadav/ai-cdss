@@ -1,0 +1,13 @@
+﻿ai\_cdss.models.SessionSchema
+=============================
+
+.. currentmodule:: ai_cdss.models
+
+.. autoclass:: SessionSchema
+   :members: __doc__
+   :no-inherited-members:
+
+.. _sphx_glr_backreferences_ai_cdss.models.SessionSchema:
+
+.. minigallery:: ai_cdss.models.SessionSchema
+    :add-heading:

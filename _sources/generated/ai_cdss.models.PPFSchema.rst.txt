@@ -1,0 +1,13 @@
+﻿ai\_cdss.models.PPFSchema
+=========================
+
+.. currentmodule:: ai_cdss.models
+
+.. autoclass:: PPFSchema
+   :members: __doc__
+   :no-inherited-members:
+
+.. _sphx_glr_backreferences_ai_cdss.models.PPFSchema:
+
+.. minigallery:: ai_cdss.models.PPFSchema
+    :add-heading:
