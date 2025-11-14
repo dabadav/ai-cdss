@@ -22,14 +22,14 @@
 To install the lastest stable version of the ai-cdss, use pip in a terminal:
 
 ```bash
-pip install ai_cdss-0.2.6.tar.gz
+pip install ai_cdss-0.2.7.tar.gz
 ```
 Install directly from GitHub:
 
 - Lastest release:
 
 ```bash
-pip install "git+https://github.com/dabadav/ai-cdss.git@v0.2.6"
+pip install "git+https://github.com/dabadav/ai-cdss.git@v0.2.7"
 ```
 
 ## Dependencies
