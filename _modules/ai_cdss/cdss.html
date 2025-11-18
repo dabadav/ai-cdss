@@ -508,6 +508,10 @@ window.addEventListener("load", () => mermaid.run());
         <span class="n">protocols_to_swap</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decide_prescription_swap</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
         <span class="n">protocols_excluded</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 
+        <span class="c1"># [AISN RCT] For this specific trial we enforce a minimum of one swap per week</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">protocols_to_swap</span><span class="p">:</span>
+            <span class="n">protocols_to_swap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_lowest_performing_protocol</span><span class="p">(</span><span class="n">patient_id</span><span class="p">))</span>
+
         <span class="c1"># Start with prescriptions that are not being swapped</span>
         <span class="n">updated_rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span>
             <span class="o">~</span><span class="n">prescriptions</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">protocols_to_swap</span><span class="p">)</span>
@@ -626,6 +630,18 @@ window.addEventListener("load", () => mermaid.run());
 
         <span class="c1"># If no candidates found</span>
         <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1">###########################################################################</span>
+    <span class="c1"># SCORE</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_lowest_performing_protocol</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the protocol with lowest SCORE from a patient prescriptions dataframe.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">prescriptions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_prescriptions</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">prescriptions</span><span class="p">[</span>
+            <span class="n">prescriptions</span><span class="p">[</span><span class="n">SCORE</span><span class="p">]</span> <span class="o">==</span> <span class="n">prescriptions</span><span class="p">[</span><span class="n">SCORE</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+        <span class="p">][</span><span class="n">PROTOCOL_ID</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="c1">###########################################################################</span>
     <span class="c1"># USAGE</span>
