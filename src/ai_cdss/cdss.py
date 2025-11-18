@@ -156,6 +156,10 @@ class CDSS:
         protocols_to_swap: list[int] = self._decide_prescription_swap(patient_id)
         protocols_excluded: list[int] = prescriptions[PROTOCOL_ID].tolist()
 
+        # [AISN RCT] For this specific trial we enforce a minimum of one swap per week
+        if not protocols_to_swap:
+            protocols_to_swap.append(self._get_lowest_performing_protocol(patient_id))
+
         # Start with prescriptions that are not being swapped
         updated_rows: list[dict] = prescriptions[
             ~prescriptions[PROTOCOL_ID].isin(protocols_to_swap)
@@ -274,6 +278,18 @@ class CDSS:
 
         # If no candidates found
         return None
+
+    ###########################################################################
+    # SCORE
+
+    def _get_lowest_performing_protocol(self, patient_id: int) -> int:
+        """
+        Get the protocol with lowest SCORE from a patient prescriptions dataframe.
+        """
+        prescriptions = self._get_prescriptions(patient_id)
+        return prescriptions[
+            prescriptions[SCORE] == prescriptions[SCORE].min()
+        ][PROTOCOL_ID].iloc[0]
 
     ###########################################################################
     # USAGE
