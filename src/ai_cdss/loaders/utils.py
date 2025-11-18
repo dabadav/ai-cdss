@@ -172,7 +172,7 @@ def _load_protocol_similarity(
             "No protocol similarity file found in ~/.ai_cdss/output. "
             "Expected protocol_similarity.csv."
         )
-    similarity_data = pd.read_csv(file_path, index_col=0)
+    similarity_data = pd.read_csv(file_path)
     logger.debug("Protocol similarity data loaded successfully.")
     return similarity_data
 
@@ -186,19 +186,36 @@ def _load_ppf_data(patient_list: List[int]) -> pd.DataFrame:
         pd.DataFrame
     """
     ppf_path = PPF_PARQUET_FILEPATH
+    # Validate input early
+    if not patient_list:
+        msg = "No patients provided. Call this function with at least one patient_id."
+        logger.error("PPF load called with empty patient_list")
+        raise ValueError(msg)
     if not ppf_path.exists():
-        raise FileNotFoundError("No PPF file found in ~/.ai_cdss/output.")
+        msg = (
+            f"No PPF file found at '{ppf_path}'. "
+            "Generate the PPF parquet file first, then retry."
+            "(~/.ai_cdss/output)."
+        )
+        logger.error(msg)
+        raise FileNotFoundError(msg)
+    
+    # Read parquet
     ppf_data = pd.read_parquet(path=ppf_path)
     ppf_data = ppf_data[ppf_data[PATIENT_ID].isin(patient_list)]
     missing_patients = set(patient_list) - set(ppf_data[PATIENT_ID].unique())
     if missing_patients:
         logger.warning(
-            "PPF missing for %d patients: %s", len(missing_patients), missing_patients
+            "PPF missing for %d patients: %s. Creating placeholder rows with "
+            "PPF=None, CONTRIB=None for missing patients.",
+            len(missing_patients),
+            sorted(missing_patients),
         )
         protocols = set(ppf_data[PROTOCOL_ID].unique())
         if not protocols:
             raise ValueError(
-                "No protocols found in PPF data to assign to missing patients."
+                f"PPF data is missing for all requested patients: {sorted(missing_patients)} "
+                "Generate the PPF data and try again."
             )
         missing_combinations = pd.DataFrame(
             [

@@ -29,6 +29,16 @@ MAPPING_YAML = "mapping.yaml"
 PROTOCOL_WHITELIST_YAML = "protocol_whitelist.yaml"
 
 ############################
+# RECOMMENDATIONS
+############################
+
+WEIGHTS: list[int] = [1, 1, 1]
+ALPHA: float = 0.5
+N: int = 12
+N_DAYS: int = 7
+PROTOCOLS_PER_DAY: int = 5
+
+############################
 # PARAMETERS
 ############################
 

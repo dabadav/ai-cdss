@@ -4,6 +4,7 @@ import logging
 import time
 import uuid
 from typing import Any, Dict, List, Optional
+import json
 
 import pandas as pd
 from ai_cdss.cdss import CDSS
@@ -20,7 +21,11 @@ from ai_cdss.constants import (
     USAGE,
     USAGE_WEEK,
     WEEKS_SINCE_START,
-    DEFAULT_DEBUG_DIR
+    DEFAULT_DEBUG_DIR,
+    N,
+    N_DAYS,
+    PROTOCOLS_PER_DAY,
+    DEFAULT_LOG_DIR
 )
 from ai_cdss.models import DataUnitName
 from ai_cdss.loaders import DataLoader
@@ -29,6 +34,7 @@ from ai_cdss.services.data_preparation import RecommendationDataService
 from ai_cdss.services.ppf_service import PPFService
 from ai_cdss.services.protocol_similarity import ProtocolSimilarityService
 from ai_cdss.interface.debug import DebugReport
+from ai_cdss.utils import _json_default
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
 
 logger = logging.getLogger(__name__)
@@ -60,9 +66,9 @@ class CDSSInterface:
     def recommend_for_patients(
         self,
         patient_ids: List[int],
-        n: int,
-        days: int,
-        protocols_per_day: int,
+        n: int = N,
+        days: int = N_DAYS,
+        protocols_per_day: int = PROTOCOLS_PER_DAY,
         scoring_date: Optional[pd.Timestamp] = None,
     ) -> Dict[str, Any]:
         """
@@ -145,20 +151,43 @@ class CDSSInterface:
             rgs_data, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
             scores = self.processor.process_data(rgs_data, scoring_date or pd.Timestamp.today())
             cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
-            # Patient start date dict
+
+            # Patient start date dict [PATIENT_ID, CLINICAL_START]
             patient_data = rgs_data.get(DataUnitName.PATIENT).data
-            # Dictionary with patient_id as key and clinical_start as value
             patient_dict = dict(zip(patient_data[PATIENT_ID], patient_data[CLINICAL_START]))
 
-            patient_results = [
-                self._process_patient(p, cdss, protocol_similarity, scores, unique_id, patient_dict[p]) # start date instead of datetime_now
-                for p in patient_ids
-            ]
+            patient_results = []
+            success_count = 0
+            fail_count = 0
+
+            # --------- Per-patient Processing --------
+            for p in patient_ids:
+                result = self._process_patient(
+                    patient=p, 
+                    cdss=cdss, 
+                    protocol_similarity=protocol_similarity, 
+                    scores=scores, 
+                    unique_id=unique_id, 
+                    datetime_start=patient_dict[p]
+                )
+                if result.get("status") == "success":
+                    success_count += 1
+                else:
+                    fail_count += 1
+                patient_results.append(result)
+
+            if success_count == 0 and fail_count > 0:
+                top_status = "failure"
+            elif success_count > 0 and fail_count > 0:
+                top_status = "partial_success"
+            else:
+                top_status = "success"
+
             total_recommendations = sum(r.get("num_recommendations", 0) for r in patient_results)
             elapsed = time.time() - start_time
 
             payload = {
-                "status": "success",
+                "status": top_status,
                 "run_id": str(unique_id),
                 "patients_processed": len(patient_ids),
                 "total_recommendations": total_recommendations,
@@ -176,20 +205,51 @@ class CDSSInterface:
                     }
                 }
 
-            logger.info("Successfully generated recommendations. Context: %s", context)
+            # ---- persist payload ----           
+            log_path = DEFAULT_LOG_DIR / f"{str(unique_id)}_{datetime_now.date().isoformat()}.json"
+            with log_path.open("w", encoding="utf-8") as f:
+                json.dump(payload, f, default=_json_default, indent=2)
+            payload["log_file"] = str(log_path)
+
+            logger.info(
+                "Finished recommendation generation. Context: %s | status=%s | "
+                "success=%d fail=%d total_recs=%d | Log file: %s",
+                context, top_status, success_count, fail_count, total_recommendations, log_path
+            )
+
             return payload
 
         except Exception as e:
+
             logger.error(
                 "Failed to generate recommendations. Context=%s Error=%s (%s)",
                 context, e, type(e).__name__, exc_info=True
             )
-            return {
+            failure_payload = {
                 "status": "failure",
+                "run_id": str(unique_id),
                 "error": f"{type(e).__name__}: {e}",
+                "patients_processed": 0,
+                "total_recommendations": 0,
+                "per_patient": [],
+                "start_time": datetime_now.isoformat(),
                 **context,
-                "message": f"Failed to generate recommendations",
+                "message": "Failed to generate recommendations",
             }
+
+            # ---- persist failure payload too ----
+            log_path = DEFAULT_LOG_DIR / f"{str(unique_id)}_{datetime_now.date().isoformat()}.json"
+            try:
+                with log_path.open("w", encoding="utf-8") as f:
+                    json.dump(failure_payload, f, default=_json_default, indent=2)
+                failure_payload["log_file"] = str(log_path)
+            except Exception as log_err:
+                logger.error(
+                    "Failed to persist failure payload for run_id=%s: %s (%s)",
+                    str(unique_id), log_err, type(log_err).__name__, exc_info=True
+                )
+
+            return failure_payload
 
     def _process_patient(
         self,
@@ -253,7 +313,7 @@ class CDSSInterface:
             return result
         
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "Failed to process patient %s: %s (%s)", patient, e, type(e).__name__
             )
             return {
@@ -355,3 +415,4 @@ class CDSSInterface:
             "message": "Protocol similarity computation and persistence successful.",
             "saved_to": file_path,
         }
+

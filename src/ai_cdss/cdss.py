@@ -14,6 +14,9 @@ from ai_cdss.constants import (
     SIMILARITY,
     USAGE,
     USAGE_WEEK,
+    N,
+    N_DAYS,
+    PROTOCOLS_PER_DAY,
 )
 from ai_cdss.models import ScoringSchema
 from pandera.typing import DataFrame
@@ -43,9 +46,9 @@ class CDSS:
     def __init__(
         self,
         scoring: pd.DataFrame,
-        n: int = 12,
-        days: int = 7,
-        protocols_per_day: int = 5,
+        n: int = N,
+        days: int = N_DAYS,
+        protocols_per_day: int = PROTOCOLS_PER_DAY,
     ):
         """
         Initialize the Clinical Decision Support System.

@@ -1,4 +1,8 @@
+from pathlib import Path
+import datetime
 import yaml
+import numpy as np
+import pandas as pd
 
 # ---------------------------------------------------------------------
 # MultiKey Dictionary
@@ -88,3 +92,16 @@ class MultiKeyDict(object):
         
         return instance
 
+# ---------------------------------------------------------------------
+def _json_default(obj):
+    """Make numpy/pandas/Path/etc serializable for json.dump."""
+    if isinstance(obj, np.generic):
+        return obj.item()
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (pd.Timestamp, datetime.datetime, datetime.date)):
+        return obj.isoformat()
+    if isinstance(obj, Path):
+        return str(obj)
+    # let json handle the rest (or raise)
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
