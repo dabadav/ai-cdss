@@ -6,7 +6,7 @@ import pandas as pd
 from ai_cdss.loaders import DataLoader
 from ai_cdss.models import DataUnitSet
 from ai_cdss.services.whitelist_service import ProtocolWhitelistService
-from ai_cdss.constants import PROTOCOL_WHITELIST_YAML, PROTOCOL_ID, PROTOCOL_B
+from ai_cdss.constants import PROTOCOL_WHITELIST_YAML, PROTOCOL_ID, PROTOCOL_A, PROTOCOL_B
 
 logger = logging.getLogger(__name__)
 
@@ -64,11 +64,15 @@ class RecommendationDataService:
             if PROTOCOL_ID in ppf.data.columns:
                 ppf.data = ppf.data[ppf.data[PROTOCOL_ID].isin(allowed)]
 
-            # Filter protocol similarity DataFrame        
-            protocol_similarity = protocol_similarity.loc[
-                protocol_similarity.index.isin(allowed)
+            # Filter protocol similarity DataFrame on both sides of the pair.
+            # protocol_similarity is long-format: PROTOCOL_A, PROTOCOL_B, SIMILARITY
+            # with a default RangeIndex, so filter by the columns, not the index.
+            protocol_similarity = protocol_similarity[
+                protocol_similarity[PROTOCOL_A].isin(allowed)
             ]
-            protocol_similarity = protocol_similarity[protocol_similarity[PROTOCOL_B].isin(allowed)]
+            protocol_similarity = protocol_similarity[
+                protocol_similarity[PROTOCOL_B].isin(allowed)
+            ]
 
         rgs_data = DataUnitSet([session, patient_data, ppf])
         return rgs_data, protocol_similarity
