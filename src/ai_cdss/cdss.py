@@ -151,6 +151,13 @@ class CDSS:
     ) -> pd.DataFrame:
         """
         Update recommendations by swapping out underperforming protocols for better alternatives.
+
+        After picking the final protocol set (kept + substituted), we re-fan
+        the schedule across ``self.days × self.protocols_per_day`` slots so
+        every weekly recommendation covers the full grid regardless of the
+        prior week's prescribed coverage. This guarantees the AISN trial
+        invariant "7 days, ``protocols_per_day`` per day, ``self.n`` distinct
+        protocols" holds even when the inherited DAYS lists are sparse.
         """
         # Identify protocols to swap and those to exclude from substitution
         protocols_to_swap: list[int] = self._decide_prescription_swap(patient_id)
@@ -182,6 +189,19 @@ class CDSS:
             )
             updated_rows.append(substitute_row)
             protocols_excluded.append(substitute_row[PROTOCOL_ID])
+
+        # Re-fan the chosen protocols across the full days × protocols_per_day
+        # grid. This decouples next week's coverage from prior week's DAYS
+        # (which previously inherited the patient's recorded weekdays only)
+        # and enforces the trial's full-week invariant.
+        final_protocols = [r[PROTOCOL_ID] for r in updated_rows]
+        schedule = self._schedule_protocols(final_protocols)
+        proto_to_days: Dict[int, List[int]] = {}
+        for day, protos in schedule.items():
+            for p in protos:
+                proto_to_days.setdefault(p, []).append(day)
+        for r in updated_rows:
+            r[DAYS] = sorted(proto_to_days.get(r[PROTOCOL_ID], []))
 
         # Create the recommendations DataFrame
         recommendations = (

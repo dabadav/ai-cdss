@@ -290,9 +290,24 @@ class CDSSInterface:
                 self._save_prescriptions(prescription_df, unique_id, datetime_start)
                 self._save_metrics(all_metrics_df, unique_id, datetime_now)
 
+            # Persist staging shape per patient so under-coverage (e.g. only
+            # one weekday produced) is visible in the run log without having
+            # to query the DB.
+            n_rows      = int(len(prescription_df))
+            n_days      = int(prescription_df["WEEKDAY"].nunique()) if "WEEKDAY" in prescription_df.columns and not prescription_df.empty else 0
+            n_protocols = int(prescription_df["PROTOCOL_ID"].nunique()) if "PROTOCOL_ID" in prescription_df.columns and not prescription_df.empty else 0
+
+            logger.info(
+                "Patient %s prescription shape: n_rows=%d n_days=%d n_protocols=%d",
+                patient, n_rows, n_days, n_protocols,
+            )
+
             result = {
                 "patient_id": patient,
                 "num_recommendations": len(recommendations),
+                "n_rows": n_rows,
+                "n_days": n_days,
+                "n_protocols": n_protocols,
                 "status": "success",
             }
 

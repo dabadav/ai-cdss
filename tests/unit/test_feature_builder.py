@@ -226,4 +226,101 @@ def test_build_prescription_days_with_fixture(session_df, patient_df, logger=Non
     assert result["DAYS"].apply(lambda x: isinstance(x, list)).all()
 
 
+def test_build_prescription_days_uses_prescribed_not_performed():
+    """DAYS must reflect *prescribed* weekdays in the last completed week,
+    not weekdays the patient actually performed sessions on. Patient
+    compliance must not collapse next week's coverage."""
+    fb = FeatureBuilder()
+    patient_df = pd.DataFrame({
+        "PATIENT_ID": [1],
+        "CLINICAL_TRIAL_START_DATE": [datetime.datetime(2024, 1, 1)],
+        "CLINICAL_TRIAL_END_DATE":   [datetime.datetime(2024, 1, 31)],
+    })
+    # Patient prescribed for Mon (0), Tue (1), Wed (2), Thu (3), Fri (4)
+    # in the [2024-01-01, 2024-01-08) window. Sessions only happened on
+    # Tuesday (1). Pre-fix this would yield DAYS=[1]; post-fix it must
+    # be [0, 1, 2, 3, 4] because all 5 weekdays were *prescribed*.
+    session_df = pd.DataFrame({
+        "PATIENT_ID":                 [1, 1, 1, 1, 1],
+        "PRESCRIPTION_ID":            [10, 11, 12, 13, 14],
+        "SESSION_ID":                 [np.nan, 1001, np.nan, np.nan, np.nan],
+        "PROTOCOL_ID":                [200, 200, 200, 200, 200],
+        "PRESCRIPTION_STARTING_DATE": [datetime.datetime(2024, 1, 1)] * 5,
+        "PRESCRIPTION_ENDING_DATE":   [datetime.datetime(2024, 1, 8)] * 5,
+        "SESSION_DATE":               [pd.NaT, datetime.datetime(2024, 1, 2),
+                                        pd.NaT, pd.NaT, pd.NaT],
+        "WEEKDAY_INDEX":              [0, 1, 2, 3, 4],
+    })
+    result = fb.build_prescription_days(
+        session_df, patient_df, scoring_date=pd.Timestamp("2024-01-08")
+    )
+    assert len(result) == 1
+    days = result.iloc[0]["DAYS"]
+    assert days == [0, 1, 2, 3, 4], f"DAYS should follow prescribed weekdays, got {days}"
+
+
+def test_build_prescription_days_filters_to_last_completed_week():
+    """Prescriptions outside the last completed week window are excluded.
+    A prescription whose window ends before week_start, or starts after
+    week_end, must not contribute weekdays."""
+    fb = FeatureBuilder()
+    patient_df = pd.DataFrame({
+        "PATIENT_ID": [1],
+        "CLINICAL_TRIAL_START_DATE": [datetime.datetime(2024, 1, 1)],
+        "CLINICAL_TRIAL_END_DATE":   [datetime.datetime(2024, 1, 31)],
+    })
+    # Last completed week (scoring 2024-01-08) is [2024-01-01, 2024-01-08).
+    session_df = pd.DataFrame({
+        "PATIENT_ID":                 [1, 1, 1],
+        "PRESCRIPTION_ID":            [1, 2, 3],
+        "SESSION_ID":                 [np.nan, np.nan, np.nan],
+        "PROTOCOL_ID":                [200, 201, 202],
+        # Prescription 1: ends before window  -> excluded
+        # Prescription 2: overlaps window     -> included
+        # Prescription 3: starts after window -> excluded
+        "PRESCRIPTION_STARTING_DATE": [datetime.datetime(2023, 12, 18),
+                                        datetime.datetime(2024, 1, 1),
+                                        datetime.datetime(2024, 1, 9)],
+        "PRESCRIPTION_ENDING_DATE":   [datetime.datetime(2023, 12, 25),
+                                        datetime.datetime(2024, 1, 8),
+                                        datetime.datetime(2024, 1, 16)],
+        "SESSION_DATE":               [pd.NaT, pd.NaT, pd.NaT],
+        "WEEKDAY_INDEX":              [0, 3, 5],
+    })
+    result = fb.build_prescription_days(
+        session_df, patient_df, scoring_date=pd.Timestamp("2024-01-08")
+    )
+    assert set(result["PROTOCOL_ID"]) == {201}
+    assert result.iloc[0]["DAYS"] == [3]
+
+
+def test_build_prescription_days_dedups_multiple_sessions_per_prescription():
+    """A prescription with multiple session rows (LEFT JOIN duplicates)
+    must contribute its weekday only once."""
+    fb = FeatureBuilder()
+    patient_df = pd.DataFrame({
+        "PATIENT_ID": [1],
+        "CLINICAL_TRIAL_START_DATE": [datetime.datetime(2024, 1, 1)],
+        "CLINICAL_TRIAL_END_DATE":   [datetime.datetime(2024, 1, 31)],
+    })
+    # Same prescription appears 3 times because 3 sessions attached.
+    session_df = pd.DataFrame({
+        "PATIENT_ID":                 [1, 1, 1],
+        "PRESCRIPTION_ID":            [10, 10, 10],
+        "SESSION_ID":                 [1001, 1002, 1003],
+        "PROTOCOL_ID":                [200, 200, 200],
+        "PRESCRIPTION_STARTING_DATE": [datetime.datetime(2024, 1, 1)] * 3,
+        "PRESCRIPTION_ENDING_DATE":   [datetime.datetime(2024, 1, 8)] * 3,
+        "SESSION_DATE":               [datetime.datetime(2024, 1, 2),
+                                        datetime.datetime(2024, 1, 3),
+                                        datetime.datetime(2024, 1, 4)],
+        "WEEKDAY_INDEX":              [1, 1, 1],
+    })
+    result = fb.build_prescription_days(
+        session_df, patient_df, scoring_date=pd.Timestamp("2024-01-08")
+    )
+    assert len(result) == 1
+    assert result.iloc[0]["DAYS"] == [1]
+
+
 # ---------------------------------------------------------------
