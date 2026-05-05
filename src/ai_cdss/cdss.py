@@ -65,6 +65,12 @@ class CDSS:
     def recommend(self, patient_id: int, protocol_similarity) -> pd.DataFrame:
         """
         Recommend prescriptions for a patient.
+
+        After branch dispatch we always run :meth:`_top_up_coverage` so that
+        the AISN trial's "7 days × ``protocols_per_day`` per day" invariant
+        holds regardless of whether we bootstrapped, repeated a skipped
+        week, or updated via swap. Top-up is additive — kept (protocol,
+        day) pairs are never moved or removed.
         """
         if not self._has_patient_data(patient_id):
             raise ValueError(f"Patient {patient_id} has no data.")
@@ -72,14 +78,24 @@ class CDSS:
         prescriptions = self._get_prescriptions(patient_id)
 
         if prescriptions.empty:
-            return self._generate_new_recommendations(patient_id)
+            recommendations = self._generate_new_recommendations(patient_id)
+        elif self._is_week_skipped(prescriptions):
+            recommendations = self._repeat_prescriptions(prescriptions)
+        else:
+            recommendations = self._update_existing_recommendations(
+                patient_id, prescriptions, protocol_similarity
+            )
 
-        if self._is_week_skipped(prescriptions):
-            return self._repeat_prescriptions(prescriptions)
-
-        return self._update_existing_recommendations(
-            patient_id, prescriptions, protocol_similarity
+        # Universal post-step: ensure full grid coverage.
+        rows = recommendations.to_dict("records")
+        rows = self._top_up_coverage(patient_id, rows)
+        out = (
+            pd.DataFrame(rows)
+            .sort_values(by=PROTOCOL_ID)
+            .reset_index(drop=True)
         )
+        out.attrs = self.scoring.attrs
+        return out
 
     ###########################################################################
     # Patient Bootstrap
@@ -195,10 +211,7 @@ class CDSS:
             updated_rows.append(substitute_row)
             protocols_excluded.append(substitute_row[PROTOCOL_ID])
 
-        # Top up under-covered days without disturbing existing assignments.
-        updated_rows = self._top_up_coverage(patient_id, updated_rows)
-
-        # Create the recommendations DataFrame
+        # Top-up is run at recommend() level so it applies to every branch.
         recommendations = (
             pd.DataFrame(updated_rows)
             .sort_values(by=PROTOCOL_ID)
