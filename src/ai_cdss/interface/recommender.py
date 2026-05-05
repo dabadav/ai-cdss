@@ -70,10 +70,15 @@ class CDSSInterface:
         days: int = N_DAYS,
         protocols_per_day: int = PROTOCOLS_PER_DAY,
         scoring_date: Optional[pd.Timestamp] = None,
+        force: bool = False,
     ) -> Dict[str, Any]:
         """
         Run recommendations for one **or many** patients.
         Returns the same structure as recommend_for_study, with 'per_patient' detailing each patient's result.
+
+        ``force=False`` (default) skips any patient who already has rows in
+        ``prescription_staging`` for the week we would be recommending for
+        (regardless of STATUS). Set ``force=True`` to rerun anyway.
         """
         return self._recommend_for_patients_core(
             patient_ids,
@@ -81,8 +86,9 @@ class CDSSInterface:
             days=days,
             protocols_per_day=protocols_per_day,
             scoring_date=scoring_date,
+            force=force,
             context={
-                "patient_id": patient_ids, 
+                "patient_id": patient_ids,
                 "message": f"Recommendations generated for patients {patient_ids}"
             },
         )
@@ -94,10 +100,9 @@ class CDSSInterface:
         days: int,
         protocols_per_day: int,
         scoring_date: Optional[pd.Timestamp] = None,
+        force: bool = False,
     ) -> Dict[str, Any]:
-        """
-        Cohort/study run.
-        """
+        """Cohort/study run. See ``recommend_for_patients`` for ``force``."""
         # Keep validation where it belongs
         patient_ids = self.loader.fetch_and_validate_patients(study_ids=study_id)
         return self._recommend_for_patients_core(
@@ -106,6 +111,7 @@ class CDSSInterface:
             days=days,
             protocols_per_day=protocols_per_day,
             scoring_date=scoring_date,
+            force=force,
             context={"study_id": study_id, "message": f"Recommendations generated for study {study_id}"},
         )
 
@@ -118,6 +124,7 @@ class CDSSInterface:
         protocols_per_day: int,
         scoring_date: Optional[pd.Timestamp],
         context: Dict[str, Any],
+        force: bool = False,
     ) -> Dict[str, Any]:
         """
         Internal core that runs the full pipeline for a given set of patient_ids.
@@ -163,12 +170,14 @@ class CDSSInterface:
             # --------- Per-patient Processing --------
             for p in patient_ids:
                 result = self._process_patient(
-                    patient=p, 
-                    cdss=cdss, 
-                    protocol_similarity=protocol_similarity, 
-                    scores=scores, 
-                    unique_id=unique_id, 
-                    datetime_start=patient_dict[p]
+                    patient=p,
+                    cdss=cdss,
+                    protocol_similarity=protocol_similarity,
+                    scores=scores,
+                    unique_id=unique_id,
+                    datetime_start=patient_dict[p],
+                    scoring_date=(scoring_date or pd.Timestamp.today()),
+                    force=force,
                 )
                 if result.get("status") == "success":
                     success_count += 1
@@ -259,12 +268,11 @@ class CDSSInterface:
         scores,
         unique_id,
         datetime_start,
+        scoring_date: Optional[pd.Timestamp] = None,
+        force: bool = False,
     ):
         """
         Process recommendations and metrics for a single patient.
-
-        This helper handles recommendation generation, prescription and metrics transformation,
-        persistence, and error handling for one patient in a batch run.
 
         Args:
             patient: The patient ID to process.
@@ -273,12 +281,42 @@ class CDSSInterface:
             scores: DataFrame of all scored protocols.
             unique_id: UUID for this batch run.
             datetime_start: Timestamp for trial start.
-
-        Returns:
-            dict: A result dictionary with patient_id, num_recommendations, status, and (on failure) error.
+            scoring_date: Day from which we derive the patient's current
+                week (defaults to today). Used for the duplication guard.
+            force: When False (default) we abort early with status
+                ``"skipped_already_prescribed"`` if any prescription_staging
+                row already exists for ``(patient, week_start)``. When
+                True we proceed regardless — useful for replays / forced
+                reruns where duplicates are accepted.
         """
         try:
             datetime_now = datetime.datetime.now()
+            scoring_ts = scoring_date or pd.Timestamp.today()
+
+            # Idempotency guard — covers two duplication paths:
+            # (1) manual rerun on a patient already prescribed this week,
+            # (2) cohort fetch picking up a patient before clinical_start
+            #     and bootstrapping a fresh RID every cron tick.
+            if not force and self._already_prescribed(patient, datetime_start, scoring_ts):
+                wk_idx, wk_start = self._current_week_window(datetime_start, scoring_ts)
+                logger.info(
+                    "Patient %s already has prescription_staging rows for "
+                    "week %s (start=%s); skipping. Pass force=True to rerun.",
+                    patient, wk_idx, wk_start,
+                )
+                return {
+                    "patient_id":          patient,
+                    "num_recommendations": 0,
+                    "n_rows":              0,
+                    "n_days":              0,
+                    "n_protocols":         0,
+                    "trace":               None,
+                    "skipped_reason":      "already_prescribed",
+                    "skipped_week":        wk_idx,
+                    "skipped_week_start":  wk_start.isoformat() if wk_start else None,
+                    "status":              "skipped",
+                }
+
             recommendations = cdss.recommend(patient, protocol_similarity)
             prescription_df = self._transform_recommendations(recommendations)
 
@@ -384,6 +422,52 @@ class CDSSInterface:
             value_name="VALUE",
         )
         return metrics_df
+
+    @staticmethod
+    def _current_week_window(
+        datetime_start, scoring_ts: pd.Timestamp
+    ) -> tuple[int, "datetime.date | None"]:
+        """Return ``(week_index, week_start_date)`` for the patient relative
+        to the scoring day. ``week_index`` is clamped at 0 — a patient
+        whose ``datetime_start`` is in the future is treated as week 0
+        (which is exactly the case the duplication guard needs to catch:
+        cohort entries ahead of clinical_start)."""
+        try:
+            start_date = pd.Timestamp(datetime_start).normalize().date()
+        except Exception:
+            return 0, None
+        scoring_day = scoring_ts.normalize().date()
+        delta = (scoring_day - start_date).days
+        wk_idx = max(0, delta // 7)
+        wk_start = start_date + timedelta(days=7 * wk_idx)
+        return wk_idx, wk_start
+
+    def _already_prescribed(
+        self, patient_id: int, datetime_start, scoring_ts: pd.Timestamp
+    ) -> bool:
+        """True if ``prescription_staging`` already has any row (any STATUS)
+        for ``(patient_id, week_start)``."""
+        _, wk_start = self._current_week_window(datetime_start, scoring_ts)
+        if wk_start is None:
+            return False
+        engine = getattr(self.loader.interface, "engine", None)
+        if engine is None:
+            return False
+        sql = (
+            "SELECT COUNT(*) AS n FROM prescription_staging "
+            "WHERE PATIENT_ID = :pid AND DATE(STARTING_DATE) = :wk"
+        )
+        try:
+            df = self.loader.interface._fetch(
+                query=sql, params={"pid": int(patient_id), "wk": wk_start.isoformat()}
+            )
+            return bool(df is not None and not df.empty and int(df.iloc[0]["n"]) > 0)
+        except Exception:
+            logger.exception(
+                "Duplication check failed for patient %s; treating as not-prescribed.",
+                patient_id,
+            )
+            return False
 
     def _save_prescriptions(
         self,
