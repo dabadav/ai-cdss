@@ -232,6 +232,36 @@ def test_update_branch_preserves_kept_protocol_days():
         )
 
 
+def test_recommend_attaches_full_trace_for_update_branch():
+    """The trace dict on `out.attrs['trace']` must be rich enough to
+    reconstruct the run: branch, top_protocols, prior, every swap event,
+    every top-up addition, final schedule."""
+    n, days, ppd = 12, 7, 5
+    scoring = _scoring_frame_distributed(
+        n_protocols=20, n_prescribed=12,
+        days_available=[1, 2, 3, 4, 5, 6], protocols_per_day=ppd,
+    )
+    similarity = _similarity_frame(scoring)
+    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+    rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
+
+    trace = rec.attrs["trace"]
+    assert trace["branch"] == "update"
+    assert trace["config"] == {"n": n, "days": days, "protocols_per_day": ppd}
+    assert isinstance(trace["top_protocols"], list) and len(trace["top_protocols"]) == n
+    assert trace["prior"], "prior must capture the prior-week prescription state"
+    assert all({"protocol_id", "days", "score", "usage_week"}.issubset(p) for p in trace["prior"])
+    # At least one swap event (AISN min-1-swap rule guarantees this when n_prescribed>=1)
+    assert len(trace["swaps"]) >= 1
+    swap = trace["swaps"][0]
+    assert {"removed", "added", "similarity", "inherited_days", "candidate_pool", "reason"}.issubset(swap)
+    # Top-up should add Monday slots (day=0) since inherited window had no Mon
+    assert any(t["day"] == 0 for t in trace["topup"]), "expected Monday top-ups"
+    # final schedule covers exactly days x ppd
+    final_slots = sum(len(p["days"]) for p in trace["final"])
+    assert final_slots == days * ppd
+
+
 def test_bootstrap_branch_emits_full_grid():
     """Bootstrap path (no prior prescriptions) must also yield full coverage."""
     n, days, ppd = 12, 7, 5

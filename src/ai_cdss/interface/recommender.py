@@ -297,10 +297,25 @@ class CDSSInterface:
             n_days      = int(prescription_df["WEEKDAY"].nunique()) if "WEEKDAY" in prescription_df.columns and not prescription_df.empty else 0
             n_protocols = int(prescription_df["PROTOCOL_ID"].nunique()) if "PROTOCOL_ID" in prescription_df.columns and not prescription_df.empty else 0
 
+            # Pull the structured decision trace (branch, swaps, top-ups,
+            # final schedule) attached by CDSS.recommend(). Lets a reader
+            # reconstruct exactly what the engine did from the JSON log.
+            trace = recommendations.attrs.get("trace") if hasattr(recommendations, "attrs") else None
+
             logger.info(
-                "Patient %s prescription shape: n_rows=%d n_days=%d n_protocols=%d",
+                "Patient %s shape n_rows=%d n_days=%d n_protocols=%d branch=%s swaps=%d topup=%d",
                 patient, n_rows, n_days, n_protocols,
+                (trace or {}).get("branch"),
+                len((trace or {}).get("swaps") or []),
+                len((trace or {}).get("topup") or []),
             )
+            for ev in (trace or {}).get("swaps", []) or []:
+                logger.info(
+                    "  swap: removed=%s (score=%s) -> added=%s (sim=%s) days=%s reason=%s",
+                    ev.get("removed"), ev.get("removed_score"),
+                    ev.get("added"),   ev.get("similarity"),
+                    ev.get("inherited_days"), ev.get("reason"),
+                )
 
             result = {
                 "patient_id": patient,
@@ -308,6 +323,7 @@ class CDSSInterface:
                 "n_rows": n_rows,
                 "n_days": n_days,
                 "n_protocols": n_protocols,
+                "trace": trace,
                 "status": "success",
             }
 
