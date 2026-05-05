@@ -65,21 +65,75 @@ class CDSS:
     def recommend(self, patient_id: int, protocol_similarity) -> pd.DataFrame:
         """
         Recommend prescriptions for a patient.
+
+        Builds a structured ``trace`` (attached to the returned DataFrame's
+        ``.attrs['trace']``) capturing every decision so a run can be fully
+        reconstructed from the JSON log alone:
+
+        - which branch (bootstrap / repeat / update) fired and why
+        - the top-N protocols by SCORE
+        - the prior-week state (protocol, days, score, usage_week) feeding
+          the swap loop
+        - every swap event (removed, added, similarity, candidates pool,
+          reason: below_mean / aisn_min_one_swap)
+        - every top-up addition (protocol, day, source: existing / top_pool)
+        - the final per-protocol DAYS schedule
         """
         if not self._has_patient_data(patient_id):
             raise ValueError(f"Patient {patient_id} has no data.")
 
+        trace: Dict[str, object] = {
+            "patient_id":     patient_id,
+            "config":         {"n": self.n, "days": self.days, "protocols_per_day": self.protocols_per_day},
+            "top_protocols":  self._get_top_protocols(patient_id),
+            "branch":         None,
+            "prior":          [],
+            "swaps":          [],
+            "topup":          [],
+            "final":          [],
+        }
+        self._trace = trace  # available to inner helpers via self
+
         prescriptions = self._get_prescriptions(patient_id)
 
         if prescriptions.empty:
-            return self._generate_new_recommendations(patient_id)
+            trace["branch"] = "bootstrap"
+            recommendations = self._generate_new_recommendations(patient_id)
+        elif self._is_week_skipped(prescriptions):
+            trace["branch"] = "repeat_skipped_week"
+            recommendations = self._repeat_prescriptions(prescriptions)
+        else:
+            trace["branch"] = "update"
+            trace["prior"] = [
+                {
+                    "protocol_id": int(r[PROTOCOL_ID]),
+                    "days":        list(r[DAYS]) if isinstance(r[DAYS], list) else [],
+                    "score":       float(r.get(SCORE, 0.0)) if pd.notna(r.get(SCORE)) else None,
+                    "usage_week":  int(r[USAGE_WEEK]) if pd.notna(r.get(USAGE_WEEK)) else 0,
+                }
+                for _, r in prescriptions.iterrows()
+            ]
+            recommendations = self._update_existing_recommendations(
+                patient_id, prescriptions, protocol_similarity
+            )
 
-        if self._is_week_skipped(prescriptions):
-            return self._repeat_prescriptions(prescriptions)
-
-        return self._update_existing_recommendations(
-            patient_id, prescriptions, protocol_similarity
+        # Universal post-step: ensure full grid coverage.
+        rows = recommendations.to_dict("records")
+        rows = self._top_up_coverage(patient_id, rows)
+        out = (
+            pd.DataFrame(rows)
+            .sort_values(by=PROTOCOL_ID)
+            .reset_index(drop=True)
         )
+        trace["final"] = [
+            {"protocol_id": int(r[PROTOCOL_ID]),
+             "days":        sorted([int(d) for d in (r.get(DAYS) or [])])}
+            for _, r in out.iterrows()
+        ]
+        attrs = dict(self.scoring.attrs)
+        attrs["trace"] = trace
+        out.attrs = attrs
+        return out
 
     ###########################################################################
     # Patient Bootstrap
@@ -150,23 +204,42 @@ class CDSS:
         self, patient_id: int, prescriptions: pd.DataFrame, protocol_similarity
     ) -> pd.DataFrame:
         """
-        Update recommendations by swapping out underperforming protocols for better alternatives.
+        Update recommendations by swapping out underperforming protocols for
+        better alternatives.
+
+        Stability rules:
+          - Kept protocols retain their inherited DAYS verbatim.
+          - Substitutes inherit the DAYS of the protocol they replace
+            (handled inside ``_swap_protocol``).
+          - If the resulting schedule under-covers the trial grid
+            (``days × protocols_per_day``), missing day-slots are topped
+            up *additively* — existing protocols get extra days first
+            (preferring those they don't already cover), then top-scored
+            unused protocols. No existing (protocol, day) pair is moved
+            or removed.
         """
         # Identify protocols to swap and those to exclude from substitution
         protocols_to_swap: list[int] = self._decide_prescription_swap(patient_id)
         protocols_excluded: list[int] = prescriptions[PROTOCOL_ID].tolist()
+        swap_reason: Dict[int, str] = {p: "below_mean_score" for p in protocols_to_swap}
 
-        # [AISN RCT] For this specific trial we enforce a minimum of one swap per week
+        # [AISN RCT] enforce a minimum of one swap per week
         if not protocols_to_swap:
-            protocols_to_swap.append(self._get_lowest_performing_protocol(patient_id))
+            forced = self._get_lowest_performing_protocol(patient_id)
+            protocols_to_swap.append(forced)
+            swap_reason[forced] = "aisn_min_one_swap"
 
-        # Start with prescriptions that are not being swapped
+        # Start with prescriptions that are not being swapped — DAYS preserved
         updated_rows: list[dict] = prescriptions[
             ~prescriptions[PROTOCOL_ID].isin(protocols_to_swap)
         ].to_dict("records")
 
-        # Swap out underperforming protocols
+        # Swap out underperforming protocols (substitute inherits swapped's DAYS)
+        trace = getattr(self, "_trace", None)
         for protocol_id in protocols_to_swap:
+            similarities = self._get_protocol_similarities(
+                protocol_id, protocol_similarity, protocols_excluded
+            )
             substitute_row = self._swap_protocol(
                 patient_id,
                 protocol_id,
@@ -174,16 +247,34 @@ class CDSS:
                 protocol_similarity,
                 protocols_excluded=protocols_excluded,
             )
-            logger.debug(
-                "Swapping %s for %s for patient %s",
-                protocol_id,
-                substitute_row[PROTOCOL_ID],
-                patient_id,
+            sub_id = int(substitute_row[PROTOCOL_ID])
+            removed_score = float(prescriptions.loc[
+                prescriptions[PROTOCOL_ID] == protocol_id, SCORE
+            ].iloc[0]) if SCORE in prescriptions.columns else None
+            sim_row = similarities[similarities[PROTOCOL_B] == sub_id]
+            sub_sim = float(sim_row[SIMILARITY].iloc[0]) if not sim_row.empty else None
+            inherited_days = sorted(
+                {int(d) for d in (substitute_row.get(DAYS) or [])}
             )
+            logger.info(
+                "Swap patient=%s removed=%s (score=%s) -> added=%s (sim=%s) days=%s reason=%s",
+                patient_id, protocol_id, removed_score, sub_id, sub_sim,
+                inherited_days, swap_reason.get(protocol_id),
+            )
+            if trace is not None:
+                trace["swaps"].append({
+                    "removed":         int(protocol_id),
+                    "removed_score":   removed_score,
+                    "added":           sub_id,
+                    "similarity":      sub_sim,
+                    "inherited_days":  inherited_days,
+                    "candidate_pool":  similarities[PROTOCOL_B].astype(int).tolist(),
+                    "reason":          swap_reason.get(protocol_id, "unknown"),
+                })
             updated_rows.append(substitute_row)
-            protocols_excluded.append(substitute_row[PROTOCOL_ID])
+            protocols_excluded.append(sub_id)
 
-        # Create the recommendations DataFrame
+        # Top-up is run at recommend() level so it applies to every branch.
         recommendations = (
             pd.DataFrame(updated_rows)
             .sort_values(by=PROTOCOL_ID)
@@ -191,6 +282,66 @@ class CDSS:
         )
         recommendations.attrs = self.scoring.attrs
         return recommendations
+
+    def _top_up_coverage(
+        self, patient_id: int, rows: list[dict]
+    ) -> list[dict]:
+        """Fill any (day, slot) gap in `rows` so each day reaches
+        ``protocols_per_day`` protocols. Existing (protocol, day) pairs are
+        kept unchanged; we only add new day entries to existing protocols
+        or introduce top-scored unused protocols when needed.
+        """
+        proto_to_row: Dict[int, dict] = {r[PROTOCOL_ID]: r for r in rows}
+        day_protos: Dict[int, list[int]] = {d: [] for d in range(self.days)}
+        for r in rows:
+            pid = r[PROTOCOL_ID]
+            for d in r.get(DAYS, []) or []:
+                if pid not in day_protos[d]:
+                    day_protos[d].append(pid)
+
+        # Filler pool: existing protocols first (cycled), then top-scored
+        # unused protocols. Top-up never removes anything.
+        existing = list(proto_to_row.keys())
+        top_pool = [p for p in self._get_top_protocols(patient_id) if p not in proto_to_row]
+        filler_pool = existing + top_pool
+
+        trace = getattr(self, "_trace", None)
+        for day in range(self.days):
+            while len(day_protos[day]) < self.protocols_per_day:
+                pick = next(
+                    (p for p in filler_pool if p not in day_protos[day]),
+                    None,
+                )
+                if pick is None:
+                    # Not enough distinct protocols to fill — give up on this
+                    # day rather than loop forever (very small candidate set).
+                    if trace is not None:
+                        trace["topup"].append({
+                            "day": day, "protocol_id": None,
+                            "source": "exhausted",
+                            "deficit": self.protocols_per_day - len(day_protos[day]),
+                        })
+                    break
+                day_protos[day].append(pick)
+                if pick in proto_to_row:
+                    cur_days = list(proto_to_row[pick].get(DAYS, []) or [])
+                    proto_to_row[pick][DAYS] = sorted(set(cur_days + [day]))
+                    source = "existing"
+                else:
+                    new_row = self._get_scores(patient_id, pick)
+                    new_row[PROTOCOL_ID] = pick
+                    new_row[PATIENT_ID] = patient_id
+                    new_row[DAYS] = [day]
+                    proto_to_row[pick] = new_row
+                    source = "top_pool"
+                if trace is not None:
+                    trace["topup"].append({
+                        "day":         day,
+                        "protocol_id": int(pick),
+                        "source":      source,
+                    })
+
+        return list(proto_to_row.values())
 
     ###########################################################################
     # Marginal Value Theorem (Swapping Criteria)

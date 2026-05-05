@@ -192,20 +192,33 @@ class FeatureBuilder:
         scoring_date: Timestamp,
     ) -> pd.DataFrame:
         """
-        Get the list of prescribed days (weekday indices) for each patient–protocol
-        in the LAST completed patient-aligned week before scoring_date.
+        Get the list of *prescribed* days (weekday indices) for each
+        patient-protocol in the LAST completed patient-aligned week before
+        scoring_date.
+
+        Each row of ``session_df`` originates from a ``prescription_plus``
+        row (LEFT JOIN to ``session_plus``); ``WEEKDAY_INDEX`` therefore
+        reflects the prescribed day, not whether a session was performed.
+        We use the prescription's active window
+        ``[PRESCRIPTION_STARTING_DATE, PRESCRIPTION_ENDING_DATE]`` to test
+        overlap with the patient's last completed week — patient compliance
+        (i.e. presence of a session row) does NOT influence DAYS.
 
         Example:
             clinical_start = 2025-11-11 (Tue)
             scoring_date   = 2025-11-18
 
-            --> consider sessions with SESSION_DATE in [2025-11-11, 2025-11-18)
-                and aggregate their WEEKDAY_INDEX per patient–protocol.
+            --> consider prescriptions whose [start, end] overlaps
+                [2025-11-11, 2025-11-18) and aggregate their distinct
+                WEEKDAY_INDEX values per patient-protocol.
         """
         session_df = session_df.copy()
-        session_df[SESSION_DATE] = pd.to_datetime(
-            session_df[SESSION_DATE], errors="coerce"
-        )
+        # PRESCRIPTION_STARTING_DATE / PRESCRIPTION_ENDING_DATE come straight
+        # from prescription_plus (one row per prescribed (protocol, weekday)).
+        psd_col = "PRESCRIPTION_STARTING_DATE"
+        ped_col = "PRESCRIPTION_ENDING_DATE"
+        session_df[psd_col] = pd.to_datetime(session_df[psd_col], errors="coerce")
+        session_df[ped_col] = pd.to_datetime(session_df[ped_col], errors="coerce")
 
         anchors = self._last_completed_week_window(patient_df, scoring_date)
 
@@ -215,14 +228,18 @@ class FeatureBuilder:
             how="inner",
         )
 
-        in_window = (df[SESSION_DATE] >= df["week_start"]) & (
-            df[SESSION_DATE] < df["week_end"]
-        )
-        df = df.loc[in_window]
+        # Prescription overlaps last completed week if its active window
+        # intersects [week_start, week_end). NaT-safe via & short-circuit.
+        overlap = (df[psd_col] < df["week_end"]) & (df[ped_col] >= df["week_start"])
+        df = df.loc[overlap]
+
+        # A given prescription_plus row appears once per attached session
+        # (LEFT JOIN), so dedup on the prescribed key before aggregating.
+        df = df.drop_duplicates(subset=[PATIENT_ID, PROTOCOL_ID, WEEKDAY_INDEX])
 
         prescribed_days = (
             df.groupby([PATIENT_ID, PROTOCOL_ID])[WEEKDAY_INDEX]
-            .agg(lambda x: sorted(x.unique()))
+            .agg(lambda x: sorted(x.dropna().astype(int).unique()))
             .rename(DAYS)
             .reset_index()
         )
