@@ -398,6 +398,19 @@ It allows protocol recommendations, scheduling, and prescription adjustments.</p
 <dt class="sig sig-object py" id="ai_cdss.cdss.CDSS.recommend">
 <span class="sig-name descname"><span class="pre">recommend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patient_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">protocol_similarity</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/ai_cdss/cdss.html#CDSS.recommend"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#ai_cdss.cdss.CDSS.recommend" title="Link to this definition">#</a></dt>
 <dd><p>Recommend prescriptions for a patient.</p>
+<p>Builds a structured <code class="docutils literal notranslate"><span class="pre">trace</span></code> (attached to the returned DataFrame’s
+<code class="docutils literal notranslate"><span class="pre">.attrs['trace']</span></code>) capturing every decision so a run can be fully
+reconstructed from the JSON log alone:</p>
+<ul class="simple">
+<li><p>which branch (bootstrap / repeat / update) fired and why</p></li>
+<li><p>the top-N protocols by SCORE</p></li>
+<li><p>the prior-week state (protocol, days, score, usage_week) feeding
+the swap loop</p></li>
+<li><p>every swap event (removed, added, similarity, candidates pool,
+reason: below_mean / aisn_min_one_swap)</p></li>
+<li><p>every top-up addition (protocol, day, source: existing / top_pool)</p></li>
+<li><p>the final per-protocol DAYS schedule</p></li>
+</ul>
 <dl class="field-list simple">
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>

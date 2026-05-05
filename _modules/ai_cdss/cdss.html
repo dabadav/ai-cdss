@@ -416,21 +416,75 @@ window.addEventListener("load", () => mermaid.run());
     <span class="k">def</span><span class="w"> </span><span class="nf">recommend</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Recommend prescriptions for a patient.</span>
+
+<span class="sd">        Builds a structured ``trace`` (attached to the returned DataFrame&#39;s</span>
+<span class="sd">        ``.attrs[&#39;trace&#39;]``) capturing every decision so a run can be fully</span>
+<span class="sd">        reconstructed from the JSON log alone:</span>
+
+<span class="sd">        - which branch (bootstrap / repeat / update) fired and why</span>
+<span class="sd">        - the top-N protocols by SCORE</span>
+<span class="sd">        - the prior-week state (protocol, days, score, usage_week) feeding</span>
+<span class="sd">          the swap loop</span>
+<span class="sd">        - every swap event (removed, added, similarity, candidates pool,</span>
+<span class="sd">          reason: below_mean / aisn_min_one_swap)</span>
+<span class="sd">        - every top-up addition (protocol, day, source: existing / top_pool)</span>
+<span class="sd">        - the final per-protocol DAYS schedule</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_has_patient_data</span><span class="p">(</span><span class="n">patient_id</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Patient </span><span class="si">{</span><span class="n">patient_id</span><span class="si">}</span><span class="s2"> has no data.&quot;</span><span class="p">)</span>
 
+        <span class="n">trace</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;patient_id&quot;</span><span class="p">:</span>     <span class="n">patient_id</span><span class="p">,</span>
+            <span class="s2">&quot;config&quot;</span><span class="p">:</span>         <span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">n</span><span class="p">,</span> <span class="s2">&quot;days&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">days</span><span class="p">,</span> <span class="s2">&quot;protocols_per_day&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocols_per_day</span><span class="p">},</span>
+            <span class="s2">&quot;top_protocols&quot;</span><span class="p">:</span>  <span class="bp">self</span><span class="o">.</span><span class="n">_get_top_protocols</span><span class="p">(</span><span class="n">patient_id</span><span class="p">),</span>
+            <span class="s2">&quot;branch&quot;</span><span class="p">:</span>         <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;prior&quot;</span><span class="p">:</span>          <span class="p">[],</span>
+            <span class="s2">&quot;swaps&quot;</span><span class="p">:</span>          <span class="p">[],</span>
+            <span class="s2">&quot;topup&quot;</span><span class="p">:</span>          <span class="p">[],</span>
+            <span class="s2">&quot;final&quot;</span><span class="p">:</span>          <span class="p">[],</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_trace</span> <span class="o">=</span> <span class="n">trace</span>  <span class="c1"># available to inner helpers via self</span>
+
         <span class="n">prescriptions</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_prescriptions</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_new_recommendations</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+            <span class="n">trace</span><span class="p">[</span><span class="s2">&quot;branch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;bootstrap&quot;</span>
+            <span class="n">recommendations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_new_recommendations</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_week_skipped</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">):</span>
+            <span class="n">trace</span><span class="p">[</span><span class="s2">&quot;branch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;repeat_skipped_week&quot;</span>
+            <span class="n">recommendations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_repeat_prescriptions</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">trace</span><span class="p">[</span><span class="s2">&quot;branch&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;update&quot;</span>
+            <span class="n">trace</span><span class="p">[</span><span class="s2">&quot;prior&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;protocol_id&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]),</span>
+                    <span class="s2">&quot;days&quot;</span><span class="p">:</span>        <span class="nb">list</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="n">DAYS</span><span class="p">])</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="n">DAYS</span><span class="p">],</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[],</span>
+                    <span class="s2">&quot;score&quot;</span><span class="p">:</span>       <span class="nb">float</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">SCORE</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span> <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">notna</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">SCORE</span><span class="p">))</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s2">&quot;usage_week&quot;</span><span class="p">:</span>  <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="n">USAGE_WEEK</span><span class="p">])</span> <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">notna</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">USAGE_WEEK</span><span class="p">))</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="p">}</span>
+                <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()</span>
+            <span class="p">]</span>
+            <span class="n">recommendations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_existing_recommendations</span><span class="p">(</span>
+                <span class="n">patient_id</span><span class="p">,</span> <span class="n">prescriptions</span><span class="p">,</span> <span class="n">protocol_similarity</span>
+            <span class="p">)</span>
 
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_is_week_skipped</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">):</span>
-            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_repeat_prescriptions</span><span class="p">(</span><span class="n">prescriptions</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_update_existing_recommendations</span><span class="p">(</span>
-            <span class="n">patient_id</span><span class="p">,</span> <span class="n">prescriptions</span><span class="p">,</span> <span class="n">protocol_similarity</span>
-        <span class="p">)</span></div>
+        <span class="c1"># Universal post-step: ensure full grid coverage.</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">recommendations</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="s2">&quot;records&quot;</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_top_up_coverage</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">rows</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">PROTOCOL_ID</span><span class="p">)</span>
+            <span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">trace</span><span class="p">[</span><span class="s2">&quot;final&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span><span class="s2">&quot;protocol_id&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]),</span>
+             <span class="s2">&quot;days&quot;</span><span class="p">:</span>        <span class="nb">sorted</span><span class="p">([</span><span class="nb">int</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">DAYS</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])])}</span>
+            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">out</span><span class="o">.</span><span class="n">iterrows</span><span class="p">()</span>
+        <span class="p">]</span>
+        <span class="n">attrs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="o">.</span><span class="n">attrs</span><span class="p">)</span>
+        <span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;trace&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">trace</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="n">attrs</span>
+        <span class="k">return</span> <span class="n">out</span></div>
 
 
     <span class="c1">###########################################################################</span>
@@ -502,23 +556,42 @@ window.addEventListener("load", () => mermaid.run());
         <span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">prescriptions</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">protocol_similarity</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Update recommendations by swapping out underperforming protocols for better alternatives.</span>
+<span class="sd">        Update recommendations by swapping out underperforming protocols for</span>
+<span class="sd">        better alternatives.</span>
+
+<span class="sd">        Stability rules:</span>
+<span class="sd">          - Kept protocols retain their inherited DAYS verbatim.</span>
+<span class="sd">          - Substitutes inherit the DAYS of the protocol they replace</span>
+<span class="sd">            (handled inside ``_swap_protocol``).</span>
+<span class="sd">          - If the resulting schedule under-covers the trial grid</span>
+<span class="sd">            (``days × protocols_per_day``), missing day-slots are topped</span>
+<span class="sd">            up *additively* — existing protocols get extra days first</span>
+<span class="sd">            (preferring those they don&#39;t already cover), then top-scored</span>
+<span class="sd">            unused protocols. No existing (protocol, day) pair is moved</span>
+<span class="sd">            or removed.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># Identify protocols to swap and those to exclude from substitution</span>
         <span class="n">protocols_to_swap</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decide_prescription_swap</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
         <span class="n">protocols_excluded</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="n">swap_reason</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">:</span> <span class="s2">&quot;below_mean_score&quot;</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">protocols_to_swap</span><span class="p">}</span>
 
-        <span class="c1"># [AISN RCT] For this specific trial we enforce a minimum of one swap per week</span>
+        <span class="c1"># [AISN RCT] enforce a minimum of one swap per week</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">protocols_to_swap</span><span class="p">:</span>
-            <span class="n">protocols_to_swap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_lowest_performing_protocol</span><span class="p">(</span><span class="n">patient_id</span><span class="p">))</span>
+            <span class="n">forced</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_lowest_performing_protocol</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span>
+            <span class="n">protocols_to_swap</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">forced</span><span class="p">)</span>
+            <span class="n">swap_reason</span><span class="p">[</span><span class="n">forced</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;aisn_min_one_swap&quot;</span>
 
-        <span class="c1"># Start with prescriptions that are not being swapped</span>
+        <span class="c1"># Start with prescriptions that are not being swapped — DAYS preserved</span>
         <span class="n">updated_rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="n">prescriptions</span><span class="p">[</span>
             <span class="o">~</span><span class="n">prescriptions</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">protocols_to_swap</span><span class="p">)</span>
         <span class="p">]</span><span class="o">.</span><span class="n">to_dict</span><span class="p">(</span><span class="s2">&quot;records&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Swap out underperforming protocols</span>
+        <span class="c1"># Swap out underperforming protocols (substitute inherits swapped&#39;s DAYS)</span>
+        <span class="n">trace</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_trace&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">protocol_id</span> <span class="ow">in</span> <span class="n">protocols_to_swap</span><span class="p">:</span>
+            <span class="n">similarities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_protocol_similarities</span><span class="p">(</span>
+                <span class="n">protocol_id</span><span class="p">,</span> <span class="n">protocol_similarity</span><span class="p">,</span> <span class="n">protocols_excluded</span>
+            <span class="p">)</span>
             <span class="n">substitute_row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_swap_protocol</span><span class="p">(</span>
                 <span class="n">patient_id</span><span class="p">,</span>
                 <span class="n">protocol_id</span><span class="p">,</span>
@@ -526,16 +599,34 @@ window.addEventListener("load", () => mermaid.run());
                 <span class="n">protocol_similarity</span><span class="p">,</span>
                 <span class="n">protocols_excluded</span><span class="o">=</span><span class="n">protocols_excluded</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                <span class="s2">&quot;Swapping </span><span class="si">%s</span><span class="s2"> for </span><span class="si">%s</span><span class="s2"> for patient </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
-                <span class="n">protocol_id</span><span class="p">,</span>
-                <span class="n">substitute_row</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">],</span>
-                <span class="n">patient_id</span><span class="p">,</span>
+            <span class="n">sub_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">substitute_row</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">])</span>
+            <span class="n">removed_score</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">prescriptions</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+                <span class="n">prescriptions</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span> <span class="o">==</span> <span class="n">protocol_id</span><span class="p">,</span> <span class="n">SCORE</span>
+            <span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="n">SCORE</span> <span class="ow">in</span> <span class="n">prescriptions</span><span class="o">.</span><span class="n">columns</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">sim_row</span> <span class="o">=</span> <span class="n">similarities</span><span class="p">[</span><span class="n">similarities</span><span class="p">[</span><span class="n">PROTOCOL_B</span><span class="p">]</span> <span class="o">==</span> <span class="n">sub_id</span><span class="p">]</span>
+            <span class="n">sub_sim</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">sim_row</span><span class="p">[</span><span class="n">SIMILARITY</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">sim_row</span><span class="o">.</span><span class="n">empty</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">inherited_days</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+                <span class="p">{</span><span class="nb">int</span><span class="p">(</span><span class="n">d</span><span class="p">)</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="p">(</span><span class="n">substitute_row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">DAYS</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])}</span>
             <span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="s2">&quot;Swap patient=</span><span class="si">%s</span><span class="s2"> removed=</span><span class="si">%s</span><span class="s2"> (score=</span><span class="si">%s</span><span class="s2">) -&gt; added=</span><span class="si">%s</span><span class="s2"> (sim=</span><span class="si">%s</span><span class="s2">) days=</span><span class="si">%s</span><span class="s2"> reason=</span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">patient_id</span><span class="p">,</span> <span class="n">protocol_id</span><span class="p">,</span> <span class="n">removed_score</span><span class="p">,</span> <span class="n">sub_id</span><span class="p">,</span> <span class="n">sub_sim</span><span class="p">,</span>
+                <span class="n">inherited_days</span><span class="p">,</span> <span class="n">swap_reason</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">protocol_id</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">trace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">trace</span><span class="p">[</span><span class="s2">&quot;swaps&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                    <span class="s2">&quot;removed&quot;</span><span class="p">:</span>         <span class="nb">int</span><span class="p">(</span><span class="n">protocol_id</span><span class="p">),</span>
+                    <span class="s2">&quot;removed_score&quot;</span><span class="p">:</span>   <span class="n">removed_score</span><span class="p">,</span>
+                    <span class="s2">&quot;added&quot;</span><span class="p">:</span>           <span class="n">sub_id</span><span class="p">,</span>
+                    <span class="s2">&quot;similarity&quot;</span><span class="p">:</span>      <span class="n">sub_sim</span><span class="p">,</span>
+                    <span class="s2">&quot;inherited_days&quot;</span><span class="p">:</span>  <span class="n">inherited_days</span><span class="p">,</span>
+                    <span class="s2">&quot;candidate_pool&quot;</span><span class="p">:</span>  <span class="n">similarities</span><span class="p">[</span><span class="n">PROTOCOL_B</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                    <span class="s2">&quot;reason&quot;</span><span class="p">:</span>          <span class="n">swap_reason</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">protocol_id</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">),</span>
+                <span class="p">})</span>
             <span class="n">updated_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substitute_row</span><span class="p">)</span>
-            <span class="n">protocols_excluded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">substitute_row</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">])</span>
+            <span class="n">protocols_excluded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">sub_id</span><span class="p">)</span>
 
-        <span class="c1"># Create the recommendations DataFrame</span>
+        <span class="c1"># Top-up is run at recommend() level so it applies to every branch.</span>
         <span class="n">recommendations</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">updated_rows</span><span class="p">)</span>
             <span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">PROTOCOL_ID</span><span class="p">)</span>
@@ -543,6 +634,66 @@ window.addEventListener("load", () => mermaid.run());
         <span class="p">)</span>
         <span class="n">recommendations</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scoring</span><span class="o">.</span><span class="n">attrs</span>
         <span class="k">return</span> <span class="n">recommendations</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_top_up_coverage</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">patient_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">rows</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fill any (day, slot) gap in `rows` so each day reaches</span>
+<span class="sd">        ``protocols_per_day`` protocols. Existing (protocol, day) pairs are</span>
+<span class="sd">        kept unchanged; we only add new day entries to existing protocols</span>
+<span class="sd">        or introduce top-scored unused protocols when needed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">proto_to_row</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">r</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]:</span> <span class="n">r</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">}</span>
+        <span class="n">day_protos</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span><span class="n">d</span><span class="p">:</span> <span class="p">[]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">days</span><span class="p">)}</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+            <span class="n">pid</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">r</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">DAYS</span><span class="p">,</span> <span class="p">[])</span> <span class="ow">or</span> <span class="p">[]:</span>
+                <span class="k">if</span> <span class="n">pid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">day_protos</span><span class="p">[</span><span class="n">d</span><span class="p">]:</span>
+                    <span class="n">day_protos</span><span class="p">[</span><span class="n">d</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pid</span><span class="p">)</span>
+
+        <span class="c1"># Filler pool: existing protocols first (cycled), then top-scored</span>
+        <span class="c1"># unused protocols. Top-up never removes anything.</span>
+        <span class="n">existing</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">proto_to_row</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">top_pool</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_top_protocols</span><span class="p">(</span><span class="n">patient_id</span><span class="p">)</span> <span class="k">if</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">proto_to_row</span><span class="p">]</span>
+        <span class="n">filler_pool</span> <span class="o">=</span> <span class="n">existing</span> <span class="o">+</span> <span class="n">top_pool</span>
+
+        <span class="n">trace</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_trace&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">day</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">days</span><span class="p">):</span>
+            <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">day_protos</span><span class="p">[</span><span class="n">day</span><span class="p">])</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocols_per_day</span><span class="p">:</span>
+                <span class="n">pick</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">filler_pool</span> <span class="k">if</span> <span class="n">p</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">day_protos</span><span class="p">[</span><span class="n">day</span><span class="p">]),</span>
+                    <span class="kc">None</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">pick</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="c1"># Not enough distinct protocols to fill — give up on this</span>
+                    <span class="c1"># day rather than loop forever (very small candidate set).</span>
+                    <span class="k">if</span> <span class="n">trace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">trace</span><span class="p">[</span><span class="s2">&quot;topup&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                            <span class="s2">&quot;day&quot;</span><span class="p">:</span> <span class="n">day</span><span class="p">,</span> <span class="s2">&quot;protocol_id&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                            <span class="s2">&quot;source&quot;</span><span class="p">:</span> <span class="s2">&quot;exhausted&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;deficit&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">protocols_per_day</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">day_protos</span><span class="p">[</span><span class="n">day</span><span class="p">]),</span>
+                        <span class="p">})</span>
+                    <span class="k">break</span>
+                <span class="n">day_protos</span><span class="p">[</span><span class="n">day</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pick</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">pick</span> <span class="ow">in</span> <span class="n">proto_to_row</span><span class="p">:</span>
+                    <span class="n">cur_days</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">proto_to_row</span><span class="p">[</span><span class="n">pick</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">DAYS</span><span class="p">,</span> <span class="p">[])</span> <span class="ow">or</span> <span class="p">[])</span>
+                    <span class="n">proto_to_row</span><span class="p">[</span><span class="n">pick</span><span class="p">][</span><span class="n">DAYS</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">cur_days</span> <span class="o">+</span> <span class="p">[</span><span class="n">day</span><span class="p">]))</span>
+                    <span class="n">source</span> <span class="o">=</span> <span class="s2">&quot;existing&quot;</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">new_row</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_scores</span><span class="p">(</span><span class="n">patient_id</span><span class="p">,</span> <span class="n">pick</span><span class="p">)</span>
+                    <span class="n">new_row</span><span class="p">[</span><span class="n">PROTOCOL_ID</span><span class="p">]</span> <span class="o">=</span> <span class="n">pick</span>
+                    <span class="n">new_row</span><span class="p">[</span><span class="n">PATIENT_ID</span><span class="p">]</span> <span class="o">=</span> <span class="n">patient_id</span>
+                    <span class="n">new_row</span><span class="p">[</span><span class="n">DAYS</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">day</span><span class="p">]</span>
+                    <span class="n">proto_to_row</span><span class="p">[</span><span class="n">pick</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_row</span>
+                    <span class="n">source</span> <span class="o">=</span> <span class="s2">&quot;top_pool&quot;</span>
+                <span class="k">if</span> <span class="n">trace</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">trace</span><span class="p">[</span><span class="s2">&quot;topup&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+                        <span class="s2">&quot;day&quot;</span><span class="p">:</span>         <span class="n">day</span><span class="p">,</span>
+                        <span class="s2">&quot;protocol_id&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">pick</span><span class="p">),</span>
+                        <span class="s2">&quot;source&quot;</span><span class="p">:</span>      <span class="n">source</span><span class="p">,</span>
+                    <span class="p">})</span>
+
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">proto_to_row</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
 
     <span class="c1">###########################################################################</span>
     <span class="c1"># Marginal Value Theorem (Swapping Criteria)</span>
