@@ -150,29 +150,34 @@ class CDSS:
         self, patient_id: int, prescriptions: pd.DataFrame, protocol_similarity
     ) -> pd.DataFrame:
         """
-        Update recommendations by swapping out underperforming protocols for better alternatives.
+        Update recommendations by swapping out underperforming protocols for
+        better alternatives.
 
-        After picking the final protocol set (kept + substituted), we re-fan
-        the schedule across ``self.days × self.protocols_per_day`` slots so
-        every weekly recommendation covers the full grid regardless of the
-        prior week's prescribed coverage. This guarantees the AISN trial
-        invariant "7 days, ``protocols_per_day`` per day, ``self.n`` distinct
-        protocols" holds even when the inherited DAYS lists are sparse.
+        Stability rules:
+          - Kept protocols retain their inherited DAYS verbatim.
+          - Substitutes inherit the DAYS of the protocol they replace
+            (handled inside ``_swap_protocol``).
+          - If the resulting schedule under-covers the trial grid
+            (``days × protocols_per_day``), missing day-slots are topped
+            up *additively* — existing protocols get extra days first
+            (preferring those they don't already cover), then top-scored
+            unused protocols. No existing (protocol, day) pair is moved
+            or removed.
         """
         # Identify protocols to swap and those to exclude from substitution
         protocols_to_swap: list[int] = self._decide_prescription_swap(patient_id)
         protocols_excluded: list[int] = prescriptions[PROTOCOL_ID].tolist()
 
-        # [AISN RCT] For this specific trial we enforce a minimum of one swap per week
+        # [AISN RCT] enforce a minimum of one swap per week
         if not protocols_to_swap:
             protocols_to_swap.append(self._get_lowest_performing_protocol(patient_id))
 
-        # Start with prescriptions that are not being swapped
+        # Start with prescriptions that are not being swapped — DAYS preserved
         updated_rows: list[dict] = prescriptions[
             ~prescriptions[PROTOCOL_ID].isin(protocols_to_swap)
         ].to_dict("records")
 
-        # Swap out underperforming protocols
+        # Swap out underperforming protocols (substitute inherits swapped's DAYS)
         for protocol_id in protocols_to_swap:
             substitute_row = self._swap_protocol(
                 patient_id,
@@ -190,18 +195,8 @@ class CDSS:
             updated_rows.append(substitute_row)
             protocols_excluded.append(substitute_row[PROTOCOL_ID])
 
-        # Re-fan the chosen protocols across the full days × protocols_per_day
-        # grid. This decouples next week's coverage from prior week's DAYS
-        # (which previously inherited the patient's recorded weekdays only)
-        # and enforces the trial's full-week invariant.
-        final_protocols = [r[PROTOCOL_ID] for r in updated_rows]
-        schedule = self._schedule_protocols(final_protocols)
-        proto_to_days: Dict[int, List[int]] = {}
-        for day, protos in schedule.items():
-            for p in protos:
-                proto_to_days.setdefault(p, []).append(day)
-        for r in updated_rows:
-            r[DAYS] = sorted(proto_to_days.get(r[PROTOCOL_ID], []))
+        # Top up under-covered days without disturbing existing assignments.
+        updated_rows = self._top_up_coverage(patient_id, updated_rows)
 
         # Create the recommendations DataFrame
         recommendations = (
@@ -211,6 +206,51 @@ class CDSS:
         )
         recommendations.attrs = self.scoring.attrs
         return recommendations
+
+    def _top_up_coverage(
+        self, patient_id: int, rows: list[dict]
+    ) -> list[dict]:
+        """Fill any (day, slot) gap in `rows` so each day reaches
+        ``protocols_per_day`` protocols. Existing (protocol, day) pairs are
+        kept unchanged; we only add new day entries to existing protocols
+        or introduce top-scored unused protocols when needed.
+        """
+        proto_to_row: Dict[int, dict] = {r[PROTOCOL_ID]: r for r in rows}
+        day_protos: Dict[int, list[int]] = {d: [] for d in range(self.days)}
+        for r in rows:
+            pid = r[PROTOCOL_ID]
+            for d in r.get(DAYS, []) or []:
+                if pid not in day_protos[d]:
+                    day_protos[d].append(pid)
+
+        # Filler pool: existing protocols first (cycled), then top-scored
+        # unused protocols. Top-up never removes anything.
+        existing = list(proto_to_row.keys())
+        top_pool = [p for p in self._get_top_protocols(patient_id) if p not in proto_to_row]
+        filler_pool = existing + top_pool
+
+        for day in range(self.days):
+            while len(day_protos[day]) < self.protocols_per_day:
+                pick = next(
+                    (p for p in filler_pool if p not in day_protos[day]),
+                    None,
+                )
+                if pick is None:
+                    # Not enough distinct protocols to fill — give up on this
+                    # day rather than loop forever (very small candidate set).
+                    break
+                day_protos[day].append(pick)
+                if pick in proto_to_row:
+                    cur_days = list(proto_to_row[pick].get(DAYS, []) or [])
+                    proto_to_row[pick][DAYS] = sorted(set(cur_days + [day]))
+                else:
+                    new_row = self._get_scores(patient_id, pick)
+                    new_row[PROTOCOL_ID] = pick
+                    new_row[PATIENT_ID] = patient_id
+                    new_row[DAYS] = [day]
+                    proto_to_row[pick] = new_row
+
+        return list(proto_to_row.values())
 
     ###########################################################################
     # Marginal Value Theorem (Swapping Criteria)

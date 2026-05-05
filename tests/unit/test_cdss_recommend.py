@@ -36,8 +36,11 @@ def _scoring_frame(
 ) -> pd.DataFrame:
     """Build a minimal scoring frame for one patient with `n_protocols`
     candidate protocols. The first ``n_prescribed`` are pre-prescribed
-    (have non-empty ``DAYS``); the rest are unused candidates available
-    as substitutes / top-ups.
+    (every prescribed protocol shares the same ``days_inherited`` list).
+
+    For tests that need a realistic distribution (protocols spread across
+    multiple days with at most ``protocols_per_day`` per day), use
+    ``_scoring_frame_distributed`` instead.
     """
     rows = []
     for i in range(n_protocols):
@@ -63,6 +66,62 @@ def _scoring_frame(
     return pd.DataFrame(rows)
 
 
+def _scoring_frame_distributed(
+    n_protocols: int,
+    n_prescribed: int,
+    days_available: list[int],
+    protocols_per_day: int = 5,
+    patient_id: int = 1,
+) -> pd.DataFrame:
+    """Build a scoring frame where prescribed protocols are spread across
+    ``days_available`` round-robin, capped at ``protocols_per_day`` per
+    day — i.e. mirrors what a healthy prior week would look like."""
+    day_to_protos: dict[int, list[int]] = {d: [] for d in days_available}
+    proto_to_days: dict[int, list[int]] = {}
+    cursor = 0
+    for slot in range(len(days_available) * protocols_per_day):
+        if cursor >= n_prescribed:
+            break
+        day = days_available[slot % len(days_available)]
+        if len(day_to_protos[day]) >= protocols_per_day:
+            continue
+        protocol_id = 200 + cursor
+        day_to_protos[day].append(protocol_id)
+        proto_to_days.setdefault(protocol_id, []).append(day)
+        cursor += 1
+    # Refill remaining day slots by cycling already-prescribed protocols
+    proto_iter = list(proto_to_days.keys())
+    pi = 0
+    for day in days_available:
+        while len(day_to_protos[day]) < protocols_per_day and proto_iter:
+            cand = proto_iter[pi % len(proto_iter)]
+            pi += 1
+            if cand not in day_to_protos[day]:
+                day_to_protos[day].append(cand)
+                proto_to_days[cand].append(day)
+
+    rows = []
+    for i in range(n_protocols):
+        protocol_id = 200 + i
+        prescribed_days = sorted(set(proto_to_days.get(protocol_id, [])))
+        rows.append(
+            {
+                PATIENT_ID:        patient_id,
+                PROTOCOL_ID:       protocol_id,
+                SCORE:             1.0 - i * 0.02,
+                PPF:               0.5,
+                DELTA_DM:          0.01,
+                RECENT_ADHERENCE:  0.9,
+                USAGE:             3 if prescribed_days else 0,
+                USAGE_WEEK:        2 if prescribed_days else 0,
+                SESSION_INDEX:     1,
+                WEEKS_SINCE_START: 4,
+                DAYS:              prescribed_days,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def _similarity_frame(scoring: pd.DataFrame) -> pd.DataFrame:
     """All-pairs similarity, descending by protocol_id distance."""
     proto = scoring[PROTOCOL_ID].unique().tolist()
@@ -80,51 +139,97 @@ def _similarity_frame(scoring: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 
-def test_update_branch_emits_full_grid_when_inherited_days_thin():
-    """Patient previously prescribed only Tuesday (DAYS=[1]) for 5 protocols.
-    Update branch must still produce 7 days × 5/day coverage with 12 distinct
-    protocols.
+def test_update_branch_tops_up_when_inherited_thin_4904_case():
+    """Mirror of the patient-4904 incident: 5 protocols all on Tuesday.
+    Top-up must spread the 5 inherited protocols (and pull from the top-N
+    pool if needed) to fill every day with `protocols_per_day` protocols.
+    Tuesday's existing 5 stay as-is; other days reach 5 too.
     """
     n, days, ppd = 12, 7, 5
-    scoring = _scoring_frame(n_protocols=20, days_inherited=[1])
+    scoring = _scoring_frame(n_protocols=20, n_prescribed=5, days_inherited=[1])
     similarity = _similarity_frame(scoring)
 
     cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
     rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
 
-    # Distinct protocols: must equal n
-    assert rec[PROTOCOL_ID].nunique() == n, (
-        f"expected {n} distinct protocols, got {rec[PROTOCOL_ID].nunique()}"
+    flat_days = [d for lst in rec[DAYS] for d in lst]
+    counts = pd.Series(flat_days).value_counts().sort_index()
+    assert set(counts.index) == set(range(days))
+    assert (counts >= ppd).all(), (
+        f"every day must reach {ppd} protocols after top-up, got {counts.tolist()}"
     )
+    assert rec[PROTOCOL_ID].nunique() >= ppd, "expected at least ppd distinct protocols"
 
-    # Total day-slots across all protocols must equal days × protocols_per_day
-    total_slots = rec[DAYS].apply(len).sum()
-    assert total_slots == days * ppd, (
-        f"expected {days * ppd} slots, got {total_slots}"
+
+def test_update_branch_tops_up_when_inherited_six_days_distributed():
+    """Realistic prior week: 12 protocols distributed across Tue-Sun (no Mon)
+    at 5/day. After top-up, Monday must be filled with `ppd` protocols and
+    no day's count may drop below `ppd`.
+    """
+    n, days, ppd = 12, 7, 5
+    scoring = _scoring_frame_distributed(
+        n_protocols=20, n_prescribed=12,
+        days_available=[1, 2, 3, 4, 5, 6], protocols_per_day=ppd,
     )
+    similarity = _similarity_frame(scoring)
+    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+    rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
 
-    # Every day index in [0, days) must be covered, and each day should have
-    # exactly protocols_per_day protocols assigned.
     flat_days = [d for lst in rec[DAYS] for d in lst]
     counts = pd.Series(flat_days).value_counts().sort_index()
-    assert set(counts.index) == set(range(days))
-    assert counts.tolist() == [ppd] * days, f"per-day counts: {counts.tolist()}"
+    assert 0 in counts.index, "Monday must be covered after top-up"
+    assert (counts >= ppd).all(), f"every day >= {ppd}, got {counts.tolist()}"
 
 
-def test_update_branch_emits_full_grid_when_inherited_days_six():
-    """Patient previously prescribed Tue-Sun (DAYS=[1..6], no Mon). Update
-    branch must still emit 7-day coverage including Monday (index 0).
-    """
+def test_update_branch_full_grid_distributed_seven_days():
+    """Healthy prior week: 12 protocols across 7 days × 5/day. After update
+    + top-up, output must still be exactly 35 slots (no inflation)."""
     n, days, ppd = 12, 7, 5
-    scoring = _scoring_frame(n_protocols=20, days_inherited=[1, 2, 3, 4, 5, 6])
+    scoring = _scoring_frame_distributed(
+        n_protocols=20, n_prescribed=12,
+        days_available=list(range(7)), protocols_per_day=ppd,
+    )
     similarity = _similarity_frame(scoring)
     cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
     rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
 
     flat_days = [d for lst in rec[DAYS] for d in lst]
-    assert 0 in flat_days, "Monday (day 0) must be covered after re-fan"
-    assert set(flat_days) == set(range(days))
-    assert pd.Series(flat_days).value_counts().tolist() == [ppd] * days
+    counts = pd.Series(flat_days).value_counts().sort_index()
+    assert counts.tolist() == [ppd] * days, (
+        f"expected exactly {ppd}/day, got {counts.tolist()}"
+    )
+    assert rec[PROTOCOL_ID].nunique() == n
+
+
+def test_update_branch_preserves_kept_protocol_days():
+    """Stability: a protocol that survives the swap must keep every (proto,
+    day) pair it had last week. Top-up may *add* day slots but never remove
+    nor relocate inherited ones."""
+    n, days, ppd = 12, 7, 5
+    scoring = _scoring_frame_distributed(
+        n_protocols=20, n_prescribed=12,
+        days_available=[1, 2, 3, 4, 5, 6], protocols_per_day=ppd,
+    )
+    similarity = _similarity_frame(scoring)
+    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+
+    # Identify which prescribed protocols would survive the swap. Swap rule:
+    # SCORE < mean(SCORE) among current prescriptions. Kept = score >= mean.
+    prior = scoring[scoring[DAYS].apply(lambda x: isinstance(x, list) and len(x) > 0)]
+    mean_score = prior[SCORE].mean()
+    kept = prior[prior[SCORE] >= mean_score]
+    kept_days_by_proto = {row[PROTOCOL_ID]: set(row[DAYS]) for _, row in kept.iterrows()}
+
+    rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
+
+    for p, original_days in kept_days_by_proto.items():
+        sub = rec[rec[PROTOCOL_ID] == p]
+        assert not sub.empty, f"kept protocol {p} dropped"
+        post_days = set(sub.iloc[0][DAYS])
+        assert original_days.issubset(post_days), (
+            f"kept protocol {p} lost inherited days; "
+            f"inherited={sorted(original_days)} got={sorted(post_days)}"
+        )
 
 
 def test_bootstrap_branch_emits_full_grid():
