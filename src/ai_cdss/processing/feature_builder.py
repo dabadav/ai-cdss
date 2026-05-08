@@ -229,8 +229,11 @@ class FeatureBuilder:
         )
 
         # Prescription overlaps last completed week if its active window
-        # intersects [week_start, week_end). NaT-safe via & short-circuit.
-        overlap = (df[psd_col] < df["week_end"]) & (df[ped_col] >= df["week_start"])
+        # [psd, ped) intersects [week_start, week_end). Both intervals are
+        # half-open, so ped == week_start is a touch-not-overlap (the prior
+        # week's prescription ends exactly when this week begins) and must
+        # be excluded with strict `>`. NaT-safe via & short-circuit.
+        overlap = (df[psd_col] < df["week_end"]) & (df[ped_col] > df["week_start"])
         df = df.loc[overlap]
 
         # A given prescription_plus row appears once per attached session

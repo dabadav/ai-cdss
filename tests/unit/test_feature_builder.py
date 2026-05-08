@@ -294,6 +294,45 @@ def test_build_prescription_days_filters_to_last_completed_week():
     assert result.iloc[0]["DAYS"] == [3]
 
 
+def test_build_prescription_days_excludes_prior_week_ending_at_week_start():
+    """A prescription whose ENDING_DATE equals this week's week_start must be
+    excluded — both intervals are half-open, so a prior-week prescription
+    that ends exactly when the current week begins does not overlap. This
+    is the regression for patient 4899 wk5, where the prior-prior week's
+    rows leaked into DAYS via a `>=` boundary check."""
+    fb = FeatureBuilder()
+    patient_df = pd.DataFrame({
+        "PATIENT_ID": [1],
+        "CLINICAL_TRIAL_START_DATE": [datetime.datetime(2024, 1, 1)],
+        "CLINICAL_TRIAL_END_DATE":   [datetime.datetime(2024, 1, 31)],
+    })
+    # scoring_date 2024-01-15 -> last completed week [2024-01-08, 2024-01-15).
+    # Two prescriptions:
+    #   - 200: [2024-01-01, 2024-01-08) — prior-prior week, ENDING_DATE
+    #          equals week_start. Must be excluded.
+    #   - 201: [2024-01-08, 2024-01-15) — this is the actual last completed
+    #          week. Must be included.
+    session_df = pd.DataFrame({
+        "PATIENT_ID":                 [1, 1],
+        "PRESCRIPTION_ID":            [1, 2],
+        "SESSION_ID":                 [np.nan, np.nan],
+        "PROTOCOL_ID":                [200, 201],
+        "PRESCRIPTION_STARTING_DATE": [datetime.datetime(2024, 1, 1),
+                                        datetime.datetime(2024, 1, 8)],
+        "PRESCRIPTION_ENDING_DATE":   [datetime.datetime(2024, 1, 8),
+                                        datetime.datetime(2024, 1, 15)],
+        "SESSION_DATE":               [pd.NaT, pd.NaT],
+        "WEEKDAY_INDEX":              [0, 2],
+    })
+    result = fb.build_prescription_days(
+        session_df, patient_df, scoring_date=pd.Timestamp("2024-01-15")
+    )
+    assert set(result["PROTOCOL_ID"]) == {201}, (
+        f"prior-prior week prescription leaked into DAYS: {result.to_dict('records')}"
+    )
+    assert result.iloc[0]["DAYS"] == [2]
+
+
 def test_build_prescription_days_dedups_multiple_sessions_per_prescription():
     """A prescription with multiple session rows (LEFT JOIN duplicates)
     must contribute its weekday only once."""
