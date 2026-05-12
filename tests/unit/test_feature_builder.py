@@ -3,8 +3,8 @@ import datetime
 import numpy as np
 import pandas as pd
 import pytest
-from ai_cdss.processing.feature_builder import FeatureBuilder
-from ai_cdss.processing.features import (
+from ai_cdss.feature import (
+    FeatureBuilder,
     apply_savgol_filter_groupwise,
     get_rolling_theilsen_slope,
 )
@@ -39,15 +39,15 @@ def test_build_delta_dm_basic(monkeypatch):
     print(df)
 
     # Patch the feature_builder module's constants to use our test values
-    monkeypatch.setattr("ai_cdss.processing.feature_builder.BY_PP", BY_PP)
-    monkeypatch.setattr("ai_cdss.processing.feature_builder.SESSION_DATE", SESSION_DATE)
-    monkeypatch.setattr("ai_cdss.processing.feature_builder.DM_VALUE", DM_VALUE)
-    # monkeypatch.setattr("ai_cdss.processing.feature_builder.SAVGOL_WINDOW_SIZE", 3)
-    # monkeypatch.setattr("ai_cdss.processing.feature_builder.SAVGOL_POLY_ORDER", 1)
+    monkeypatch.setattr("ai_cdss.feature.BY_PP", BY_PP)
+    monkeypatch.setattr("ai_cdss.feature.SESSION_DATE", SESSION_DATE)
+    monkeypatch.setattr("ai_cdss.feature.DM_VALUE", DM_VALUE)
+    # monkeypatch.setattr("ai_cdss.feature.SAVGOL_WINDOW_SIZE", 3)
+    # monkeypatch.setattr("ai_cdss.feature.SAVGOL_POLY_ORDER", 1)
     # monkeypatch.setattr(
-    #     "ai_cdss.processing.feature_builder.THEILSON_REGRESSION_WINDOW_SIZE", 2
+    #     "ai_cdss.feature.THEILSON_REGRESSION_WINDOW_SIZE", 2
     # )
-    monkeypatch.setattr("ai_cdss.processing.feature_builder.DELTA_DM", "DELTA_DM")
+    monkeypatch.setattr("ai_cdss.feature.DELTA_DM", "DELTA_DM")
 
     fb = FeatureBuilder()
     result = fb.build_delta_dm(df)

@@ -6,9 +6,9 @@ import logging
 from typing import Any
 
 import pandas as pd
+from ai_cdss.clinical import ProtocolToClinicalMapper
 from ai_cdss.constants import DEFAULT_OUTPUT_DIR, PROTOCOL_SIMILARITY_CSV
-from ai_cdss.processing.clinical import ProtocolToClinicalMapper
-from ai_cdss.processing.features import compute_protocol_similarity
+from ai_cdss.feature import compute_protocol_similarity
 
 logger = logging.getLogger(__name__)
 

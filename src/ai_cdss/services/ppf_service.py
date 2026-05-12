@@ -2,9 +2,9 @@ import logging
 from typing import Any, Dict, List
 
 import pandas as pd
+from ai_cdss.clinical import ClinicalSubscales, ProtocolToClinicalMapper
 from ai_cdss.constants import BY_PP, PPF_PARQUET_FILEPATH
-from ai_cdss.processing import ClinicalSubscales, ProtocolToClinicalMapper
-from ai_cdss.processing.features import compute_ppf
+from ai_cdss.feature import compute_ppf
 
 logger = logging.getLogger(__name__)
 
