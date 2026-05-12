@@ -1,11 +1,14 @@
-from .base import DataLoaderBase
-from .db_loader import DataLoader
-from .local_loader import DataLoaderLocal
-from .mock_loader import DataLoaderMock
+"""Back-compat re-export shim. Real code lives in `ai_cdss.loader`."""
+from ai_cdss.loader import (
+    DataLoader,
+    DataLoaderBase,
+    DataLoaderLocal,
+    DataLoaderMock,
+)
 
 __all__ = [
     "DataLoader",
+    "DataLoaderBase",
     "DataLoaderLocal",
     "DataLoaderMock",
-    "DataLoaderBase",
 ]

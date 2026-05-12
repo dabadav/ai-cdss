@@ -28,11 +28,11 @@ from ai_cdss.constants import (
     DEFAULT_LOG_DIR
 )
 from ai_cdss.models import DataUnitName
-from ai_cdss.loaders import DataLoader
-from ai_cdss.processing import DataProcessor
-from ai_cdss.services.data_preparation import RecommendationDataService
-from ai_cdss.services.ppf_service import PPFService
-from ai_cdss.services.protocol_similarity import ProtocolSimilarityService
+from ai_cdss.loader import DataLoader
+from ai_cdss.pipeline import DataProcessor
+from ai_cdss.service import RecommendationDataService
+from ai_cdss.service import PPFService
+from ai_cdss.service import ProtocolSimilarityService
 from ai_cdss.interface.debug import DebugReport
 from ai_cdss.utils import _json_default
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
