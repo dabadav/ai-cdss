@@ -92,8 +92,33 @@ single coherent concept with section banners.
 
 ## Tracking
 
-- [x] Phase 1: split into `recommend/` subpackage (over-fragmented).
-- [ ] Phase 2 (active): collapse `recommend/` → single `recommend.py`.
-- [ ] Phase 3: flatten `processing/` to root `feature.py` / `score.py` / `pipeline.py`.
-- [ ] Phase 4: merge `loaders/` + `services/` + `models.py` into `data.py`.
-- [ ] Phase 5: add a `docs/architecture.md` summarizing the tensor model.
+- [x] Phase 1: split into `recommend/` subpackage (over-fragmented, reverted).
+- [x] Phase 2: collapse `recommend/` → single `recommend.py` (10 sections).
+- [x] Phase 3: flatten `processing/` → root `feature.py` / `score.py` / `pipeline.py`.
+- [x] Phase 4: flatten `loaders/` → root `loader.py`; `services/` → root `service.py`.
+       Keep `models.py` as-is (303 lines is fine, no consolidation gain).
+- [x] Phase 5: `docs/architecture.md` describing tensor model + dataflow.
+
+## End state — 12 files at `src/ai_cdss/`, zero deep nesting
+
+```
+__init__.py        29  public API re-exports
+cdss.py            11  back-compat re-export of CDSS
+clinical.py        80  ClinicalSubscales + ProtocolToClinicalMapper
+constants.py      158  untouched
+feature.py        614  feature reductions over tensor axes
+loader.py         510  DB / CSV / synthetic I/O
+models.py         303  pandera schemas, DataUnit, DataUnitSet
+pipeline.py       465  typed contracts + DataPipeline
+recommend.py      711  branches + MVT + topup + CDSS orchestrator
+score.py           99  Imputer + Scorer
+service.py        278  PPF / similarity / whitelist services
+utils.py          107  MultiKeyDict + small helpers
+                ─────
+                 3365 total lines
+```
+
+`loaders/` and `services/` subdirs survive as one-line back-compat
+re-export shims. `processing/` removed entirely.
+
+35 unit tests pass throughout. Behavior identical to v0.3.1.
