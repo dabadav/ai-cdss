@@ -82,10 +82,20 @@ class CDSS:
         if not self._has_patient_data(patient_id):
             raise ValueError(f"Patient {patient_id} has no data.")
 
+        # Environment-wide MVT threshold: mean SCORE across every protocol
+        # the patient has a row for in self.scoring (the whitelist for this
+        # patient). Recorded in the trace so downstream (backtest, UI) can
+        # render the same threshold the engine used to decide swaps.
+        _env_scores = self.scoring.loc[
+            self.scoring[PATIENT_ID] == patient_id, SCORE
+        ]
+        _mvt_mean = float(_env_scores.mean()) if not _env_scores.empty else None
         trace: Dict[str, object] = {
             "patient_id":     patient_id,
             "config":         {"n": self.n, "days": self.days, "protocols_per_day": self.protocols_per_day},
             "top_protocols":  self._get_top_protocols(patient_id),
+            "mvt_mean":       _mvt_mean,
+            "mvt_source":     "environment_whitelist",
             "branch":         None,
             "prior":          [],
             "swaps":          [],
@@ -348,13 +358,32 @@ class CDSS:
 
     def _decide_prescription_swap(self, patient_id: int) -> List[int]:
         """
-        Determine which prescriptions to swap based on their score.
+        Determine which prescribed protocols to swap.
+
+        MVT semantics: the threshold is the *environment-wide* mean SCORE
+        (across every whitelist protocol the patient has a row for), but
+        the swap *decision* is restricted to the currently-prescribed
+        set — those are the "patches" the patient is actually visiting.
+        A prescribed protocol scoring below the environment average is a
+        candidate to leave.
+
+        Previous behavior (pre-2026-05-12) computed the mean over the
+        prescribed set only, which made the threshold self-referential —
+        ~half of any uniform prescribed set was always tagged for swap
+        regardless of how well it scored against unused alternatives.
         """
         prescriptions = self._get_prescriptions(patient_id)
-        # Below protocols mean
-        return prescriptions[
-            prescriptions[SCORE].transform(lambda x: x < x.mean())
-        ].PROTOCOL_ID.to_list()
+        if prescriptions.empty:
+            return []
+        env_scores = self.scoring.loc[
+            self.scoring[PATIENT_ID] == patient_id, SCORE
+        ]
+        env_mean = float(env_scores.mean()) if not env_scores.empty else 0.0
+        below = prescriptions[prescriptions[SCORE] < env_mean]
+        # Stable order: swap the most-underperforming first so the greedy
+        # substitute loop never starves on the "closest to threshold"
+        # protocol (which is the least urgent to swap).
+        return below.sort_values(SCORE)[PROTOCOL_ID].to_list()
 
     ###########################################################################
     # Substitution Logic
