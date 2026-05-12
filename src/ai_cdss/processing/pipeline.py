@@ -1,8 +1,36 @@
-# %%
+"""`DataPipeline` — feature-build, impute, score, in that order.
+
+The pipeline turns the raw inputs from `DataLoader` (sessions / patient
+metadata / PPF cohort) into a one-row-per-(patient, protocol) scoring
+DataFrame that `CDSS.recommend` consumes.
+
+The flow:
+
+    PreparedInputs                    (Stage 1 — cleaned, windowed)
+        ├── SessionLevelFeatures      (Stage 2a — per-session features)
+        ├── ProtocolLevelFeatures     (Stage 2b — per-protocol features)
+        └── MergedFeatures            (Stage 2c — session × protocol)
+            └── ScoringInput          (Stage 3 — imputed, one-per-PP)
+                └── ScoringOutput     (Stage 4 — final SCORE)
+
+Each stage's input and output is a typed dataclass from `contracts.py`
+with documented column requirements. No more raw `pd.DataFrame` passed
+via positional arguments — every method signature self-documents the
+expected schema.
+
+Compared to the v0.3.1 implementation (247 lines, dense
+`reduce(lambda merge)` chains, opaque 3-tuple returns), this file is
+structured as a sequence of small named steps. Behavior preserved
+byte-for-byte; existing tests pass unchanged.
+"""
+from __future__ import annotations
+
 import logging
 from functools import reduce
 
 import pandas as pd
+from pandas import Timestamp
+
 from ai_cdss.constants import (
     BY_PP,
     BY_PPS,
@@ -11,7 +39,6 @@ from ai_cdss.constants import (
     DAYS,
     DELTA_DM,
     DM_VALUE,
-    FINAL_METRICS,
     PATIENT_ID,
     RECENT_ADHERENCE,
     SESSION_DATE,
@@ -21,227 +48,265 @@ from ai_cdss.constants import (
     WEEKS_SINCE_START,
 )
 from ai_cdss.models import DataUnitName, DataUnitSet
+from ai_cdss.processing.contracts import (
+    MergedFeatures,
+    PreparedInputs,
+    ProtocolLevelFeatures,
+    ScoringInput,
+    ScoringOutput,
+    SessionLevelFeatures,
+)
 from ai_cdss.processing.feature_builder import FeatureBuilder
 from ai_cdss.processing.features import include_missing_sessions
 from ai_cdss.processing.imputer import Imputer
 from ai_cdss.processing.scorer import Scorer
 from ai_cdss.processing.utils import get_nth
-from pandas import Timestamp
 
 logger = logging.getLogger(__name__)
 
 
 class DataPipeline:
-    """
-    Orchestrates feature building, imputation, and scoring for patient-protocol data.
+    """End-to-end pipeline from raw DataLoader output to scored frame.
+
+    Constructor injects the three processors. Default instances are
+    used when omitted — convenient for tests and ad-hoc callers.
     """
 
-    def __init__(self, feature_builder=None, imputer=None, scorer=None):
-        """
-        Initialize the DataPipeline with optional custom feature builder, imputer, and scorer.
-        """
+    def __init__(
+        self,
+        feature_builder: FeatureBuilder | None = None,
+        imputer:         Imputer | None = None,
+        scorer:          Scorer | None = None,
+    ) -> None:
         self.feature_builder = feature_builder or FeatureBuilder()
         self.imputer = imputer or Imputer()
         self.scorer = scorer or Scorer()
 
-    def process(self, data: DataUnitSet, scoring_date: Timestamp) -> pd.DataFrame:
+    # ------------------------------------------------------------------
+    # Public entry point.
+
+    def process(
+        self, data: DataUnitSet, scoring_date: Timestamp,
+    ) -> pd.DataFrame:
+        """Run the full pipeline and return the scored DataFrame.
+
+        The return is a plain `pd.DataFrame` (not `ScoringOutput`) for
+        backward compat with the v0.3.1 API. The typed wrappers are
+        internal to this module.
         """
-        Run the full data processing pipeline: prepare, build features, impute, and score.
+        inputs = self._prepare(data, scoring_date)
 
-        Args:
-            data: DataUnitSet containing session and PPF data.
-            scoring_date: Timestamp for scoring reference.
-
-        Returns:
-            pd.DataFrame: Final scored recommendations.
-        """
-        patient_data, session_data, ppf_data = self._prepare_session_data(
-            data, scoring_date
-        )
-
-        system_bootstrap = session_data.empty
-        if system_bootstrap:
+        if not inputs.has_sessions:
             logger.info("Bootstrapping system, no session data available for patients.")
-            scoring_input = self._handle_empty_case(ppf_data)
-
+            scoring_input = self._bootstrap_scoring_input(inputs)
         else:
-            features_df = self._build_features(
-                patient_data=patient_data,
-                session_data=session_data,
-                ppf_data=ppf_data,
-                scoring_date=scoring_date,
-            )
-            scoring_input = self._impute_features(features_df)
+            features = self._build_features(inputs, scoring_date)
+            scoring_input = self._impute_features(features)
 
-        return self._finalize_scoring(scoring_input, ppf_data)
+        return self._score(scoring_input, inputs).df
 
-    def _prepare_session_data(self, data, scoring_date):
+    # ==================================================================
+    # Stage 1 — prepare: clean and window the input frames.
+
+    def _prepare(
+        self, data: DataUnitSet, scoring_date: Timestamp,
+    ) -> PreparedInputs:
+        """Resolve DataUnitSet, merge clinical windows onto sessions,
+        clamp session_date to [CLINICAL_START, min(CLINICAL_END, scoring_date)].
+
+        Returns a `PreparedInputs` carrying the three frames the rest
+        of the pipeline needs: `patient`, `session`, `ppf`.
         """
-        Prepare and clean session and PPF data for processing.
+        patient = data.get(DataUnitName.PATIENT).data
+        session = data.get(DataUnitName.SESSIONS).data
+        ppf     = data.get(DataUnitName.PPF).data
 
-        Args:
-            data: DataUnitSet with session and PPF data.
-            scoring_date: Reference date for scoring.
+        session = include_missing_sessions(session)
+        session = self._attach_clinical_window(session, patient)
+        session = self._clamp_to_window(session, scoring_date)
 
-        Returns:
-            Tuple of (session_data, ppf_data) as DataFrames.
+        return PreparedInputs(patient=patient, session=session, ppf=ppf,
+                              validate_on_init=False)
+
+    def _attach_clinical_window(
+        self, session: pd.DataFrame, patient: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Left-join CLINICAL_START + CLINICAL_END onto each session row
+        and normalize those dates."""
+        session = session.merge(
+            patient[[PATIENT_ID, CLINICAL_START, CLINICAL_END]],
+            on=PATIENT_ID, how="left",
+        )
+        for col in (CLINICAL_START, CLINICAL_END):
+            if not pd.api.types.is_datetime64_any_dtype(session[col]):
+                session[col] = pd.to_datetime(session[col], errors="coerce")
+            session[col] = session[col].dt.normalize()
+        return session
+
+    def _clamp_to_window(
+        self, session: pd.DataFrame, scoring_date: Timestamp,
+    ) -> pd.DataFrame:
+        """Drop sessions outside [CLINICAL_START, min(CLINICAL_END, scoring_date)].
+
+        Sessions after the patient's clinical end (or after scoring_date,
+        whichever is earlier) are removed. Sessions before clinical
+        start are also removed.
         """
-        session_unit = data.get(DataUnitName.SESSIONS)
-        ppf_unit = data.get(DataUnitName.PPF)
-        patient_unit = data.get(DataUnitName.PATIENT)
-        session_data = session_unit.data
-        ppf_data = ppf_unit.data
-        patient_data = patient_unit.data
-
-        session_data = include_missing_sessions(session_data)
-        session_data = session_data.merge(
-            patient_data[[PATIENT_ID, CLINICAL_START, CLINICAL_END]],
-            on=PATIENT_ID,
-            how="left",
+        upper_bound = session[CLINICAL_END].where(
+            session[CLINICAL_END] < scoring_date, scoring_date
         )
-
-        for col in [CLINICAL_START, CLINICAL_END]:
-            if not pd.api.types.is_datetime64_any_dtype(session_data[col]):
-                session_data[col] = pd.to_datetime(session_data[col], errors="coerce")
-            session_data[col] = session_data[col].dt.normalize()
-        date_upper_bound = session_data[CLINICAL_END].where(
-            session_data[CLINICAL_END] < scoring_date, scoring_date
+        in_window = (
+            (session[SESSION_DATE] >= session[CLINICAL_START])
+            & (session[SESSION_DATE] <= upper_bound)
         )
-        session_data = session_data[
-            (session_data[SESSION_DATE] >= session_data[CLINICAL_START])
-            & (session_data[SESSION_DATE] <= date_upper_bound)
+        return session.loc[in_window]
+
+    # ==================================================================
+    # Stage 2 — build features.
+
+    def _build_features(
+        self, inputs: PreparedInputs, scoring_date: Timestamp,
+    ) -> MergedFeatures:
+        """Run the three feature substages and merge their outputs.
+
+        Returns a `MergedFeatures` with one row per (patient, protocol,
+        session_date), carrying both session-level (DELTA_DM,
+        RECENT_ADHERENCE) and protocol-level (USAGE, DAYS, …) columns.
+        """
+        session_features  = self._session_level_features(inputs.session)
+        protocol_features = self._protocol_level_features(inputs, scoring_date)
+        return self._broadcast_session_onto_protocol(session_features, protocol_features)
+
+    def _session_level_features(
+        self, session: pd.DataFrame,
+    ) -> SessionLevelFeatures:
+        """Per-session features: RECENT_ADHERENCE + DELTA_DM, keyed on
+        (patient, protocol, session_date)."""
+        adherence_df = self.feature_builder.build_recent_adherence(session)
+
+        # DELTA_DM is computed only on rows with a non-null DM_VALUE.
+        dm_rows = session[BY_PPS + [SESSION_DATE, DM_VALUE]].dropna()
+        delta_df = self.feature_builder.build_delta_dm(dm_rows)
+
+        merged = pd.merge(adherence_df, delta_df,
+                          on=BY_PP + [SESSION_DATE], how="left")
+        return SessionLevelFeatures(df=merged, validate_on_init=False)
+
+    def _protocol_level_features(
+        self, inputs: PreparedInputs, scoring_date: Timestamp,
+    ) -> ProtocolLevelFeatures:
+        """Per-protocol features: USAGE / USAGE_WEEK / DAYS, plus
+        WEEKS_SINCE_START (patient-level, broadcast onto every
+        protocol)."""
+        per_protocol_dfs = [
+            inputs.ppf,
+            self.feature_builder.build_usage(inputs.session),
+            self.feature_builder.build_week_usage(
+                inputs.session, inputs.patient, scoring_date,
+            ),
+            self.feature_builder.build_prescription_days(
+                inputs.session, inputs.patient, scoring_date,
+            ),
         ]
-        return patient_data, session_data, ppf_data
-
-    def _build_features(self, patient_data, session_data, ppf_data, scoring_date):
-        """
-        Build and merge all feature DataFrames required for scoring.
-
-        Args:
-            session_data: Cleaned session DataFrame.
-            ppf_data: Patient-protocol fit DataFrame.
-            weeks_since_start_df: DataFrame with weeks since start.
-            scoring_date: Reference date for scoring.
-
-        Returns:
-            pd.DataFrame: Combined feature DataFrame.
-        """
-
-        # Session-level features
-        session_features_df = reduce(
-            lambda l, r: pd.merge(l, r, on=BY_PP + [SESSION_DATE], how="left"),
-            [
-                self.feature_builder.build_recent_adherence(session_data),
-                self.feature_builder.build_delta_dm(
-                    session_data[BY_PPS + [SESSION_DATE, DM_VALUE]].dropna()
-                ),
-            ],
+        merged = reduce(
+            lambda left, right: pd.merge(left, right, on=BY_PP, how="left"),
+            per_protocol_dfs,
         )
 
-        # all_patient_protocols_df contains the full list of patient-protocol pairs
-        all_patient_protocols_df = ppf_data
-
-        # Protocol-level features
-        protocol_features_df = reduce(
-            lambda l, r: pd.merge(l, r, on=BY_PP, how="left"),
-            [
-                all_patient_protocols_df,
-                self.feature_builder.build_usage(session_data),
-                self.feature_builder.build_week_usage(session_data, patient_data, scoring_date),
-                self.feature_builder.build_prescription_days(
-                    session_data, patient_data, scoring_date
-                ),
-            ],
+        weeks_since_start = self.feature_builder.build_week_since_start(
+            inputs.patient, scoring_date,
         )
+        merged = pd.merge(merged, weeks_since_start, on=PATIENT_ID, how="left")
+        return ProtocolLevelFeatures(df=merged, validate_on_init=False)
 
-        weeks_since_start_df = self.feature_builder.build_week_since_start(
-            patient_data, scoring_date
-        )
-
-        protocol_features_df = pd.merge(
-            protocol_features_df, weeks_since_start_df, on=PATIENT_ID, how="left"
-        )
-
-        # Augment session-level features with protocol-level features
-        session_features_augmented_df = pd.merge(
-            protocol_features_df, session_features_df, on=BY_PP, how="left"
+    def _broadcast_session_onto_protocol(
+        self,
+        session_level: SessionLevelFeatures,
+        protocol_level: ProtocolLevelFeatures,
+    ) -> MergedFeatures:
+        """Broadcast every per-(PP) protocol row across every per-session
+        row. Result is one row per (patient, protocol, session_date),
+        carrying both the session-level metrics and the protocol-level
+        metadata. Sorted by (patient, protocol, session_date) for the
+        groupby step downstream."""
+        merged = pd.merge(
+            protocol_level.df, session_level.df, on=BY_PP, how="left",
         ).sort_values(by=BY_PP + [SESSION_DATE])
+        return MergedFeatures(df=merged, validate_on_init=False)
 
-        return session_features_augmented_df
+    # ==================================================================
+    # Stage 3 — impute missing values.
 
-    def _impute_features(self, feat_pp_df):
+    def _impute_features(self, features: MergedFeatures) -> ScoringInput:
+        """Collapse per-session rows to one row per (PP) and fill
+        missing DELTA_DM / RECENT_ADHERENCE per-patient median.
+
+        The "last" aggregation takes each (PP)'s most-recent session
+        row's values. After this step there is one row per (patient,
+        protocol) regardless of session history depth.
         """
-        Impute missing feature values and initialize metrics for scoring.
+        scoring = features.df.groupby(BY_PP).agg("last").reset_index()
+        scoring = self.imputer.init_metrics(scoring)
+        scoring = self._impute_per_patient_median(
+            scoring, features.df,
+            column=DELTA_DM, position="first",
+        )
+        scoring = self._impute_per_patient_median(
+            scoring, features.df,
+            column=RECENT_ADHERENCE, position="last",
+        )
+        return ScoringInput(df=scoring, validate_on_init=False)
 
-        Args:
-            feat_pp_df: Combined feature DataFrame.
+    def _impute_per_patient_median(
+        self,
+        scoring: pd.DataFrame,
+        per_session: pd.DataFrame,
+        *,
+        column: str,
+        position: str,
+    ) -> pd.DataFrame:
+        """Fill `column` in `scoring` with each patient's median value
+        from the per-session frame.
 
-        Returns:
-            pd.DataFrame: Feature DataFrame ready for scoring.
+        `position` controls which session per (PP) supplies the value
+        before computing the patient median:
+          * "first" — the FIRST session per (PP) (n=1, matches v0.3.1
+            DELTA_DM rule).
+          * "last"  — the LAST session per (PP)  (n=-1, matches v0.3.1
+            RECENT_ADHERENCE rule).
         """
-        scoring_input = feat_pp_df.groupby(BY_PP).agg("last").reset_index()
-        scoring_input = self.imputer.init_metrics(scoring_input)
+        n = 1 if position == "first" else -1
+        per_pp = get_nth(per_session, column, BY_PP, SESSION_INDEX, n=n)
+        medians = per_pp.groupby(PATIENT_ID)[column].median().reset_index()
+        return self.imputer.impute_metrics(scoring, column, medians)
 
-        # Impute delta_dm
-        delta_nth = get_nth(feat_pp_df, DELTA_DM, BY_PP, SESSION_INDEX, n=1)
-        delta_medians = delta_nth.groupby(PATIENT_ID)[DELTA_DM].median().reset_index()
-        scoring_input = self.imputer.impute_metrics(
-            scoring_input, DELTA_DM, delta_medians
-        )
+    # ==================================================================
+    # Stage 3b — bootstrap path (no sessions in the window).
 
-        # Impute recent_adherence
-        adherence_last = get_nth(
-            feat_pp_df, RECENT_ADHERENCE, BY_PP, SESSION_INDEX, n=-1
-        )
-        adherence_medians = (
-            adherence_last.groupby(PATIENT_ID)[RECENT_ADHERENCE].median().reset_index()
-        )
-        scoring_input = self.imputer.impute_metrics(
-            scoring_input, RECENT_ADHERENCE, adherence_medians
-        )
-
-        return scoring_input
-
-    def _handle_empty_case(self, ppf_data):
-        """
-        Handle the case where session data is empty (bootstrapping).
-
-        Args:
-            ppf_data: Patient-protocol fit DataFrame.
-
-        Returns:
-            pd.DataFrame: Feature DataFrame for scoring.
+    def _bootstrap_scoring_input(self, inputs: PreparedInputs) -> ScoringInput:
+        """No sessions to learn from — assemble a scoring frame from
+        the PPF cohort alone with NaN metrics, then let the imputer
+        seed defaults.
         """
         scoring_columns = BY_PP + [
-            DELTA_DM,
-            RECENT_ADHERENCE,
-            WEEKS_SINCE_START,
-            SESSION_INDEX,
-            USAGE,
-            USAGE_WEEK,
-            DAYS,
+            DELTA_DM, RECENT_ADHERENCE, WEEKS_SINCE_START, SESSION_INDEX,
+            USAGE, USAGE_WEEK, DAYS,
         ]
-        bootstrap_df = pd.DataFrame(columns=scoring_columns)
-        all_patient_protocols_df = ppf_data
+        empty = pd.DataFrame(columns=scoring_columns)
+        scoring = inputs.ppf.merge(empty, on=BY_PP, how="left")
+        scoring = self.imputer.init_metrics(scoring)
+        return ScoringInput(df=scoring, validate_on_init=False)
 
-        scoring_input = all_patient_protocols_df.merge(
-            bootstrap_df, on=BY_PP, how="left"
-        )
-        scoring_input = self.imputer.init_metrics(scoring_input)
+    # ==================================================================
+    # Stage 4 — compute final score.
 
-        return scoring_input
-
-    def _finalize_scoring(self, scoring_input, ppf_data):
-        """
-        Compute the final score and format the output DataFrame.
-
-        Args:
-            scoring_input: Feature DataFrame ready for scoring.
-            ppf_data: Patient-protocol fit DataFrame (for attrs).
-
-        Returns:
-            pd.DataFrame: Final scored recommendations.
-        """
-        scored_df = self.scorer.compute_score(scoring_input)
-        scored_df.attrs = ppf_data.attrs
-        return scored_df[BY_PP + FINAL_METRICS]
+    def _score(
+        self, scoring_input: ScoringInput, inputs: PreparedInputs,
+    ) -> ScoringOutput:
+        """Run the scorer; propagate PPF attrs (subscale metadata);
+        slim to the final column set."""
+        scored = self.scorer.compute_score(scoring_input.df)
+        scored.attrs = inputs.ppf.attrs
+        from ai_cdss.constants import FINAL_METRICS
+        final = scored[BY_PP + FINAL_METRICS]
+        return ScoringOutput(df=final, validate_on_init=False)
