@@ -2,17 +2,15 @@
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from functools import partial, wraps
-from typing import Any, Callable, Dict, List, Optional, Type
+from functools import partial
+from typing import Any, Dict, List, Optional, Type
 
 import pandas as pd
 import pandera as pa
 from ai_cdss.constants import *
-from pandera.errors import SchemaError
 
 NullableField = partial(pa.Field, nullable=True)
 
-# Set up logging
 logger = logging.getLogger(__name__)
 
 
@@ -179,16 +177,6 @@ class PPFSchema(pa.DataFrameModel):
     contrib: object = pa.Field(alias=CONTRIB)
 
 
-class PCMSchema(pa.DataFrameModel):
-    """
-    Schema for protocol similarity matrix. Include pairwise similarity scores between protocols based on clinical domain overlap.
-    """
-
-    protocol_a: int = pa.Field(alias=PROTOCOL_A)
-    protocol_b: int = pa.Field(alias=PROTOCOL_B)
-    similarity: float = pa.Field(alias=SIMILARITY)
-
-
 # ---------------------------------------------------------------------
 # Recommender Output
 
@@ -228,76 +216,3 @@ class ScoringSchema(pa.DataFrameModel):
     )
 
 
-# ---------------------------------------------------------------------
-# Validation Decorator
-
-
-def safe_check_types(schema_model: Type[pa.DataFrameModel]):
-    """
-    Custom decorator: skips dtype checks for nullable columns with all null values.
-    schema_model: A pandera DataFrameModel class.
-    """
-    schema = schema_model.to_schema()
-    schema_name = schema_model.__name__  # Get the name of the schema model class
-
-    def decorator(func: Callable):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            df: pd.DataFrame = func(*args, **kwargs)
-
-            if df.empty:
-                logger.warning(
-                    "Returned DataFrame from `%s` is empty. Kwargs: %s",
-                    func.__name__,
-                    kwargs,
-                )
-                return df
-
-            modified_columns = {}
-            skipped_columns = []
-
-            for col_name, col_schema in schema.columns.items():
-                if col_schema.nullable and df[col_name].isna().all():
-                    skipped_columns.append(
-                        col_name
-                    )  # Skip dtype validation for this nullable column with all nulls
-                    modified_columns[col_name] = pa.Column(
-                        dtype=None,
-                        checks=col_schema.checks,
-                        nullable=col_schema.nullable,
-                        required=col_schema.required,
-                        unique=col_schema.unique,
-                        coerce=col_schema.coerce,
-                        regex=col_schema.regex,
-                        description=col_schema.description,
-                        title=col_schema.title,
-                    )
-                else:
-                    # Keep original schema if dtype validation is needed
-                    modified_columns[col_name] = col_schema
-
-            # Log all skipped columns once
-            if skipped_columns:
-                logger.debug(
-                    "Skipped dtype check for empty columns in `%s`: %s",
-                    schema_name,
-                    ", ".join(skipped_columns),
-                )
-
-            # Reconstruct modified schema
-            temp_schema = pa.DataFrameSchema(
-                columns=modified_columns,
-                checks=schema.checks,
-                index=schema.index,
-                dtype=schema.dtype,
-                coerce=schema.coerce,
-                strict=schema.strict,
-            )
-
-            # Perform validation
-            validated_df = temp_schema.validate(df)
-            return validated_df
-
-        return wrapper
-
-    return decorator

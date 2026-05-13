@@ -1,7 +1,5 @@
 """Data loaders — one file for all I/O.
 
-Three loader implementations share a common abstract interface:
-
     DataLoaderBase    — abstract: defines the contract every loader
                         must satisfy (session / timeseries / ppf /
                         similarity / subscales / attributes / patient
@@ -10,21 +8,19 @@ Three loader implementations share a common abstract interface:
                         `rgs_interface.DatabaseInterface`, augmented
                         with local Parquet/CSV reads for PPF +
                         similarity (which live in `~/.ai_cdss/`).
-    DataLoaderLocal   — file-backed: reads everything from CSVs.
-                        Useful for tests and offline replays.
-    DataLoaderMock    — synthetic: generates fake data via
-                        `evaluation.synthetic`. Used in unit tests.
 
-Behavior preserved exactly from v0.3.1 (`loaders/base.py`,
-`loaders/db_loader.py`, `loaders/local_loader.py`,
-`loaders/mock_loader.py`, `loaders/utils.py`). The file is sectioned:
+CSV-backed and synthetic-data loader variants existed in v0.3.1; they
+were removed in the cleanup pass because nothing imported them. If a
+local-file or fake-data loader is needed again, the simplest path is to
+construct a `DictBackedState` directly (see `engine.py`) — bypass the
+loader contract entirely for synthetic data.
+
+The file is sectioned:
 
     SECTION 1  File-IO helpers (CSV / Parquet readers, JSON-encoded
-               subscale decoding). Pure functions used by all loaders.
+               subscale decoding). Pure functions used by the loader.
     SECTION 2  DataLoaderBase (abstract)
     SECTION 3  DataLoader (DB-backed)
-    SECTION 4  DataLoaderLocal (CSV-backed)
-    SECTION 5  DataLoaderMock (synthetic)
 """
 from __future__ import annotations
 
@@ -371,140 +367,3 @@ class DataLoader(DataLoaderBase):
             return []
         return patient_data[PATIENT_ID].tolist()
 
-
-# ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 4 — DataLoaderLocal (CSV-backed)                            ║
-# ║                                                                      ║
-# ║  Reads every input from a CSV file path supplied at construction.    ║
-# ║  Used by tests and offline replay scenarios where the DB is          ║
-# ║  unavailable. Timeseries loading isn't implemented — local fixtures  ║
-# ║  don't usually carry per-second DM data.                             ║
-# ╚═════════════════════════════════════════════════════════════════════╝
-
-class DataLoaderLocal(DataLoaderBase):
-    """CSV-backed loader. All paths supplied at construction."""
-
-    def __init__(
-        self,
-        session_file: str,
-        ppf_file: str,
-        protocol_similarity_file: str,
-        patient_subscales_file: str,
-        protocol_attributes_file: str,
-    ) -> None:
-        self.session_file = session_file
-        self.ppf_file = ppf_file
-        self.protocol_similarity_file = protocol_similarity_file
-        self.patient_subscales_file = patient_subscales_file
-        self.protocol_attributes_file = protocol_attributes_file
-
-    def load_session_data(self, patient_list: List[int]) -> DataUnit:
-        df = pd.read_csv(self.session_file)
-        if patient_list:
-            df = df[df["PATIENT_ID"].isin(patient_list)]
-        return DataUnit(
-            name=DataUnitName.SESSIONS, data=df,
-            level=Granularity.BY_PPS, schema=SessionSchema,
-        )
-
-    def load_timeseries_data(self, patient_list: List[int]):
-        raise NotImplementedError(
-            "Timeseries data loading is not implemented for local loader."
-        )
-
-    def load_ppf_data(self, patient_list: List[int]) -> DataUnit:
-        if self.ppf_file:
-            df = pd.read_csv(self.ppf_file)
-            if patient_list:
-                df = df[df["PATIENT_ID"].isin(patient_list)]
-        else:
-            df = _load_ppf_data(patient_list)
-        return DataUnit(
-            name=DataUnitName.PPF, data=df,
-            level=Granularity.BY_PP, schema=PPFSchema,
-        )
-
-    def load_protocol_similarity(self) -> pd.DataFrame:
-        return pd.read_csv(self.protocol_similarity_file)
-
-    def load_patient_subscales(self, patient_list: Optional[List[int]] = None) -> pd.DataFrame:
-        df = pd.read_csv(self.patient_subscales_file)
-        if "STUDY_ID" in df.columns:
-            df = df.drop(columns=["STUDY_ID"])
-        if patient_list:
-            df = df[df["PATIENT_ID"].isin(patient_list)]
-        return df.set_index("PATIENT_ID")
-
-    def load_protocol_attributes(self, file_path: Optional[str] = None) -> pd.DataFrame:
-        return _load_protocol_attributes(file_path=self.protocol_attributes_file)
-
-    def fetch_and_validate_patients(self, study_ids: Optional[List[int]] = None) -> List[int]:
-        df = pd.read_csv(self.patient_subscales_file)
-        if study_ids is not None:
-            df = df[df["STUDY_ID"].isin(study_ids)]
-        patient_ids = df["PATIENT_ID"].unique().tolist()
-        if not patient_ids:
-            raise ValueError("No patients found in the local patient subscales file.")
-        return patient_ids
-
-
-# ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 5 — DataLoaderMock (synthetic)                              ║
-# ║                                                                      ║
-# ║  Generates fake data via `evaluation.synthetic`. Used in unit tests  ║
-# ║  to exercise the pipeline without DB or fixture files.               ║
-# ╚═════════════════════════════════════════════════════════════════════╝
-
-class DataLoaderMock(DataLoaderBase):
-    """Synthetic-data loader. Constructs deterministic fake data."""
-
-    def __init__(
-        self, num_patients: int = 5, num_protocols: int = 3, num_sessions: int = 10,
-    ) -> None:
-        from ai_cdss.evaluation.synthetic import generate_synthetic_ids
-        self.ids = generate_synthetic_ids(
-            num_patients=num_patients,
-            num_protocols=num_protocols,
-            num_sessions=num_sessions,
-        )
-        self.num_protocols = num_protocols
-
-    def load_timeseries_data(self, patient_list: List[int] = None) -> DataUnit:
-        from ai_cdss.evaluation.synthetic import generate_synthetic_timeseries_data
-        return generate_synthetic_timeseries_data(shared_ids=self.ids)
-
-    def load_session_data(self, patient_list: List[int] = None) -> DataUnit:
-        from ai_cdss.evaluation.synthetic import generate_synthetic_session_data
-        df = generate_synthetic_session_data(shared_ids=self.ids)
-        return DataUnit(name=DataUnitName.SESSIONS, data=df,
-                        level=Granularity.BY_PPS, schema=None)
-
-    def load_ppf_data(self, patient_list: List[int] = None) -> DataUnit:
-        from ai_cdss.evaluation.synthetic import generate_synthetic_ppf_data
-        df = generate_synthetic_ppf_data(shared_ids=self.ids)
-        return DataUnit(name=DataUnitName.PPF, data=df,
-                        level=Granularity.BY_PP, schema=None)
-
-    def load_patient_data(self, patient_list: List[int] = None) -> DataUnit:
-        from ai_cdss.evaluation.synthetic import generate_synthetic_patient_data
-        df = generate_synthetic_patient_data(shared_ids=self.ids)
-        return DataUnit(name=DataUnitName.PATIENT, data=df,
-                        level=Granularity.PATIENT_ID, schema=None)
-
-    def load_protocol_similarity(self) -> pd.DataFrame:
-        from ai_cdss.evaluation.synthetic import generate_synthetic_protocol_similarity
-        return generate_synthetic_protocol_similarity(num_protocols=self.num_protocols)
-
-    def load_protocol_init(self) -> pd.DataFrame:
-        from ai_cdss.evaluation.synthetic import generate_synthetic_protocol_metric
-        return generate_synthetic_protocol_metric(num_protocols=self.num_protocols)
-
-    def load_patient_subscales(self, patient_list: List[int] = None):
-        return super().load_patient_subscales(patient_list)  # type: ignore[arg-type]
-
-    def load_protocol_attributes(self, file_path: Optional[str] = None) -> pd.DataFrame:
-        return super().load_protocol_attributes(file_path)
-
-    def fetch_and_validate_patients(self, *args: Any, **kwargs: Any) -> List[int]:
-        """Sorted unique patient IDs from the synthetic shared-ids set."""
-        return sorted({pid for pid, _, _ in self.ids})

@@ -74,7 +74,6 @@ from ai_cdss.constants import (
     SIMILARITY,
     STATUS,
     THEILSON_REGRESSION_WINDOW_SIZE,
-    TOTAL_PRESCRIBED,
     USAGE,
     USAGE_WEEK,
     WEEKDAY_INDEX,
@@ -398,14 +397,6 @@ def build_prescription_days(
         .rename(DAYS)
         .reset_index()
     )
-
-
-def build_number_prescriptions(session_df: pd.DataFrame) -> pd.DataFrame:
-    """Cumulative prescription count per (PP). Currently unused by the
-    pipeline but kept for backward compat — old downstream may call."""
-    df = session_df.copy()
-    df[TOTAL_PRESCRIBED] = df.groupby(BY_PP).cumcount() + 1
-    return df
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
