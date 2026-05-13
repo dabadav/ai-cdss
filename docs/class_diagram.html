@@ -26,10 +26,38 @@
       border-radius: 8px;
       padding: 20px;
       overflow: auto;
+      position: relative;
+    }
+    .diagram-wrap.fullscreen {
+      position: fixed;
+      inset: 0;
+      max-width: none;
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      border-radius: 0;
+      z-index: 1000;
+      padding: 60px 20px 20px;
     }
     .mermaid {
       text-align: center;
       min-height: 600px;
+    }
+    .diagram-wrap.fullscreen .mermaid {
+      min-height: calc(100vh - 80px);
+    }
+    .fullscreen-controls {
+      position: absolute;
+      top: 10px;
+      right: 16px;
+      display: flex;
+      gap: 6px;
+    }
+    .diagram-wrap.fullscreen .fullscreen-controls {
+      position: fixed;
+      top: 12px;
+      right: 24px;
+      z-index: 1001;
     }
     .legend {
       max-width: 1400px;
@@ -96,39 +124,35 @@
     <span class="scale-info" id="scale">scale: 100%</span>
   </div>
 
-  <div class="diagram-wrap">
+  <div class="diagram-wrap" id="diagram-wrap">
+    <div class="fullscreen-controls">
+      <button onclick="toggleFullscreen()" id="fs-btn">⛶ fullscreen</button>
+    </div>
     <div class="mermaid" id="diagram">
 classDiagram
-    %% ============================================================
-    %%  ENTRY POINT
-    %% ============================================================
+    direction TB
+
     class CDSSInterface {
-        +loader: DataLoader
-        +pipeline: DataPipeline
-        +data_service: RecommendationDataService
-        +ppf_service: PPFService
-        +protocol_similarity_service: ProtocolSimilarityService
-        +debug: bool
-        +debug_service: DebugReport
+        +loader DataLoader
+        +pipeline DataPipeline
+        +data_service RecommendationDataService
+        +ppf_service PPFService
+        +protocol_similarity_service ProtocolSimilarityService
+        +debug bool
         +recommend_for_patients(ids, n, days, ppd, scoring_date, force) Dict
-        +recommend_for_study(study_id, ...) Dict
+        +recommend_for_study(study_id) Dict
     }
 
     class DebugReport {
-        +base_dir: Path
+        +base_dir Path
         +dump_df(df, run_id, name) str
         +preview_df(df) str
-        +make_artifacts(run_id, scores, recs, ...) dict
+        +make_artifacts(run_id, scores, recs) dict
     }
 
-    CDSSInterface --> DebugReport : owns when debug=True
-
-    %% ============================================================
-    %%  DATA INGEST  (loader → services → RawInputs)
-    %% ============================================================
     class DataLoader {
-        +interface: DatabaseInterface
-        +rgs_mode: str
+        +interface DatabaseInterface
+        +rgs_mode str
         +load_patient_data(ids) DataFrame
         +load_session_data(ids) DataFrame
         +load_ppf_data(ids) DataFrame
@@ -139,64 +163,45 @@ classDiagram
     }
 
     class RecommendationDataService {
-        +loader: DataLoader
-        +protocol_pool: list~int~
-        +prepare(patient_list) tuple~RawInputs, DataFrame~
+        +loader DataLoader
+        +protocol_pool list
+        +prepare(patient_list) tuple
     }
 
     class ProtocolWhitelistService {
-        +scales_path: Path
-        +load_whitelist() list~int~
+        +scales_path Path
+        +load_whitelist() list
     }
 
     class PPFService {
-        +loader: DataLoader
+        +loader DataLoader
         +compute_patient_fit(ids) DataFrame
         +persist_ppf(df) str
         +compute_and_persist_patient_fit(ids) Dict
     }
 
     class ProtocolSimilarityService {
-        +loader: DataLoader
+        +loader DataLoader
         +compute_protocol_similarity() DataFrame
         +persist_protocol_similarity(df) str
     }
 
     class ClinicalSubscales {
-        +scales_path: Path
-        +scales_dict: MultiKeyDict
+        +scales_path Path
+        +scales_dict MultiKeyDict
         +compute_deficit_matrix(df) DataFrame
     }
 
     class ProtocolToClinicalMapper {
-        +mapping_path: Path
-        +mapping: MultiKeyDict
+        +mapping_path Path
+        +mapping MultiKeyDict
         +map_protocol_features(df, agg_func) DataFrame
     }
 
-    CDSSInterface --> DataLoader : owns
-    CDSSInterface --> RecommendationDataService : owns
-    CDSSInterface --> PPFService : owns
-    CDSSInterface --> ProtocolSimilarityService : owns
-    RecommendationDataService --> DataLoader : reads
-    RecommendationDataService --> ProtocolWhitelistService : uses
-    PPFService --> DataLoader : reads
-    PPFService --> ClinicalSubscales : uses
-    PPFService --> ProtocolToClinicalMapper : uses
-    ProtocolSimilarityService --> DataLoader : reads
-    ProtocolSimilarityService --> ProtocolToClinicalMapper : uses
-
-    %% ============================================================
-    %%  PIPELINE  (RawInputs → ScoringOutput, typed at every step)
-    %% ============================================================
     class DataPipeline {
-        +imputer: Imputer
-        +scorer: Scorer
+        +imputer Imputer
+        +scorer Scorer
         +process(raw, scoring_date) DataFrame
-        -_prepare(raw, date) PreparedInputs
-        -_build_features(inputs, date) MergedFeatures
-        -_impute_features(features) ScoringInput
-        -_score(input, raw) ScoringOutput
     }
 
     class Imputer {
@@ -205,191 +210,197 @@ classDiagram
     }
 
     class Scorer {
-        +weights: list~float~
+        +weights list
         +compute_score(df) DataFrame
     }
 
     class RawInputs {
-        <<frozen dataclass>>
-        +patient: DataFrame
-        +session: DataFrame
-        +ppf: DataFrame
+        +patient DataFrame
+        +session DataFrame
+        +ppf DataFrame
     }
 
     class PreparedInputs {
-        <<frozen dataclass + validation>>
-        +patient: DataFrame
-        +session: DataFrame
-        +ppf: DataFrame
-        +has_sessions: bool
+        +patient DataFrame
+        +session DataFrame
+        +ppf DataFrame
+        +has_sessions bool
     }
 
     class SessionLevelFeatures {
-        <<frozen dataclass>>
-        +df: DataFrame
+        +df DataFrame
     }
 
     class ProtocolLevelFeatures {
-        <<frozen dataclass>>
-        +df: DataFrame
+        +df DataFrame
     }
 
     class MergedFeatures {
-        <<frozen dataclass>>
-        +df: DataFrame
+        +df DataFrame
     }
 
     class ScoringInput {
-        <<frozen dataclass>>
-        +df: DataFrame
+        +df DataFrame
     }
 
     class ScoringOutput {
-        <<frozen dataclass>>
-        +df: DataFrame
-        +attrs: dict
+        +df DataFrame
+        +attrs dict
     }
 
-    CDSSInterface --> DataPipeline : owns
-    DataPipeline --> Imputer : owns
-    DataPipeline --> Scorer : owns
-    DataPipeline ..> RawInputs : consumes
-    DataPipeline ..> PreparedInputs : produces internally
-    DataPipeline ..> SessionLevelFeatures : produces internally
-    DataPipeline ..> ProtocolLevelFeatures : produces internally
-    DataPipeline ..> MergedFeatures : produces internally
-    DataPipeline ..> ScoringInput : produces internally
-    DataPipeline ..> ScoringOutput : produces internally
-    RecommendationDataService ..> RawInputs : produces
-
-    %% ============================================================
-    %%  ENGINE  (Protocols + substrate adapters)
-    %% ============================================================
     class EngineState {
         <<Protocol>>
-        +patient_id: int
-        +has_data: bool
-        +all_protocols: list~int~
-        +prescribed_rows: list~ProtocolRow~
+        +patient_id int
+        +has_data bool
+        +all_protocols list
+        +prescribed_rows list
         +is_week_skipped() bool
-        +top_protocols(n) list~int~
-        +lowest_scoring_prescribed: int
+        +top_protocols(n) list
+        +lowest_scoring_prescribed int
         +usage_of(pid) int
-        +protocols_with_zero_usage: list~int~
+        +protocols_with_zero_usage list
         +score_row(pid) ProtocolRow
-        +scoring_attrs: dict
+        +scoring_attrs dict
     }
 
     class SimilarityMatrix {
         <<Protocol>>
         +similarities_for(pid, exclude) list
-        +top_n_similar(pid, n, exclude) list~int~
+        +top_n_similar(pid, n, exclude) list
     }
 
     class ProtocolRow {
-        <<dataclass>>
-        +patient_id: int
-        +protocol_id: int
-        +score: float
-        +days: list~int~
-        +usage: int
-        +usage_week: int
-        +ppf: float
-        +delta_dm: float
-        +recent_adherence: float
-        +weeks_since_start: int
-        +contrib: list~float~
+        +patient_id int
+        +protocol_id int
+        +score float
+        +days list
+        +usage int
+        +usage_week int
+        +ppf float
+        +delta_dm float
+        +recent_adherence float
+        +weeks_since_start int
+        +contrib list
         +as_dict() dict
-        +from_dict(row) ProtocolRow$
     }
 
     class DataFrameBackedState {
-        +scoring: DataFrame
-        +patient_id: int
-        +rows: DataFrame
+        +scoring DataFrame
+        +patient_id int
+        +rows DataFrame
     }
 
     class DictBackedState {
-        +patient_id: int
+        +patient_id int
         +with_prescribed_set(days_by_proto) DictBackedState
-        +from_rows(pid, rows) DictBackedState$
     }
 
-    class DataFrameSimilarity
-    class DictSimilarity
+    class DataFrameSimilarity {
+        +similarities_for(pid, exclude) list
+    }
 
-    DataFrameBackedState ..|> EngineState : implements
-    DictBackedState ..|> EngineState : implements
-    DataFrameSimilarity ..|> SimilarityMatrix : implements
-    DictSimilarity ..|> SimilarityMatrix : implements
+    class DictSimilarity {
+        +similarities_for(pid, exclude) list
+    }
 
-    %% ============================================================
-    %%  RECOMMENDATION CORE
-    %% ============================================================
     class CDSS {
-        +scoring: DataFrame | EngineState
-        +n: int
-        +days: int
-        +protocols_per_day: int
+        +scoring DataFrame_or_EngineState
+        +n int
+        +days int
+        +protocols_per_day int
         +recommend(pid, sim) RecommendationResult
-        -_dispatch_branch(state, sim, trace) list~ProtocolRow~
-        -_materialize_dataframe(rows, state) DataFrame
-        -_build_result(state, rows, df, trace) RecommendationResult
     }
 
     class RecommendationResult {
-        <<dataclass>>
-        +recommendations: DataFrame
-        +trace: dict
-        +patient_state: EngineState
-        +branch: str
-        +swap_decisions: list~SubstituteResult~
-        +topup_events: list~dict~
-        +mvt_mean: float
-        +swap_targets: list~int~
-        +swap_reasons: dict
-        +scoring_attrs: dict
-        +final_protocols: list~int~
-        +n_swaps: int
-        +n_topup: int
-        +candidate_pool_for(pid) list~int~
+        +recommendations DataFrame
+        +trace dict
+        +patient_state EngineState
+        +branch str
+        +swap_decisions list
+        +topup_events list
+        +mvt_mean float
+        +final_protocols list
+        +n_swaps int
+        +n_topup int
+        +candidate_pool_for(pid) list
         +to_dataframe() DataFrame
     }
 
     class SubstituteResult {
-        <<dataclass>>
-        +protocol_id: int
-        +tier: str
-        +candidates: list~int~
-        +removed_id: int
-        +similarity: float
-        +reason: str
+        +protocol_id int
+        +tier str
+        +candidates list
+        +removed_id int
+        +similarity float
+        +reason str
     }
 
-    CDSSInterface --> CDSS : constructs per-call
-    CDSS ..> EngineState : consumes
-    CDSS ..> SimilarityMatrix : consumes
-    CDSS ..> RecommendationResult : produces
-    CDSS ..> ScoringOutput : consumes its df
-    RecommendationResult --> SubstituteResult : contains list
-    RecommendationResult --> EngineState : holds reference
-
-    %% ============================================================
-    %%  PANDERA SCHEMAS  (documentation only, no runtime validation)
-    %% ============================================================
     class SessionSchema {
         <<pandera>>
-        +PATIENT_ID, PROTOCOL_ID, SESSION_DATE, ADHERENCE, DM_VALUE, ...
+        +PATIENT_ID
+        +PROTOCOL_ID
+        +SESSION_DATE
+        +ADHERENCE
+        +DM_VALUE
     }
+
     class PPFSchema {
         <<pandera>>
-        +PATIENT_ID, PROTOCOL_ID, PPF, CONTRIB
+        +PATIENT_ID
+        +PROTOCOL_ID
+        +PPF
+        +CONTRIB
     }
+
     class ScoringSchema {
         <<pandera>>
-        +PATIENT_ID, PROTOCOL_ID, SCORE, PPF, DELTA_DM, ...
+        +PATIENT_ID
+        +PROTOCOL_ID
+        +SCORE
+        +PPF
+        +DELTA_DM
     }
-    </div>
+
+    %% Ownership / composition
+    CDSSInterface --> DebugReport
+    CDSSInterface --> DataLoader
+    CDSSInterface --> RecommendationDataService
+    CDSSInterface --> PPFService
+    CDSSInterface --> ProtocolSimilarityService
+    CDSSInterface --> DataPipeline
+    DataPipeline --> Imputer
+    DataPipeline --> Scorer
+    RecommendationDataService --> DataLoader
+    RecommendationDataService --> ProtocolWhitelistService
+    PPFService --> DataLoader
+    PPFService --> ClinicalSubscales
+    PPFService --> ProtocolToClinicalMapper
+    ProtocolSimilarityService --> DataLoader
+    ProtocolSimilarityService --> ProtocolToClinicalMapper
+    CDSSInterface --> CDSS
+    RecommendationResult --> SubstituteResult
+    RecommendationResult --> EngineState
+
+    %% Data flow (produces / consumes)
+    RecommendationDataService ..> RawInputs
+    DataPipeline ..> RawInputs
+    DataPipeline ..> PreparedInputs
+    DataPipeline ..> SessionLevelFeatures
+    DataPipeline ..> ProtocolLevelFeatures
+    DataPipeline ..> MergedFeatures
+    DataPipeline ..> ScoringInput
+    DataPipeline ..> ScoringOutput
+    CDSS ..> EngineState
+    CDSS ..> SimilarityMatrix
+    CDSS ..> RecommendationResult
+    CDSS ..> ScoringOutput
+
+    %% Protocol implementations
+    DataFrameBackedState ..|> EngineState
+    DictBackedState ..|> EngineState
+    DataFrameSimilarity ..|> SimilarityMatrix
+    DictSimilarity ..|> SimilarityMatrix
+</div>
   </div>
 
   <div class="legend">
@@ -442,6 +453,9 @@ classDiagram
     let scale = 1.0;
     const el = document.getElementById('diagram');
     const scaleInfo = document.getElementById('scale');
+    const wrap = document.getElementById('diagram-wrap');
+    const fsBtn = document.getElementById('fs-btn');
+
     function applyScale() {
       el.style.transform = `scale(${scale})`;
       el.style.transformOrigin = 'top left';
@@ -450,9 +464,24 @@ classDiagram
     function zoomIn()    { scale = Math.min(scale + 0.1, 3.0); applyScale(); }
     function zoomOut()   { scale = Math.max(scale - 0.1, 0.4); applyScale(); }
     function resetZoom() { scale = 1.0; applyScale(); }
+
+    function toggleFullscreen() {
+      const isFull = wrap.classList.toggle('fullscreen');
+      fsBtn.textContent = isFull ? '⤓ exit fullscreen' : '⛶ fullscreen';
+      document.body.style.overflow = isFull ? 'hidden' : '';
+    }
+
+    // ESC exits fullscreen
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && wrap.classList.contains('fullscreen')) {
+        toggleFullscreen();
+      }
+    });
+
     window.zoomIn = zoomIn;
     window.zoomOut = zoomOut;
     window.resetZoom = resetZoom;
+    window.toggleFullscreen = toggleFullscreen;
   </script>
 </body>
 </html>
