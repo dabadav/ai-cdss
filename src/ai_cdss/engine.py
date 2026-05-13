@@ -10,10 +10,10 @@ for `protocol_similarity`. This module breaks that requirement:
     similarity.
   * `ProtocolRow` is the row-shape the engine reads from `EngineState`.
     Plain dataclass — no pandas dependency.
-  * `DataFrameBackedState` / `DataFrameSimilarity` adapt the existing
+  * `PatientState` / `DataFrameSimilarity` adapt the existing
     pandas-based pipeline output to the protocols. Used by
     `CDSSInterface` and production code.
-  * `DictBackedState` / `DictSimilarity` are pandas-free alternatives.
+  * `DictPatientState` / `DictSimilarity` are pandas-free alternatives.
     Useful for synthetic backtests, unit tests, ad-hoc replays.
 
 The engine internals (`_bootstrap_branch`, `_update_branch`,
@@ -140,7 +140,7 @@ def _safe_float(v: Any) -> float | None:
 class EngineState(Protocol):
     """What the recommendation engine reads from its input state.
 
-    Implementations: `DataFrameBackedState`, `DictBackedState`.
+    Implementations: `PatientState`, `DictPatientState`.
     Adding a new substrate (polars, xarray) = new implementation of
     this protocol; engine code is unchanged.
     """
@@ -209,13 +209,13 @@ class SimilarityMatrix(Protocol):
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  DataFrameBackedState — adapter over the existing scoring frame     ║
+# ║  PatientState — adapter over the existing scoring frame     ║
 # ║                                                                      ║
 # ║  Used by CDSSInterface. Wraps the `pd.DataFrame` the pipeline       ║
 # ║  produces. Same behavior as the v0.3.1 `PatientState`.               ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-class DataFrameBackedState:
+class PatientState:
     """`EngineState` backed by a pandas DataFrame.
 
     The scoring DataFrame has one row per (patient, protocol) for every
@@ -347,19 +347,19 @@ class DataFrameBackedState:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  DictBackedState — pandas-free patient state                         ║
+# ║  DictPatientState — pandas-free patient state                         ║
 # ║                                                                      ║
 # ║  Useful for synthetic data, ad-hoc backtests, tests that don't       ║
 # ║  want to materialize a DataFrame. Construct with a dict of           ║
 # ║  ProtocolRows (or dict-shaped row dicts via from_dict).              ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-class DictBackedState:
+class DictPatientState:
     """`EngineState` backed by an in-memory dict of `ProtocolRow`.
 
     Construct directly:
 
-        state = DictBackedState(
+        state = DictPatientState(
             patient_id=4378,
             rows={
                 200: ProtocolRow(patient_id=4378, protocol_id=200,
@@ -370,7 +370,7 @@ class DictBackedState:
 
     Or from a list:
 
-        state = DictBackedState.from_rows(patient_id, [row1, row2, ...])
+        state = DictPatientState.from_rows(patient_id, [row1, row2, ...])
     """
 
     def __init__(
@@ -396,7 +396,7 @@ class DictBackedState:
         rows: Iterable[ProtocolRow],
         *,
         scoring_attrs: dict[str, Any] | None = None,
-    ) -> "DictBackedState":
+    ) -> "DictPatientState":
         """Build from an iterable of `ProtocolRow` objects."""
         return cls(
             patient_id=patient_id,
@@ -464,7 +464,7 @@ class DictBackedState:
     # Mutation helpers — synthetic state often gets tweaked between
     # recommend calls (e.g. injecting a chained-mode prior).
 
-    def with_prescribed_set(self, days_by_protocol: Mapping[int, list[int]]) -> "DictBackedState":
+    def with_prescribed_set(self, days_by_protocol: Mapping[int, list[int]]) -> "DictPatientState":
         """Return a new state with DAYS overrides applied to each
         protocol. Synthetic chained-mode backtest writes one line."""
         new_rows: dict[int, ProtocolRow] = {}
@@ -472,7 +472,7 @@ class DictBackedState:
             new_rows[pid] = ProtocolRow(
                 **{**asdict(row), "days": list(days_by_protocol.get(pid, []))}
             )
-        return DictBackedState(
+        return DictPatientState(
             patient_id=self.patient_id,
             rows=new_rows,
             scoring_attrs=self._scoring_attrs,
@@ -568,20 +568,20 @@ def coerce_engine_state(
     """Adapt an input to `EngineState`.
 
       * `EngineState` instance     → returned as-is.
-      * `pd.DataFrame`             → wrapped in `DataFrameBackedState`
+      * `pd.DataFrame`             → wrapped in `PatientState`
                                      (patient_id required).
     """
-    if isinstance(state, (DataFrameBackedState, DictBackedState)):
+    if isinstance(state, (PatientState, DictPatientState)):
         return state
     if isinstance(state, pd.DataFrame):
         if patient_id is None:
             raise ValueError(
                 "Wrapping a DataFrame as EngineState requires patient_id."
             )
-        return DataFrameBackedState(state, patient_id)
+        return PatientState(state, patient_id)
     raise TypeError(
         f"Cannot coerce {type(state).__name__} to EngineState. "
-        "Pass a DataFrame, DataFrameBackedState, or DictBackedState."
+        "Pass a DataFrame, PatientState, or DictPatientState."
     )
 
 

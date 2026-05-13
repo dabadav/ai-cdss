@@ -14,50 +14,33 @@ Renders as Mermaid in GitHub / VS Code (with `bierner.markdown-mermaid`)
 ```mermaid
 flowchart TD
     DB[("rgs_interface MySQL")]
-    L["loader.DataLoader<br/><i>fetches 4 frames</i>"]
-    PATIENT["pd.DataFrame patient"]
-    SESSION["pd.DataFrame session"]
-    PPF["pd.DataFrame ppf<br/>+ attrs missing_patients"]
-    SIM["pd.DataFrame similarity"]
-    S["service.RecommendationDataService.prepare<br/><i>whitelist filter</i>"]
-    RAW["RawInputs<br/>patient / session / ppf"]
+    FS[("~/.ai_cdss/output/<br/>PPF parquet + similarity csv")]
+    REPO["data.RGSCohortRepository.find<br/><i>fetch + whitelist filter</i>"]
+    COHORT["Cohort<br/>patient / session / ppf /<br/>similarity / whitelist / missing_ppf"]
     PIPE["pipeline.DataPipeline.process"]
     SO["ScoringOutput<br/><i>wraps pd.DataFrame</i>"]
-    STATE["engine.DataFrameBackedState<br/><i>adapter implements EngineState</i>"]
+    STATE["engine.PatientState<br/><i>adapter implements EngineState</i>"]
     CDSS["recommend.CDSS.recommend"]
     RESULT["RecommendationResult<br/>recommendations + trace +<br/>swap_decisions + topup_events"]
     IFACE["interface.CDSSInterface<br/>persist + build payload"]
     PAYLOAD["payload dict<br/>nested per-patient list"]
     CONSUMER["cli / supervisor / JSON log"]
 
-    DB --> L
-    L --> PATIENT
-    L --> SESSION
-    L --> PPF
-    L --> SIM
-    PATIENT --> S
-    SESSION --> S
-    PPF --> S
-    SIM --> S
-    S --> RAW
-    S --> SIM2["similarity_df filtered"]
-    RAW --> PIPE
+    DB --> REPO
+    FS --> REPO
+    REPO --> COHORT
+    COHORT --> PIPE
     PIPE --> SO
     SO --> STATE
-    SIM2 --> CDSS
+    COHORT -. similarity .-> CDSS
     STATE --> CDSS
     CDSS --> RESULT
     RESULT --> IFACE
     IFACE --> PAYLOAD
     PAYLOAD --> CONSUMER
 
-    style PATIENT fill:#fde4d4,stroke:#a8000d
-    style SESSION fill:#fde4d4,stroke:#a8000d
-    style PPF fill:#fde4d4,stroke:#a8000d
-    style SIM fill:#fde4d4,stroke:#a8000d
-    style SIM2 fill:#fde4d4,stroke:#a8000d
     style PAYLOAD fill:#fde4d4,stroke:#a8000d
-    style RAW fill:#dff5e6,stroke:#136f3e
+    style COHORT fill:#dff5e6,stroke:#136f3e
     style RESULT fill:#dff5e6,stroke:#136f3e
     style STATE fill:#dff5e6,stroke:#136f3e
     style SO fill:#fdedd4,stroke:#b46b00
@@ -65,10 +48,9 @@ flowchart TD
 
 **Reading the diagram:**
 
-- Four raw DataFrames come out of the loader. Red — no schema validation, no contract.
-- Service produces `RawInputs` (green dataclass) plus the still-untyped similarity DataFrame.
-- Pipeline produces `ScoringOutput` (yellow — typed wrapper around a DataFrame; columns checked but values are pure pandas).
-- Engine adapts the DataFrame to `DataFrameBackedState` (green — Protocol-conforming). Engine internals operate on `list[ProtocolRow]`.
+- `RGSCohortRepository.find` is the single boundary fetching from MySQL + local files. It returns one typed `Cohort` (green dataclass) carrying every frame the pipeline + engine consume — patient, session, PPF, similarity, plus the whitelist already applied and any `missing_ppf` patient IDs for guard logic.
+- Pipeline takes the `Cohort` and produces `ScoringOutput` (yellow — typed wrapper around a DataFrame; columns checked but values are pure pandas).
+- Engine adapts the scoring DataFrame to `PatientState` (green — Protocol-conforming) and consumes `cohort.similarity` alongside. Engine internals operate on `list[ProtocolRow]`.
 - CDSS returns `RecommendationResult` (green dataclass with cached_property breakdowns).
 - CDSSInterface unwraps the result into an untyped nested dict for the cli / supervisor / JSON log.
 
@@ -76,7 +58,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    RAW["RawInputs<br/>patient / session / ppf"]
+    COHORT["Cohort<br/>patient / session / ppf"]
     P1["_prepare<br/>clinical-window clamp"]
     PI["PreparedInputs"]
     SL["_session_level_features"]
@@ -91,7 +73,7 @@ flowchart TD
     SC["_score<br/><i>w·RA + w·DDM + w·PPF</i>"]
     SO["ScoringOutput"]
 
-    RAW --> P1 --> PI
+    COHORT --> P1 --> PI
     PI -- has_sessions=True --> SL
     PI -- has_sessions=True --> PL
     SL --> SLF
@@ -108,7 +90,7 @@ flowchart TD
     style MF fill:#fdedd4,stroke:#b46b00
     style SI fill:#fdedd4,stroke:#b46b00
     style SO fill:#fdedd4,stroke:#b46b00
-    style RAW fill:#dff5e6,stroke:#136f3e
+    style COHORT fill:#dff5e6,stroke:#136f3e
 ```
 
 **Five named boundaries, each a frozen dataclass with declared
@@ -122,7 +104,7 @@ not running.
 flowchart TD
     SO["ScoringOutput.df<br/>pd.DataFrame"]
     SIM["similarity_df<br/>pd.DataFrame"]
-    DFBS["DataFrameBackedState<br/><i>cached_property cache</i>"]
+    DFBS["PatientState<br/><i>cached_property cache</i>"]
     DFSIM["DataFrameSimilarity<br/><i>_by_a precomputed</i>"]
     ES{{"EngineState protocol"}}
     SM{{"SimilarityMatrix protocol"}}
@@ -173,9 +155,8 @@ internals work in `list[ProtocolRow]`; output materializes to
 
 ```mermaid
 flowchart TD
-    L["DataLoader"]
-    L_ATTRS["side-channel:<br/>ppf.attrs[missing_patients]"]
-    SERV["RecommendationDataService"]
+    REPO["RGSCohortRepository"]
+    COHORT_MISS["Cohort.missing_ppf<br/><i>explicit list, no longer side-channel</i>"]
     PIPE["DataPipeline"]
     IMP["Imputer<br/><b>mutates in place</b><br/><i>no provenance kept</i>"]
     SCORE["Scorer<br/><b>w·RA + w·DDM + w·PPF</b><br/><i>no breakdown saved</i>"]
@@ -184,8 +165,8 @@ flowchart TD
     TRACE["trace dict<br/><i>structural typing only</i>"]
     PAYLOAD["payload dict<br/><i>untyped nested</i>"]
 
-    L --> L_ATTRS
-    L --> SERV --> PIPE
+    REPO --> COHORT_MISS
+    REPO --> PIPE
     PIPE --> IMP
     IMP --> SCORE
     SCORE --> ATTRS_SUB
@@ -193,7 +174,7 @@ flowchart TD
     SO -.engine.-> TRACE
     TRACE --> PAYLOAD
 
-    style L_ATTRS fill:#fde4d4,stroke:#a8000d
+    style COHORT_MISS fill:#dff5e6,stroke:#136f3e
     style IMP fill:#fde4d4,stroke:#a8000d
     style SCORE fill:#fde4d4,stroke:#a8000d
     style ATTRS_SUB fill:#fde4d4,stroke:#a8000d
@@ -202,19 +183,19 @@ flowchart TD
     style PAYLOAD fill:#fde4d4,stroke:#a8000d
 ```
 
-**Six audit holes**, top-to-bottom by stage:
+**Five audit holes**, top-to-bottom by stage (the
+`ppf.attrs["missing_patients"]` side-channel was retired in f5 — it's
+now an explicit `Cohort.missing_ppf` field):
 
-1. **`ppf.attrs["missing_patients"]`** — side-channel state.
-   `.copy()` preserves it but most pandas ops don't.
-2. **`Imputer` mutations** — silent. Imputed cells indistinguishable
+1. **`Imputer` mutations** — silent. Imputed cells indistinguishable
    from real values after this stage.
-3. **`Scorer` formula** — computed wide, no per-component breakdown
+2. **`Scorer` formula** — computed wide, no per-component breakdown
    captured.
-4. **`scoring.attrs["SUBSCALES"]`** — list-index to subscale-name
+3. **`scoring.attrs["SUBSCALES"]`** — list-index to subscale-name
    binding lives in `.attrs`. Mismatch waiting to happen.
-5. **`ScoringOutput.df`** — wide DataFrame, no lineage column, no
+4. **`ScoringOutput.df`** — wide DataFrame, no lineage column, no
    provenance.
-6. **`trace` dict** — structural typing only. `reason` / `source`
+5. **`trace` dict** — structural typing only. `reason` / `source`
    are stringly-typed enums.
 
 ## E · Reference: contract strength by stage
@@ -232,10 +213,9 @@ quadrantChart
     "trace dict": [0.45, 0.70]
     "Imputer mutation": [0.20, 0.80]
     "scoring.attrs SUBSCALES": [0.20, 0.60]
-    "ppf.attrs missing_patients": [0.25, 0.50]
     "payload dict": [0.30, 0.30]
-    "similarity_df": [0.20, 0.20]
-    "RawInputs": [0.75, 0.40]
+    "Cohort.similarity": [0.85, 0.20]
+    "Cohort": [0.90, 0.15]
     "PreparedInputs": [0.80, 0.20]
     "MergedFeatures": [0.80, 0.15]
     "ScoringInput": [0.80, 0.20]

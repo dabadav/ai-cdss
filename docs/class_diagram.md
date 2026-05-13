@@ -13,15 +13,14 @@ classDiagram
     %%  ENTRY POINT
     %% ============================================================
     class CDSSInterface {
-        +loader: DataLoader
+        +repository: CohortRepository
         +pipeline: DataPipeline
-        +data_service: RecommendationDataService
-        +ppf_service: PPFService
-        +protocol_similarity_service: ProtocolSimilarityService
         +debug: bool
         +debug_service: DebugReport
         +recommend_for_patients(ids, n, days, ppd, scoring_date, force) Dict
         +recommend_for_study(study_id, ...) Dict
+        +compute_patient_fit(ids) Dict
+        +compute_protocol_similarity() Dict
     }
 
     class DebugReport {
@@ -34,42 +33,31 @@ classDiagram
     CDSSInterface --> DebugReport : owns when debug=True
 
     %% ============================================================
-    %%  DATA INGEST  (loader → services → RawInputs)
+    %%  DATA INGEST  (Repository pattern — Cohort + CohortRepository)
     %% ============================================================
-    class DataLoader {
+    class CohortRepository {
+        <<Protocol>>
+        +find(patient_ids) Cohort
+    }
+
+    class RGSCohortRepository {
         +interface: DatabaseInterface
         +rgs_mode: str
-        +load_patient_data(ids) DataFrame
-        +load_session_data(ids) DataFrame
-        +load_ppf_data(ids) DataFrame
-        +load_protocol_similarity() DataFrame
-        +load_patient_subscales(ids) DataFrame
-        +load_protocol_attributes(path) DataFrame
+        +whitelist: list~int~
+        +find(patient_ids) Cohort
+        +patient_subscales(ids) DataFrame
+        +protocol_attributes(path) DataFrame
         +fetch_and_validate_patients(study_ids) list
     }
 
-    class RecommendationDataService {
-        +loader: DataLoader
-        +protocol_pool: list~int~
-        +prepare(patient_list) tuple~RawInputs, DataFrame~
-    }
-
-    class ProtocolWhitelistService {
-        +scales_path: Path
-        +load_whitelist() list~int~
-    }
-
-    class PPFService {
-        +loader: DataLoader
-        +compute_patient_fit(ids) DataFrame
-        +persist_ppf(df) str
-        +compute_and_persist_patient_fit(ids) Dict
-    }
-
-    class ProtocolSimilarityService {
-        +loader: DataLoader
-        +compute_protocol_similarity() DataFrame
-        +persist_protocol_similarity(df) str
+    class Cohort {
+        <<frozen dataclass>>
+        +patient: DataFrame
+        +session: DataFrame
+        +ppf: DataFrame
+        +similarity: DataFrame
+        +whitelist: list~int~
+        +missing_ppf: list~int~
     }
 
     class ClinicalSubscales {
@@ -84,17 +72,20 @@ classDiagram
         +map_protocol_features(df, agg_func) DataFrame
     }
 
-    CDSSInterface --> DataLoader : owns
-    CDSSInterface --> RecommendationDataService : owns
-    CDSSInterface --> PPFService : owns
-    CDSSInterface --> ProtocolSimilarityService : owns
-    RecommendationDataService --> DataLoader : reads
-    RecommendationDataService --> ProtocolWhitelistService : uses
-    PPFService --> DataLoader : reads
-    PPFService --> ClinicalSubscales : uses
-    PPFService --> ProtocolToClinicalMapper : uses
-    ProtocolSimilarityService --> DataLoader : reads
-    ProtocolSimilarityService --> ProtocolToClinicalMapper : uses
+    class compute {
+        <<module — pure functions>>
+        +compute_ppf_for_patients(subscales, attrs, ...) DataFrame
+        +persist_ppf(df, path) Path
+        +compute_protocol_similarity_matrix(attrs, ...) DataFrame
+        +persist_similarity(df, path) Path
+    }
+
+    RGSCohortRepository ..|> CohortRepository : implements
+    CDSSInterface --> CohortRepository : owns
+    RGSCohortRepository ..> Cohort : produces
+    compute ..> ClinicalSubscales : uses
+    compute ..> ProtocolToClinicalMapper : uses
+    CDSSInterface ..> compute : calls for PPF / similarity
 
     %% ============================================================
     %%  PIPELINE  (RawInputs → ScoringOutput, typed at every step)
@@ -102,11 +93,11 @@ classDiagram
     class DataPipeline {
         +imputer: Imputer
         +scorer: Scorer
-        +process(raw, scoring_date) DataFrame
-        -_prepare(raw, date) PreparedInputs
+        +process(cohort, scoring_date) DataFrame
+        -_prepare(cohort, date) PreparedInputs
         -_build_features(inputs, date) MergedFeatures
         -_impute_features(features) ScoringInput
-        -_score(input, raw) ScoringOutput
+        -_score(input, prepared) ScoringOutput
     }
 
     class Imputer {
@@ -117,13 +108,6 @@ classDiagram
     class Scorer {
         +weights: list~float~
         +compute_score(df) DataFrame
-    }
-
-    class RawInputs {
-        <<frozen dataclass>>
-        +patient: DataFrame
-        +session: DataFrame
-        +ppf: DataFrame
     }
 
     class PreparedInputs {
@@ -163,14 +147,13 @@ classDiagram
     CDSSInterface --> DataPipeline : owns
     DataPipeline --> Imputer : owns
     DataPipeline --> Scorer : owns
-    DataPipeline ..> RawInputs : consumes
+    DataPipeline ..> Cohort : consumes
     DataPipeline ..> PreparedInputs : produces internally
     DataPipeline ..> SessionLevelFeatures : produces internally
     DataPipeline ..> ProtocolLevelFeatures : produces internally
     DataPipeline ..> MergedFeatures : produces internally
     DataPipeline ..> ScoringInput : produces internally
     DataPipeline ..> ScoringOutput : produces internally
-    RecommendationDataService ..> RawInputs : produces
 
     %% ============================================================
     %%  ENGINE  (Protocols + substrate adapters)
@@ -213,7 +196,7 @@ classDiagram
         +from_dict(row) ProtocolRow$
     }
 
-    class DataFrameBackedState {
+    class PatientState {
         +scoring: DataFrame
         +patient_id: int
         +rows: DataFrame
@@ -223,12 +206,12 @@ classDiagram
         ~_sorted_by_score: list (cached)
     }
 
-    class DictBackedState {
+    class DictPatientState {
         +patient_id: int
         ~_rows: dict
         ~_sorted_by_score: list
-        +with_prescribed_set(days_by_proto) DictBackedState
-        +from_rows(pid, rows) DictBackedState$
+        +with_prescribed_set(days_by_proto) DictPatientState
+        +from_rows(pid, rows) DictPatientState$
     }
 
     class DataFrameSimilarity {
@@ -241,8 +224,8 @@ classDiagram
         ~_by_a: dict (precomputed)
     }
 
-    DataFrameBackedState ..|> EngineState : implements
-    DictBackedState ..|> EngineState : implements
+    PatientState ..|> EngineState : implements
+    DictPatientState ..|> EngineState : implements
     DataFrameSimilarity ..|> SimilarityMatrix : implements
     DictSimilarity ..|> SimilarityMatrix : implements
 
@@ -329,18 +312,25 @@ classDiagram
 | Layer | Class(es) | Role |
 |---|---|---|
 | **Public entry** | `CDSSInterface` | Production wrapper — DB writes, debug artifacts, persistence |
-| **Data ingest** | `DataLoader`, `RecommendationDataService`, `PPFService`, `ProtocolSimilarityService`, `ProtocolWhitelistService`, `ClinicalSubscales`, `ProtocolToClinicalMapper`, `DebugReport` | Pull from MySQL + local files, assemble `RawInputs` |
-| **Pipeline contracts** | `RawInputs`, `PreparedInputs`, `SessionLevelFeatures`, `ProtocolLevelFeatures`, `MergedFeatures`, `ScoringInput`, `ScoringOutput` | Typed wrappers around the seven DataFrame stages |
+| **Data ingest** | `Cohort`, `CohortRepository` (Protocol), `RGSCohortRepository`, `ClinicalSubscales`, `ProtocolToClinicalMapper`, `DebugReport` | Repository pattern — assemble one typed `Cohort` from MySQL + local files |
+| **Offline computations** | `compute.py` (module — 4 pure functions) | Compute + persist PPF and protocol similarity from raw inputs (registration / protocol-add workflows) |
+| **Pipeline contracts** | `PreparedInputs`, `SessionLevelFeatures`, `ProtocolLevelFeatures`, `MergedFeatures`, `ScoringInput`, `ScoringOutput` | Typed wrappers around the internal DataFrame stages |
 | **Pipeline orchestrator** | `DataPipeline`, `Imputer`, `Scorer` | Run feature build → impute → score |
 | **Engine protocols** | `EngineState`, `SimilarityMatrix` | Substrate-agnostic input contract |
-| **Engine adapters** | `DataFrameBackedState`, `DictBackedState`, `DataFrameSimilarity`, `DictSimilarity` | Concrete implementations of the protocols |
+| **Engine adapters** | `PatientState`, `DictPatientState`, `DataFrameSimilarity`, `DictSimilarity` | Concrete implementations of the protocols |
 | **Engine core** | `CDSS`, `ProtocolRow`, `RecommendationResult`, `SubstituteResult` | Recommendation algorithm + introspectable output |
 | **Pandera schemas** | `SessionSchema`, `PPFSchema`, `ScoringSchema` | Inline column-shape documentation (currently no runtime enforcement) |
 
 ## Cardinality
 
-  * **One `CDSSInterface` per process** — holds loader, pipeline,
-    services.
+  * **One `CDSSInterface` per process** — holds the repository and the
+    pipeline.
+  * **One `CohortRepository` per `CDSSInterface`** — production
+    instance is `RGSCohortRepository`; future implementations
+    (`SyntheticCohortRepository`, `InMemoryCohortRepository`) plug in
+    at the same seam.
+  * **One `Cohort` per recommendation call** — produced by
+    `repository.find(patient_ids)`; consumed by the pipeline + engine.
   * **One `DataPipeline` per `CDSSInterface`** — stateless aside from
     the imputer / scorer it owns.
   * **One `CDSS` per recommendation call** — constructed inline in
@@ -350,7 +340,16 @@ classDiagram
   * **One `RecommendationResult` per `(patient, week)`** — returned
     from `CDSS.recommend`, consumed by `CDSSInterface._process_patient`.
 
-## Where to add a new substrate
+## Where to add a new cohort source
+
+1. Write a new class that implements `CohortRepository.find(patient_ids)
+   -> Cohort`. Example: `SyntheticCohortRepository`.
+2. Pass an instance to `CDSSInterface(repository=...)`.
+
+No pipeline algorithm changes. No engine changes. The protocol is the
+integration point.
+
+## Where to add a new engine substrate
 
 1. Write a new class that implements `EngineState` (7 methods + 5
    properties). Example: `PolarsBackedState`.

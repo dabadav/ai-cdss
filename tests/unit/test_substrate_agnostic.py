@@ -3,7 +3,7 @@
 Proves that the recommendation engine accepts:
   1. A plain `pd.DataFrame` (production path) — already covered by
      test_cdss_recommend.py + test_recommendation_result.py.
-  2. A `DictBackedState` with a `DictSimilarity` — pandas-free
+  2. A `DictPatientState` with a `DictSimilarity` — pandas-free
      synthetic path. This is the "10-line synthetic backtest" goal of
      the functionality refactor.
 
@@ -16,9 +16,9 @@ import pandas as pd
 import pytest
 
 from ai_cdss.engine import (
-    DataFrameBackedState,
+    PatientState,
     DataFrameSimilarity,
-    DictBackedState,
+    DictPatientState,
     DictSimilarity,
     ProtocolRow,
     coerce_engine_state,
@@ -28,11 +28,11 @@ from ai_cdss.recommend import CDSS, RecommendationResult
 
 
 # ---------------------------------------------------------------------------
-# DictBackedState — basic protocol satisfaction.
+# DictPatientState — basic protocol satisfaction.
 
 def _synthetic_state(
     patient_id: int = 1, prescribed_subset: list[int] | None = None,
-) -> DictBackedState:
+) -> DictPatientState:
     """Build a 12-protocol synthetic state. By default no protocol is
     prescribed (bootstrap branch). Pass `prescribed_subset` to mark
     those protocols as having DAYS — engine then takes update branch."""
@@ -51,7 +51,7 @@ def _synthetic_state(
             recent_adherence=0.7,
             delta_dm=0.0,
         )
-    return DictBackedState(patient_id=patient_id, rows=rows)
+    return DictPatientState(patient_id=patient_id, rows=rows)
 
 
 def _synthetic_similarity(min_id: int = 200, max_id: int = 211) -> DictSimilarity:
@@ -101,7 +101,7 @@ def test_dict_backed_state_is_week_skipped_when_all_usage_week_zero():
         201: ProtocolRow(patient_id=1, protocol_id=201, score=1.1,
                          days=[1, 3, 5], usage_week=0),
     }
-    state = DictBackedState(patient_id=1, rows=rows)
+    state = DictPatientState(patient_id=1, rows=rows)
     assert state.is_week_skipped() is True
 
 
@@ -132,7 +132,7 @@ def test_dict_backed_state_with_prescribed_set_clones_with_days():
 
 
 # ---------------------------------------------------------------------------
-# End-to-end: CDSS.recommend with DictBackedState + DictSimilarity
+# End-to-end: CDSS.recommend with DictPatientState + DictSimilarity
 # — no pandas inside the engine.
 
 def test_recommend_with_dict_state_bootstrap_branch():
@@ -165,7 +165,7 @@ def test_recommend_with_dict_state_repeat_branch():
         )
         for i, pid in enumerate(range(200, 212))
     }
-    state = DictBackedState(patient_id=1, rows=rows)
+    state = DictPatientState(patient_id=1, rows=rows)
     similarity = _synthetic_similarity()
     cdss = CDSS(scoring=state, n=12)
     result = cdss.recommend(1, similarity)
@@ -241,7 +241,7 @@ def test_coerce_engine_state_wraps_dataframe():
         DAYS: [[]], USAGE: [0], USAGE_WEEK: [0],
     })
     state = coerce_engine_state(df, patient_id=1)
-    assert isinstance(state, DataFrameBackedState)
+    assert isinstance(state, PatientState)
     assert state.patient_id == 1
 
 
@@ -276,7 +276,7 @@ def test_coerce_similarity_rejects_unknown_type():
 def test_synthetic_backtest_in_ten_lines():
     """Demonstration: synthetic recommendation, no pandas imports
     needed by the caller (engine handles materialization at output)."""
-    state = DictBackedState.from_rows(patient_id=4378, rows=[
+    state = DictPatientState.from_rows(patient_id=4378, rows=[
         ProtocolRow(patient_id=4378, protocol_id=200, score=1.8, ppf=0.7),
         ProtocolRow(patient_id=4378, protocol_id=201, score=1.7, ppf=0.6),
         ProtocolRow(patient_id=4378, protocol_id=202, score=1.6, ppf=0.6),

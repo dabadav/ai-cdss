@@ -25,10 +25,10 @@ def _make_iface(staging_count: int):
         add_prescription_staging_entry=MagicMock(),
         add_recsys_metric_entry=MagicMock(),
     )
-    fake_loader = SimpleNamespace(interface=fake_interface)
+    fake_repository = SimpleNamespace(interface=fake_interface)
     fake_processor = SimpleNamespace()
     iface = CDSSInterface.__new__(CDSSInterface)
-    iface.loader = fake_loader
+    iface.repository = fake_repository
     iface.processor = fake_processor
     # debug=True skips _save_prescriptions/_save_metrics — keeps the test
     # focused on the duplication guard rather than persistence wiring.

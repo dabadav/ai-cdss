@@ -151,17 +151,15 @@
 classDiagram
 class CDSSInterface
 class DebugReport
-class DataLoader
-class RecommendationDataService
-class ProtocolWhitelistService
-class PPFService
-class ProtocolSimilarityService
+class Cohort
+class CohortRepository
+class RGSCohortRepository
 class ClinicalSubscales
 class ProtocolToClinicalMapper
+class compute
 class DataPipeline
 class Imputer
 class Scorer
-class RawInputs
 class PreparedInputs
 class SessionLevelFeatures
 class ProtocolLevelFeatures
@@ -171,8 +169,8 @@ class ScoringOutput
 class EngineState
 class SimilarityMatrix
 class ProtocolRow
-class DataFrameBackedState
-class DictBackedState
+class PatientState
+class DictPatientState
 class DataFrameSimilarity
 class DictSimilarity
 class CDSS
@@ -183,26 +181,20 @@ class PPFSchema
 class ScoringSchema
 
 CDSSInterface --> DebugReport
-CDSSInterface --> DataLoader
-CDSSInterface --> RecommendationDataService
-CDSSInterface --> PPFService
-CDSSInterface --> ProtocolSimilarityService
+CDSSInterface --> CohortRepository
 CDSSInterface --> DataPipeline
+CDSSInterface --> CDSS
+CDSSInterface ..> compute
 DataPipeline --> Imputer
 DataPipeline --> Scorer
-RecommendationDataService --> DataLoader
-RecommendationDataService --> ProtocolWhitelistService
-PPFService --> DataLoader
-PPFService --> ClinicalSubscales
-PPFService --> ProtocolToClinicalMapper
-ProtocolSimilarityService --> DataLoader
-ProtocolSimilarityService --> ProtocolToClinicalMapper
-CDSSInterface --> CDSS
+RGSCohortRepository ..|> CohortRepository
+RGSCohortRepository ..> Cohort
+compute ..> ClinicalSubscales
+compute ..> ProtocolToClinicalMapper
 RecommendationResult --> SubstituteResult
 RecommendationResult --> EngineState
 
-RecommendationDataService ..> RawInputs
-DataPipeline ..> RawInputs
+DataPipeline ..> Cohort
 DataPipeline ..> PreparedInputs
 DataPipeline ..> SessionLevelFeatures
 DataPipeline ..> ProtocolLevelFeatures
@@ -214,8 +206,8 @@ CDSS ..> SimilarityMatrix
 CDSS ..> RecommendationResult
 CDSS ..> ScoringOutput
 
-DataFrameBackedState ..|> EngineState
-DictBackedState ..|> EngineState
+PatientState ..|> EngineState
+DictPatientState ..|> EngineState
 DataFrameSimilarity ..|> SimilarityMatrix
 DictSimilarity ..|> SimilarityMatrix
 </div>
@@ -240,17 +232,25 @@ DictSimilarity ..|> SimilarityMatrix
       </thead>
       <tbody>
         <tr><td><b>Public entry</b></td><td><code>CDSSInterface</code></td><td>Production wrapper — DB writes, debug artifacts, persistence</td></tr>
-        <tr><td><b>Data ingest</b></td><td><code>DataLoader</code>, <code>RecommendationDataService</code>, <code>PPFService</code>, <code>ProtocolSimilarityService</code>, <code>ProtocolWhitelistService</code>, <code>ClinicalSubscales</code>, <code>ProtocolToClinicalMapper</code>, <code>DebugReport</code></td><td>Pull from MySQL + local files, assemble RawInputs</td></tr>
-        <tr><td><b>Pipeline contracts</b></td><td><code>RawInputs</code>, <code>PreparedInputs</code>, <code>SessionLevelFeatures</code>, <code>ProtocolLevelFeatures</code>, <code>MergedFeatures</code>, <code>ScoringInput</code>, <code>ScoringOutput</code></td><td>Typed wrappers around the seven DataFrame stages</td></tr>
+        <tr><td><b>Data ingest</b></td><td><code>Cohort</code>, <code>CohortRepository</code> (Protocol), <code>RGSCohortRepository</code>, <code>ClinicalSubscales</code>, <code>ProtocolToClinicalMapper</code>, <code>DebugReport</code></td><td>Repository pattern — assemble one typed <code>Cohort</code> from MySQL + local files</td></tr>
+        <tr><td><b>Offline computations</b></td><td><code>compute.py</code> (module — 4 pure functions)</td><td>Compute + persist PPF and protocol similarity</td></tr>
+        <tr><td><b>Pipeline contracts</b></td><td><code>PreparedInputs</code>, <code>SessionLevelFeatures</code>, <code>ProtocolLevelFeatures</code>, <code>MergedFeatures</code>, <code>ScoringInput</code>, <code>ScoringOutput</code></td><td>Typed wrappers around the internal DataFrame stages</td></tr>
         <tr><td><b>Pipeline orchestrator</b></td><td><code>DataPipeline</code>, <code>Imputer</code>, <code>Scorer</code></td><td>Run feature build → impute → score</td></tr>
         <tr><td><b>Engine protocols</b></td><td><code>EngineState</code>, <code>SimilarityMatrix</code></td><td>Substrate-agnostic input contract (PEP 544)</td></tr>
-        <tr><td><b>Engine adapters</b></td><td><code>DataFrameBackedState</code>, <code>DictBackedState</code>, <code>DataFrameSimilarity</code>, <code>DictSimilarity</code></td><td>Concrete implementations of the protocols</td></tr>
+        <tr><td><b>Engine adapters</b></td><td><code>PatientState</code>, <code>DictPatientState</code>, <code>DataFrameSimilarity</code>, <code>DictSimilarity</code></td><td>Concrete implementations of the protocols</td></tr>
         <tr><td><b>Engine core</b></td><td><code>CDSS</code>, <code>ProtocolRow</code>, <code>RecommendationResult</code>, <code>SubstituteResult</code></td><td>Recommendation algorithm + introspectable output</td></tr>
         <tr><td><b>Pandera schemas</b></td><td><code>SessionSchema</code>, <code>PPFSchema</code>, <code>ScoringSchema</code></td><td>Inline column-shape documentation (no runtime enforcement)</td></tr>
       </tbody>
     </table>
 
-    <h2 style="margin-top:18px;">Where to add a new substrate (e.g. polars)</h2>
+    <h2 style="margin-top:18px;">Where to add a new cohort source</h2>
+    <ol style="font-size:13px;">
+      <li>Write a new class implementing <code>CohortRepository.find(patient_ids) -> Cohort</code>. Example: <code>SyntheticCohortRepository</code>, <code>InMemoryCohortRepository</code>.</li>
+      <li>Pass an instance to <code>CDSSInterface(repository=...)</code>.</li>
+    </ol>
+    <p style="font-size:13px; color:#57606a; margin: 6px 0 0;">No pipeline algorithm changes. No engine changes. The protocol is the integration point.</p>
+
+    <h2 style="margin-top:18px;">Where to add a new engine substrate (e.g. polars)</h2>
     <ol style="font-size:13px;">
       <li>Write a new class implementing the <code>EngineState</code> protocol (7 methods + 5 properties). Example: <code>PolarsBackedState</code>.</li>
       <li>Optionally write the matching <code>SimilarityMatrix</code> adapter.</li>

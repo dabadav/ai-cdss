@@ -1,8 +1,9 @@
 """Data pipeline — feature-build → impute → score, in that order.
 
-Turns the raw output of `DataLoader` (sessions / patient metadata /
-PPF cohort) into a one-row-per-(patient, protocol) scoring DataFrame
-that `recommend.CDSS.recommend` consumes.
+Turns a `Cohort` (sessions / patient metadata / PPF cohort, supplied
+by `MySQLCohortRepository` or any other `CohortRepository`
+implementation) into a one-row-per-(patient, protocol) scoring
+DataFrame that `recommend.CDSS.recommend` consumes.
 
 The flow (each arrow is a typed contract — see SECTION 1 below):
 
@@ -54,6 +55,7 @@ from ai_cdss.constants import (
     USAGE_WEEK,
     WEEKS_SINCE_START,
 )
+from ai_cdss.data import Cohort
 from ai_cdss.feature import (
     build_delta_dm,
     build_prescription_days,
@@ -94,24 +96,6 @@ def _validate_columns(
             f"{stage_name}: missing required columns {missing}. "
             f"Got: {list(df.columns)}"
         )
-
-
-@dataclass(frozen=True)
-class RawInputs:
-    """Raw frames as they come out of the loader / service.
-
-    Three plain DataFrames. No metadata wrapper, no granularity enum —
-    those were removed in F4b because nothing exercised them. PPF
-    carries its "missing_patients" warning via pandas `.attrs` if
-    needed (set by the loader; consumed by the service before this
-    object is even built).
-
-    The pipeline's first stage (`_prepare`) cleans + windows these into
-    `PreparedInputs` below.
-    """
-    patient: pd.DataFrame
-    session: pd.DataFrame
-    ppf:     pd.DataFrame
 
 
 @dataclass(frozen=True)
@@ -272,10 +256,16 @@ class DataPipeline:
     # Public entry.
 
     def process(
-        self, raw: "RawInputs", scoring_date: Timestamp,
+        self, cohort: "Cohort", scoring_date: Timestamp,
     ) -> pd.DataFrame:
-        """Run the pipeline and return the scored DataFrame."""
-        inputs = self._prepare(raw, scoring_date)
+        """Run the pipeline and return the scored DataFrame.
+
+        Consumes the three frames the pipeline cares about (`patient`,
+        `session`, `ppf`) off the `Cohort` — the bundle also carries
+        `similarity` / `whitelist` / `missing_ppf`, which the engine
+        consumes downstream, not us.
+        """
+        inputs = self._prepare(cohort, scoring_date)
 
         if not inputs.has_sessions:
             logger.info("Bootstrapping system, no session data available for patients.")
@@ -290,16 +280,16 @@ class DataPipeline:
     # Stage 1 — prepare: clean and window the inputs.
 
     def _prepare(
-        self, raw: "RawInputs", scoring_date: Timestamp,
+        self, cohort: "Cohort", scoring_date: Timestamp,
     ) -> PreparedInputs:
         """Attach clinical window to sessions, clamp session_date to
         [CLINICAL_START, min(CLINICAL_END, scoring_date)]."""
-        session = include_missing_sessions(raw.session)
-        session = self._attach_clinical_window(session, raw.patient)
+        session = include_missing_sessions(cohort.session)
+        session = self._attach_clinical_window(session, cohort.patient)
         session = self._clamp_to_window(session, scoring_date)
 
         return PreparedInputs(
-            patient=raw.patient, session=session, ppf=raw.ppf,
+            patient=cohort.patient, session=session, ppf=cohort.ppf,
             validate_on_init=False,
         )
 

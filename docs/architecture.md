@@ -50,28 +50,29 @@ collapse from one level to another).
 
 ## File layout
 
-12 files at `src/ai_cdss/` root, zero deep nesting:
+11 modules at `src/ai_cdss/` root (`data.py` is a package because the
+embedded `protocol_attributes.csv` lives alongside it):
 
 ```
 src/ai_cdss/
-├── __init__.py        (29   — public API re-exports)
-├── cdss.py            (11   — back-compat re-export of CDSS class)
-├── clinical.py        (80   — ClinicalSubscales + ProtocolToClinicalMapper)
-├── constants.py       (158  — column names, axis defs, thresholds)
-├── feature.py         (614  — feature reductions over the tensor axes)
-├── loader.py          (510  — DB / CSV / synthetic I/O)
-├── models.py          (303  — pandera schemas + DataUnit + DataUnitSet)
-├── pipeline.py        (465  — typed contracts + DataPipeline orchestrator)
-├── recommend.py       (711  — branches + MVT + substitute + topup + CDSS)
-├── score.py           (99   — Imputer + Scorer)
-├── service.py         (278  — PPF / similarity / whitelist services)
-└── utils.py           (107  — MultiKeyDict + small helpers)
-                       ─────
-                       3365
+├── __init__.py            (22   — public API: CDSSInterface + schemas)
+├── compute.py             (160  — PPF + similarity offline computations)
+├── constants.py           (158  — column names, axis defs, thresholds)
+├── data/__init__.py       (503  — Cohort + CohortRepository + RGSCohortRepository)
+├── engine.py              (604  — EngineState protocol + adapters)
+├── feature.py             (556  — feature reductions over the tensor axes)
+├── interface/             (635  — CDSSInterface + DebugReport)
+├── models.py              (113  — pandera schemas, documentation-only)
+├── pipeline.py            (446  — typed contracts + DataPipeline orchestrator)
+├── recommend.py           (783  — branches + MVT + substitute + topup + CDSS)
+├── score.py               (99   — Imputer + Scorer)
+└── utils.py               (107  — MultiKeyDict + small helpers)
+                           ─────
+                           ~4 186
 ```
 
-Subdirs `loaders/` and `services/` remain only as back-compat re-export
-shims (one-line `from ai_cdss.{loader,service} import *`).
+Plus `config/` (YAML configs) and the rest of `data/` (embedded CSV
+resources alongside `data/__init__.py`).
 
 ## Dataflow — from raw DB rows to a recommendation
 
@@ -83,20 +84,15 @@ shims (one-line `from ai_cdss.{loader,service} import *`).
                           └────────────┬─────────────┘
                                        │
                 ┌──────────────────────▼──────────────────────┐
-                │  loader.DataLoader                          │
-                │    .load_session_data                       │
-                │    .load_patient_data                       │
-                │    .load_ppf_data    (← parquet from disk)  │
-                │    .load_protocol_similarity (← csv)        │
+                │  data.RGSCohortRepository.find              │
+                │    fetch patient + session via DB           │
+                │    read PPF parquet + similarity csv        │
+                │    apply protocol whitelist                 │
+                │    return Cohort (patient / session / ppf / │
+                │                   similarity / whitelist /  │
+                │                   missing_ppf)              │
                 └──────────────────────┬──────────────────────┘
-                                       │  DataUnit (3×)
-                                       ▼
-                ┌──────────────────────────────────────────────┐
-                │  service.RecommendationDataService.prepare   │
-                │    apply protocol whitelist                  │
-                │    return (rgs_data, protocol_similarity)    │
-                └──────────────────────┬───────────────────────┘
-                                       │
+                                       │  Cohort
                                        ▼
    ┌──────────────────────────────────────────────────────────────────┐
    │  pipeline.DataPipeline.process                                   │
@@ -202,25 +198,20 @@ editor with monospace fonts.
 | Why is a substitute picked? | `recommend.py` § 7 (`_find_substitute`) |
 | What does top-up do to the grid? | `recommend.py` § 9 (`_fill_grid_coverage`) |
 | How does the engine know if a patient has prior? | `recommend.py` § 1 (`PatientState.prescriptions`) |
-| Where does PPF come from? | `service.py` § 4 (`PPFService.compute_patient_fit`) |
+| Where does PPF come from? | `compute.py` § 1 (`compute_ppf_for_patients`) |
 | What's in the trace? | `recommend.py` § 2 (`_init_trace`, `_serialize_*`) |
 
 ## Backward compatibility
 
-- `from ai_cdss.cdss import CDSS` still works — `cdss.py` is an 11-line re-export from `recommend.py`.
-- `from ai_cdss.processing import DataProcessor` — broken in this branch; processing/ was removed. Use `from ai_cdss.pipeline import DataProcessor`. Or import from the top-level `ai_cdss`.
-- `from ai_cdss.loaders import DataLoader` still works — `loaders/__init__.py` is a re-export shim.
-- `from ai_cdss.services import RecommendationDataService` still works — `services/__init__.py` is a re-export shim.
+The v0.3.1 back-compat shims were all retired during the F0-F5
+refactor. The single public entry is `from ai_cdss import CDSSInterface`
+(plus the three pandera schemas — also re-exported at the package root).
+Internal callers (e.g. ai-cdss-cli, cdss-supervisor) coordinate via
+versioned releases rather than import-path shims.
 
 ## Tests
 
-35 unit tests at `tests/unit/`:
-  - 21 covering CDSS recommendation behavior (bootstrap, update, repeat,
-    trace shape, swap rules).
-  - 14 covering the typed pipeline contracts (column validation,
-    `validate_on_init=False` opt-out, extras tolerance).
-
-Run with:
+83 unit tests at `tests/unit/`. Run with:
 ```bash
 PYTHONPATH=src python -m pytest tests/unit/
 ```
@@ -233,4 +224,4 @@ PYTHONPATH=src python -m pytest tests/unit/
 | 2 | ✓ done | Single `recommend.py` with 10 section banners. |
 | 3 | ✓ done | `processing/` flattened to `feature.py`, `score.py`, `pipeline.py` at root. |
 | 4 | ✓ done | `loaders/` + `services/` flattened to `loader.py` + `service.py`. |
-| 5 | ✓ done | This document. |
+| 5 | ✓ done | Repository-pattern data layer: `loader.py` + `service.py` + `clinical.py` replaced by `data/__init__.py` (Cohort + CohortRepository + RGSCohortRepository) + `compute.py` (4 pure functions for offline PPF / similarity). |

@@ -20,7 +20,7 @@ Why Repository pattern wins for THIS codebase:
 
 1. **Names match the domain.** "Cohort", "Repository". Not "Loader", "Service".
 2. **You already use it at the engine layer.** F2 introduced `EngineState`
-   Protocol with `DataFrameBackedState` + `DictBackedState` implementations —
+   Protocol with `PatientState` + `DictPatientState` implementations —
    that's the Repository pattern. Extending it one layer up gives architectural
    consistency.
 3. **Future-proofs SYNTHETIC_DATA_PLAN.md.** Synthetic data injection
@@ -53,8 +53,8 @@ Why Repository pattern wins for THIS codebase:
         │  ENGINE layer  (shipped in F2)   │
         │                                  │
         │  Protocol:   EngineState         │  ← abstract scoring source
-        │  Concrete:   DataFrameBackedState│  ← production
-        │  Concrete:   DictBackedState     │  ← synthetic
+        │  Concrete:   PatientState│  ← production
+        │  Concrete:   DictPatientState     │  ← synthetic
         │  Consumer:   CDSS.recommend      │
         └──────────────────────────────────┘
 ```

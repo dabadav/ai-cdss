@@ -10,7 +10,7 @@ After phase F2, **none of the engine internals depend on pandas**.
 The engine works on `list[ProtocolRow]` throughout. pandas only
 appears at two boundaries:
   - INPUT: production callers pass a `pd.DataFrame` for scoring; that
-    gets wrapped by `coerce_engine_state` into a `DataFrameBackedState`
+    gets wrapped by `coerce_engine_state` into a `PatientState`
     (see `engine.py`).
   - OUTPUT: the final per-protocol schedule is materialized as a
     `pd.DataFrame` for backwards-compatible consumption (and for
@@ -18,20 +18,17 @@ appears at two boundaries:
 
 This file is organized in **sections that mirror the algorithm's steps**:
 
-    1.  imports + PatientState alias (back-compat with v0.3.1 tests)
-    2.  trace               — build the structured audit dict
-    3.  bootstrap branch    — first-ever schedule
-    4.  repeat branch       — week was skipped, copy prior
-    5.  MVT criterion       — which prescribed protocols to swap
-    6.  substitute search   — two-tier pick: unused / least-used-similar
-    7.  update branch       — swap loop assembly
-    8.  topup               — fill the 7×ppd grid post-step
-    9.  RecommendationResult — introspectable output (PCA-style)
-   10.  CDSS orchestrator   — entry-point class wiring everything
+    1.  trace               — build the structured audit dict
+    2.  bootstrap branch    — first-ever schedule
+    3.  repeat branch       — week was skipped, copy prior
+    4.  MVT criterion       — which prescribed protocols to swap
+    5.  substitute search   — two-tier pick: unused / least-used-similar
+    6.  update branch       — swap loop assembly
+    7.  topup               — fill the 7×ppd grid post-step
+    8.  RecommendationResult — introspectable output (PCA-style)
+    9.  CDSS orchestrator   — entry-point class wiring everything
 
-Behavior is byte-for-byte identical to v0.3.1; all 35 + 20 = 55 unit
-tests pass. The 20 new RecommendationResult tests stay green; new F2
-tests cover DictBackedState.
+Behavior is byte-for-byte identical to v0.3.1; all unit tests pass.
 """
 from __future__ import annotations
 
@@ -49,8 +46,8 @@ from ai_cdss.constants import (
     PROTOCOLS_PER_DAY,
 )
 from ai_cdss.engine import (
-    DataFrameBackedState,
     EngineState,
+    PatientState,
     ProtocolRow,
     SimilarityMatrix,
     coerce_engine_state,
@@ -61,18 +58,7 @@ logger = logging.getLogger(__name__)
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 1 — PatientState (back-compat alias)                        ║
-# ║                                                                      ║
-# ║  v0.3.1 / phase-1 tests construct `PatientState(scoring, pid)`. The  ║
-# ║  class moved to `engine.py` and was renamed `DataFrameBackedState`.  ║
-# ║  Keep the legacy name as an alias so those tests keep working.       ║
-# ╚═════════════════════════════════════════════════════════════════════╝
-
-PatientState = DataFrameBackedState
-
-
-# ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 2 — Trace construction                                      ║
+# ║  SECTION 1 — Trace construction                                      ║
 # ║                                                                      ║
 # ║  Structured audit dict capturing every decision. Downstream readers  ║
 # ║  (supervisor backtest, decision view) reconstruct the run from this. ║
@@ -114,7 +100,7 @@ def _serialize_final(rows: list[ProtocolRow]) -> list[dict[str, Any]]:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 3 — Bootstrap branch                                        ║
+# ║  SECTION 2 — Bootstrap branch                                        ║
 # ║                                                                      ║
 # ║  Patient has no prior week. Pick top-N by SCORE and round-robin      ║
 # ║  across the week.                                                    ║
@@ -163,7 +149,7 @@ def _round_robin_across_days(
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 4 — Repeat branch                                           ║
+# ║  SECTION 3 — Repeat branch                                           ║
 # ║                                                                      ║
 # ║  Every prescribed row recorded USAGE_WEEK == 0 → patient skipped     ║
 # ║  the entire week. Repeat the prior schedule.                         ║
@@ -186,7 +172,7 @@ def _repeat_branch(state: EngineState) -> list[ProtocolRow]:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 5 — MVT swap criterion                                      ║
+# ║  SECTION 4 — MVT swap criterion                                      ║
 # ║                                                                      ║
 # ║  A prescribed protocol is a swap candidate when its SCORE is         ║
 # ║  strictly below the mean of currently-prescribed SCOREs. Strict      ║
@@ -206,7 +192,7 @@ def _below_mean_protocols(prior: list[ProtocolRow]) -> list[int]:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 6 — Substitute search (two-tier)                            ║
+# ║  SECTION 5 — Substitute search (two-tier)                            ║
 # ║                                                                      ║
 # ║  Tier 1: most-similar protocol the patient has NEVER used.           ║
 # ║  Tier 2: least-used among top-5 most-similar (if all candidates      ║
@@ -302,7 +288,7 @@ def _least_used_among(state: EngineState, candidates: list[int]) -> list[int]:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 7 — Update branch                                           ║
+# ║  SECTION 6 — Update branch                                           ║
 # ║                                                                      ║
 # ║  Prior week exists and wasn't skipped. MVT picks swap targets;       ║
 # ║  substitute search fills each.  Universal top-up runs afterwards.    ║
@@ -453,7 +439,7 @@ def _swap_trace_event(
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 8 — Top-up coverage (universal post-step)                   ║
+# ║  SECTION 7 — Top-up coverage (universal post-step)                   ║
 # ║                                                                      ║
 # ║  AISN mandates 7 × ppd protocol-day slots. Top-up adds fillers       ║
 # ║  additively: existing protocols get extra days first; then top-N     ║
@@ -566,7 +552,7 @@ def _clone_with(row: ProtocolRow, **overrides: Any) -> ProtocolRow:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 9 — RecommendationResult (introspectable output)            ║
+# ║  SECTION 8 — RecommendationResult (introspectable output)            ║
 # ║                                                                      ║
 # ║  PCA / sklearn / TensorFlow-style result object. Every intermediate  ║
 # ║  artifact is a public attribute.                                     ║
@@ -623,7 +609,7 @@ class RecommendationResult:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 10 — CDSS orchestrator (entry-point class)                  ║
+# ║  SECTION 9 — CDSS orchestrator (entry-point class)                   ║
 # ║                                                                      ║
 # ║  Internal engine entry. CDSSInterface wraps this for production.     ║
 # ║  Accepts any EngineState / SimilarityMatrix substrate.               ║

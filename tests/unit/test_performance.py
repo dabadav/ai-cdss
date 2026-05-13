@@ -14,14 +14,14 @@ import time
 import pytest
 
 from ai_cdss.engine import (
-    DictBackedState,
+    DictPatientState,
     DictSimilarity,
     ProtocolRow,
 )
 from ai_cdss.recommend import CDSS
 
 
-def _build_synthetic(n_protocols: int = 27, prescribed: int = 12) -> tuple[DictBackedState, DictSimilarity]:
+def _build_synthetic(n_protocols: int = 27, prescribed: int = 12) -> tuple[DictPatientState, DictSimilarity]:
     """Realistic-sized synthetic state: 27-protocol whitelist, 12
     prescribed (matches AISN trial dimensions)."""
     rows = {}
@@ -36,7 +36,7 @@ def _build_synthetic(n_protocols: int = 27, prescribed: int = 12) -> tuple[DictB
             usage_week=(i % 3) + 1,
             ppf=0.5 + 0.02 * i,
         )
-    state = DictBackedState(patient_id=1, rows=rows)
+    state = DictPatientState(patient_id=1, rows=rows)
 
     pairs = {}
     for i in range(n_protocols):

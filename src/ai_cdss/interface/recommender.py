@@ -27,13 +27,14 @@ from ai_cdss.constants import (
     PROTOCOLS_PER_DAY,
     DEFAULT_LOG_DIR
 )
-from ai_cdss.loader import DataLoader
-from ai_cdss.pipeline import DataPipeline
-from ai_cdss.service import (
-    PPFService,
-    ProtocolSimilarityService,
-    RecommendationDataService,
+from ai_cdss.compute import (
+    compute_ppf_for_patients,
+    compute_protocol_similarity_matrix,
+    persist_ppf,
+    persist_similarity,
 )
+from ai_cdss.data import CohortRepository, RGSCohortRepository
+from ai_cdss.pipeline import DataPipeline
 from ai_cdss.interface.debug import DebugReport
 from ai_cdss.utils import _json_default
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
@@ -49,17 +50,12 @@ class CDSSInterface:
 
     def __init__(
         self,
-        loader: DataLoader,
+        repository: Optional[CohortRepository] = None,
         pipeline: Optional[DataPipeline] = None,
-        data_service: Optional[RecommendationDataService] = None,
-        ppf_service: Optional[PPFService] = None,
         debug: bool = False,
     ):
-        self.loader = loader
+        self.repository = repository or RGSCohortRepository()
         self.pipeline = pipeline or DataPipeline()
-        self.ppf_service = ppf_service or PPFService(loader)
-        self.data_service = data_service or RecommendationDataService(loader)
-        self.protocol_similarity_service = ProtocolSimilarityService(loader)
         self.debug = debug
         if self.debug:
             self.debug_service = DebugReport(DEFAULT_DEBUG_DIR)
@@ -105,7 +101,7 @@ class CDSSInterface:
     ) -> Dict[str, Any]:
         """Cohort/study run. See ``recommend_for_patients`` for ``force``."""
         # Keep validation where it belongs
-        patient_ids = self.loader.fetch_and_validate_patients(study_ids=study_id)
+        patient_ids = self.repository.fetch_and_validate_patients(study_ids=study_id)
         return self._recommend_for_patients_core(
             patient_ids,
             n=n,
@@ -156,12 +152,18 @@ class CDSSInterface:
                 logger.info("No patients to process. Context: %s | Result: %s", context, payload)
                 return payload
 
-            raw_inputs, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
-            scores = self.pipeline.process(raw_inputs, scoring_date or pd.Timestamp.today())
+            cohort = self.repository.find(patient_ids)
+            if cohort.missing_ppf:
+                raise RuntimeError(
+                    f"PPF data missing for patients: {cohort.missing_ppf}. "
+                    "Please compute PPF before proceeding."
+                )
+            protocol_similarity = cohort.similarity
+            scores = self.pipeline.process(cohort, scoring_date or pd.Timestamp.today())
             cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
             # Patient start date dict [PATIENT_ID, CLINICAL_START]
-            patient_data = raw_inputs.patient
+            patient_data = cohort.patient
             patient_dict = dict(zip(patient_data[PATIENT_ID], patient_data[CLINICAL_START]))
 
             patient_results = []
@@ -453,7 +455,7 @@ class CDSSInterface:
         _, wk_start = self._current_week_window(datetime_start, scoring_ts)
         if wk_start is None:
             return False
-        engine = getattr(self.loader.interface, "engine", None)
+        engine = getattr(self.repository.interface, "engine", None)
         if engine is None:
             return False
         sql = (
@@ -461,7 +463,7 @@ class CDSSInterface:
             "WHERE PATIENT_ID = :pid AND DATE(STARTING_DATE) = :wk"
         )
         try:
-            df = self.loader.interface._fetch(
+            df = self.repository.interface._fetch(
                 query=sql, params={"pid": int(patient_id), "wk": wk_start.isoformat()}
             )
             return bool(df is not None and not df.empty and int(df.iloc[0]["n"]) > 0)
@@ -485,7 +487,7 @@ class CDSSInterface:
             weeks = row[WEEKS_SINCE_START]
             weeks = 0 if pd.isna(weeks) else float(weeks)
             start = (datetime_start + timedelta(weeks=weeks)).date()
-            self.loader.interface.add_prescription_staging_entry(
+            self.repository.interface.add_prescription_staging_entry(
                 PrescriptionStagingRow.from_row(
                     row, recommendation_id=unique_id, start=start
                 )
@@ -501,36 +503,42 @@ class CDSSInterface:
         Persist metrics data.
         """
         for _, row in metrics_df.iterrows():
-            self.loader.interface.add_recsys_metric_entry(
+            self.repository.interface.add_recsys_metric_entry(
                 RecsysMetricsRow.from_row(
                     row, recommendation_id=unique_id, metric_date=datetime_now
                 )
             )
 
     def compute_patient_fit(self, patient_id: List[int]) -> dict:
+        """Compute + persist PPF for one or more patients.
+
+        Delegates to `compute.compute_ppf_for_patients` + `persist_ppf`.
+        Requires the repository to expose `patient_subscales` +
+        `protocol_attributes` (production-only accessors —
+        `RGSCohortRepository` has them).
         """
-        Compute and persist the Patient-Protocol Fit (PPF) matrix for a single patient.
-        Delegates to PPFService.
-        """
-        ppf_contrib = self.ppf_service.compute_patient_fit(patient_id)
-        file_path = self.ppf_service.persist_ppf(ppf_contrib)
+        subscales = self.repository.patient_subscales(patient_id)
+        attributes = self.repository.protocol_attributes()
+        ppf_contrib = compute_ppf_for_patients(subscales, attributes)
+        file_path = persist_ppf(ppf_contrib)
         return {
             "message": f"Computation and persistence successful for patient {patient_id}",
             "patient_id": patient_id,
             "subscales_used": list(ppf_contrib.attrs.get("SUBSCALES", [])),
-            "saved_to": file_path,
+            "saved_to": str(file_path),
         }
 
     def compute_protocol_similarity(self) -> dict:
+        """Compute + persist the protocol similarity matrix.
+
+        Delegates to `compute.compute_protocol_similarity_matrix` +
+        `persist_similarity`.
         """
-        Compute and persist the protocol similarity matrix using the ProtocolSimilarityService.
-        Returns a dict with the file path and a message.
-        """
-        file_path = (
-            self.protocol_similarity_service.compute_and_persist_protocol_similarity()
-        )
+        attributes = self.repository.protocol_attributes()
+        similarity = compute_protocol_similarity_matrix(attributes)
+        file_path = persist_similarity(similarity)
         return {
             "message": "Protocol similarity computation and persistence successful.",
-            "saved_to": file_path,
+            "saved_to": str(file_path),
         }
 
