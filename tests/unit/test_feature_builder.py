@@ -4,10 +4,27 @@ import numpy as np
 import pandas as pd
 import pytest
 from ai_cdss.feature import (
-    FeatureBuilder,
     apply_savgol_filter_groupwise,
+    build_delta_dm,
+    build_prescription_days,
+    build_usage,
+    build_week_since_start,
+    build_week_usage,
     get_rolling_theilsen_slope,
 )
+
+
+class FeatureBuilder:
+    """Test shim — the FeatureBuilder class was removed from ai_cdss.feature
+    in the functionality refactor. Tests construct this local stub so
+    existing test bodies (`fb = FeatureBuilder(); fb.build_usage(...)`)
+    keep working. Methods just delegate to the module-level functions."""
+
+    def build_delta_dm(self, *a, **kw):           return build_delta_dm(*a, **kw)
+    def build_usage(self, *a, **kw):              return build_usage(*a, **kw)
+    def build_week_usage(self, *a, **kw):         return build_week_usage(*a, **kw)
+    def build_week_since_start(self, *a, **kw):   return build_week_since_start(*a, **kw)
+    def build_prescription_days(self, *a, **kw):  return build_prescription_days(*a, **kw)
 
 # Mock constants needed for the test
 PATIENT_ID = "PATIENT_ID"

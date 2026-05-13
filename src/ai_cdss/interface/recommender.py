@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 import json
 
 import pandas as pd
-from ai_cdss.cdss import CDSS
+from ai_cdss.recommend import CDSS
 from ai_cdss.constants import (
     BY_PP,
     CLINICAL_START,
@@ -29,10 +29,12 @@ from ai_cdss.constants import (
 )
 from ai_cdss.models import DataUnitName
 from ai_cdss.loader import DataLoader
-from ai_cdss.pipeline import DataProcessor
-from ai_cdss.service import RecommendationDataService
-from ai_cdss.service import PPFService
-from ai_cdss.service import ProtocolSimilarityService
+from ai_cdss.pipeline import DataPipeline
+from ai_cdss.service import (
+    PPFService,
+    ProtocolSimilarityService,
+    RecommendationDataService,
+)
 from ai_cdss.interface.debug import DebugReport
 from ai_cdss.utils import _json_default
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
@@ -49,13 +51,13 @@ class CDSSInterface:
     def __init__(
         self,
         loader: DataLoader,
-        processor: DataProcessor,
+        pipeline: Optional[DataPipeline] = None,
         data_service: Optional[RecommendationDataService] = None,
         ppf_service: Optional[PPFService] = None,
         debug: bool = False,
     ):
         self.loader = loader
-        self.processor = processor
+        self.pipeline = pipeline or DataPipeline()
         self.ppf_service = ppf_service or PPFService(loader)
         self.data_service = data_service or RecommendationDataService(loader)
         self.protocol_similarity_service = ProtocolSimilarityService(loader)
@@ -156,7 +158,7 @@ class CDSSInterface:
                 return payload
 
             rgs_data, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
-            scores = self.processor.process_data(rgs_data, scoring_date or pd.Timestamp.today())
+            scores = self.pipeline.process(rgs_data, scoring_date or pd.Timestamp.today())
             cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
             # Patient start date dict [PATIENT_ID, CLINICAL_START]

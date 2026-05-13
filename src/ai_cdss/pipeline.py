@@ -23,11 +23,6 @@ This file is sectioned by the algorithm's logical phases:
     SECTION 2  get_nth — generic helper used by the imputer for first/
                last per-group lookups.
     SECTION 3  DataPipeline — orchestrator class; one method per stage.
-    SECTION 4  DataProcessor — v0.3.1 back-compat shim (the wide world
-               imports it; thin delegate to DataPipeline).
-
-Behavior preserved byte-for-byte; the 21 original unit tests + 14
-pipeline-contract tests pass unchanged.
 """
 from __future__ import annotations
 
@@ -59,7 +54,15 @@ from ai_cdss.constants import (
     USAGE_WEEK,
     WEEKS_SINCE_START,
 )
-from ai_cdss.feature import FeatureBuilder, include_missing_sessions
+from ai_cdss.feature import (
+    build_delta_dm,
+    build_prescription_days,
+    build_recent_adherence,
+    build_usage,
+    build_week_since_start,
+    build_week_usage,
+    include_missing_sessions,
+)
 from ai_cdss.models import DataUnitName, DataUnitSet
 from ai_cdss.score import Imputer, Scorer
 
@@ -242,11 +245,9 @@ class DataPipeline:
 
     def __init__(
         self,
-        feature_builder: FeatureBuilder | None = None,
-        imputer:         Imputer | None = None,
-        scorer:          Scorer | None = None,
+        imputer: Imputer | None = None,
+        scorer:  Scorer  | None = None,
     ) -> None:
-        self.feature_builder = feature_builder or FeatureBuilder()
         self.imputer = imputer or Imputer()
         self.scorer = scorer or Scorer()
 
@@ -256,11 +257,7 @@ class DataPipeline:
     def process(
         self, data: DataUnitSet, scoring_date: Timestamp,
     ) -> pd.DataFrame:
-        """Run the pipeline and return the scored DataFrame.
-
-        Returns plain `pd.DataFrame` (not `ScoringOutput`) for v0.3.1
-        API compatibility. The typed wrappers are internal.
-        """
+        """Run the pipeline and return the scored DataFrame."""
         inputs = self._prepare(data, scoring_date)
 
         if not inputs.has_sessions:
@@ -338,9 +335,9 @@ class DataPipeline:
         self, session: pd.DataFrame,
     ) -> SessionLevelFeatures:
         """RECENT_ADHERENCE + DELTA_DM, keyed on (PP, session_date)."""
-        adherence_df = self.feature_builder.build_recent_adherence(session)
+        adherence_df = build_recent_adherence(session)
         dm_rows = session[BY_PPS + [SESSION_DATE, DM_VALUE]].dropna()
-        delta_df = self.feature_builder.build_delta_dm(dm_rows)
+        delta_df = build_delta_dm(dm_rows)
         merged = pd.merge(
             adherence_df, delta_df, on=BY_PP + [SESSION_DATE], how="left",
         )
@@ -352,11 +349,11 @@ class DataPipeline:
         """USAGE / USAGE_WEEK / DAYS plus patient-broadcast WEEKS_SINCE_START."""
         per_protocol_frames = [
             inputs.ppf,
-            self.feature_builder.build_usage(inputs.session),
-            self.feature_builder.build_week_usage(
+            build_usage(inputs.session),
+            build_week_usage(
                 inputs.session, inputs.patient, scoring_date,
             ),
-            self.feature_builder.build_prescription_days(
+            build_prescription_days(
                 inputs.session, inputs.patient, scoring_date,
             ),
         ]
@@ -364,7 +361,7 @@ class DataPipeline:
             lambda left, right: pd.merge(left, right, on=BY_PP, how="left"),
             per_protocol_frames,
         )
-        weeks_since_start = self.feature_builder.build_week_since_start(
+        weeks_since_start = build_week_since_start(
             inputs.patient, scoring_date,
         )
         merged = pd.merge(merged, weeks_since_start, on=PATIENT_ID, how="left")
@@ -445,21 +442,3 @@ class DataPipeline:
         scored.attrs = inputs.ppf.attrs
         final = scored[BY_PP + FINAL_METRICS]
         return ScoringOutput(df=final, validate_on_init=False)
-
-
-# ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 4 — DataProcessor (v0.3.1 back-compat shim)                 ║
-# ║                                                                      ║
-# ║  v0.3.1 callers do `DataProcessor().process_data(data, date)`. This  ║
-# ║  class exists only to keep that surface working — internally it      ║
-# ║  delegates to `DataPipeline`.                                        ║
-# ╚═════════════════════════════════════════════════════════════════════╝
-
-class DataProcessor:
-    """Backward-compat facade. Delegates to `DataPipeline`."""
-
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        self.pipeline = DataPipeline()
-
-    def process_data(self, data: DataUnitSet, scoring_date: Timestamp) -> pd.DataFrame:
-        return self.pipeline.process(data, scoring_date)

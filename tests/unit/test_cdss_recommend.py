@@ -9,7 +9,7 @@ prior week must not collapse next week's coverage.
 import pandas as pd
 import pytest
 
-from ai_cdss.cdss import CDSS
+from ai_cdss.recommend import CDSS
 from ai_cdss.constants import (
     DAYS,
     DELTA_DM,

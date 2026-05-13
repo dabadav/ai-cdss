@@ -560,55 +560,6 @@ def compute_protocol_similarity(
     return long
 
 
-# ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 7 — FeatureBuilder class                                    ║
-# ║                                                                      ║
-# ║  Thin object-oriented wrapper bundling the per-(PP) and per-patient  ║
-# ║  features. DataPipeline (in pipeline.py) uses this to dispatch.      ║
-# ║  All methods delegate to the module-level functions above —          ║
-# ║  exists for back-compat with v0.3.1 callers that construct           ║
-# ║  FeatureBuilder() explicitly.                                        ║
-# ╚═════════════════════════════════════════════════════════════════════╝
-
-class FeatureBuilder:
-    """Bundle of per-(PP) and per-patient features. Stateless."""
-
-    def build_delta_dm(self, session_df: pd.DataFrame) -> pd.DataFrame:
-        return build_delta_dm(session_df)
-
-    def build_recent_adherence(self, session_df: pd.DataFrame) -> pd.DataFrame:
-        return build_recent_adherence(session_df)
-
-    def build_usage(self, session_df: pd.DataFrame) -> pd.DataFrame:
-        return build_usage(session_df)
-
-    def build_week_usage(
-        self, session_df: pd.DataFrame, patient_df: pd.DataFrame,
-        scoring_date: pd.Timestamp,
-    ) -> pd.DataFrame:
-        return build_week_usage(session_df, patient_df, scoring_date)
-
-    def build_prescription_days(
-        self, session_df: pd.DataFrame, patient_df: pd.DataFrame,
-        scoring_date: Timestamp,
-    ) -> pd.DataFrame:
-        return build_prescription_days(session_df, patient_df, scoring_date)
-
-    def build_week_since_start(
-        self, patient_df: pd.DataFrame, scoring_date: pd.Timestamp,
-    ) -> pd.DataFrame:
-        return build_week_since_start(patient_df, scoring_date)
-
-    def build_number_prescriptions(self, session_df: pd.DataFrame) -> pd.DataFrame:
-        return build_number_prescriptions(session_df)
-
-    # Internal helpers exposed for back-compat tests that import them.
-    def _with_weeks_since_start(
-        self, patient_df: pd.DataFrame, scoring_date: pd.Timestamp,
-    ) -> pd.DataFrame:
-        return _with_weeks_since_start(patient_df, scoring_date)
-
-    def _last_completed_week_window(
-        self, patient_df: pd.DataFrame, scoring_date: pd.Timestamp,
-    ) -> pd.DataFrame:
-        return _last_completed_week_window(patient_df, scoring_date)
+# FeatureBuilder class removed. The DataPipeline now calls the
+# module-level functions directly — fewer indirection layers, same
+# behavior.
