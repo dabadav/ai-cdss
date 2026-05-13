@@ -326,10 +326,26 @@ def _most_similar_within(
 @dataclass
 class SubstituteResult:
     """Outcome of a substitute search. Auditable — carries which tier
-    matched, which candidates were considered."""
-    protocol_id: int | None
-    tier:        str            # "unused" | "least_used_top_similar" | "exhausted"
-    candidates:  list[int]
+    matched, which candidates were considered, and (when materialized
+    from a trace event) the removed protocol + similarity + reason.
+
+    Used in two places:
+      1. Inside `_find_substitute` — only `protocol_id`, `tier`,
+         `candidates` are set. The other fields default to None.
+      2. Inside `RecommendationResult.swap_decisions` — all fields
+         populated from `trace["swaps"][i]`.
+    """
+    protocol_id:  int | None        # the chosen substitute
+    tier:         str               # "unused" | "least_used_top_similar" | "exhausted"
+    candidates:   list[int]         # pool considered for this swap
+    removed_id:   int | None = None
+    similarity:   float | None = None
+    reason:       str = ""
+
+    # Alias for backward-compat reads on the result API.
+    @property
+    def candidates_considered(self) -> list[int]:
+        return self.candidates
 
 
 def _find_substitute(
@@ -616,19 +632,127 @@ def _record_exhaustion(
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 10 — CDSS orchestrator (entry-point class)                  ║
+# ║  SECTION 10 — RecommendationResult (introspectable output)           ║
 # ║                                                                      ║
-# ║  The class everyone imports. Holds engine config (n / days / ppd),   ║
-# ║  exposes `recommend(patient_id, similarity)`. Inside, dispatches to  ║
-# ║  the right branch, runs top-up, attaches the trace.                  ║
+# ║  PCA / sklearn / TensorFlow-style result object. Every intermediate  ║
+# ║  artifact is a public attribute. The caller can ask "why did the     ║
+# ║  engine swap 223 for 209?" by inspecting `result.swap_decisions`     ║
+# ║  without digging through the trace JSON.                             ║
+# ╚═════════════════════════════════════════════════════════════════════╝
+
+@dataclass
+class RecommendationResult:
+    """All the artifacts the engine produced for one (patient, week).
+
+    Fields are populated by `CDSS.recommend(...)`. Construction is
+    internal — callers receive these from the engine, they don't build
+    them.
+
+    Attributes
+    ----------
+    recommendations : pd.DataFrame
+        The final 7×ppd schedule. One row per protocol with DAYS list.
+    trace : dict
+        Structured audit dict — same shape as v0.3.1 `.attrs["trace"]`.
+        Subscriptable for legacy code paths.
+    patient_state : PatientState
+        Patient-scoped view of the scoring DataFrame the engine saw.
+    branch : str
+        "bootstrap" / "repeat_skipped_week" / "update".
+    swap_decisions : list[SubstituteResult]
+        One entry per below-MVT swap attempt. Auditable: tier hit +
+        candidate pool considered.
+    topup_events : list[dict]
+        One entry per top-up addition. Source = "existing" / "top_pool"
+        / "exhausted".
+    mvt_mean : float | None
+        The threshold the swap criterion used. None for bootstrap.
+    swap_targets : list[int]
+        Protocols flagged for swap before substitution ran.
+    swap_reasons : dict[int, str]
+        For each target: "below_mean_score" or "aisn_min_one_swap".
+    scoring_attrs : dict
+        Pass-through of `scoring.attrs` (carries SUBSCALES metadata).
+
+    Backward compat: `__getitem__`, `__iter__`, `__len__`, `.attrs`
+    proxy the underlying `recommendations` DataFrame so callers writing
+    `result[col]` or `for row in result` or `result.attrs["trace"]`
+    keep working.
+    """
+
+    recommendations: pd.DataFrame
+    trace:           dict[str, Any]
+    patient_state:   "PatientState"
+    branch:          str
+    swap_decisions:  list["SubstituteResult"]
+    topup_events:    list[dict[str, Any]]
+    mvt_mean:        float | None
+    swap_targets:    list[int]
+    swap_reasons:    dict[int, str]
+    scoring_attrs:   dict[str, Any]
+
+    # ------------------------------------------------------------------
+    # Convenience accessors.
+
+    @property
+    def final_protocols(self) -> list[int]:
+        """Sorted list of protocol IDs in the final schedule."""
+        return sorted(int(p) for p in self.recommendations[PROTOCOL_ID].unique())
+
+    @property
+    def n_swaps(self) -> int:
+        return len(self.swap_decisions)
+
+    @property
+    def n_topup(self) -> int:
+        return len(self.topup_events)
+
+    @property
+    def attrs(self) -> dict[str, Any]:
+        """Back-compat: legacy code reads the trace via
+        `recommendations.attrs["trace"]`. Mirror that here."""
+        return self.recommendations.attrs
+
+    def candidate_pool_for(self, removed_id: int) -> list[int]:
+        """Substitute candidates considered when swapping `removed_id`.
+        Returns empty list if no swap happened for that protocol."""
+        for swap in self.swap_decisions:
+            if swap.removed_id == removed_id:
+                return list(swap.candidates_considered)
+        return []
+
+    # ------------------------------------------------------------------
+    # DataFrame-like back-compat: subscript, iterate, len.
+
+    def __getitem__(self, key: Any) -> Any:
+        return self.recommendations[key]
+
+    def __iter__(self) -> Any:
+        return iter(self.recommendations)
+
+    def __len__(self) -> int:
+        return len(self.recommendations)
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Explicit unwrap — same as `.recommendations`."""
+        return self.recommendations
+
+
+# ╔═════════════════════════════════════════════════════════════════════╗
+# ║  SECTION 11 — CDSS orchestrator (entry-point class)                  ║
+# ║                                                                      ║
+# ║  Internal engine entry. `CDSSInterface` wraps this for production.   ║
+# ║  Returns RecommendationResult (not a bare DataFrame).                ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
 class CDSS:
-    """Clinical Decision Support System.
+    """Clinical Decision Support System core.
 
-    Recommends a 7-day × `protocols_per_day` schedule of rehab protocols
-    for ONE patient at a time, using the patient's PPF + session
-    history baked into `scoring`.
+    Recommends a 7-day × `protocols_per_day` schedule for ONE patient
+    from the scoring DataFrame.
+
+    Returns `RecommendationResult` — every intermediate is a property
+    on the result.
     """
 
     def __init__(
@@ -645,9 +769,9 @@ class CDSS:
 
     def recommend(
         self, patient_id: int, protocol_similarity: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """Full recommendation pipeline. Attaches a structured `trace`
-        dict to `.attrs['trace']`."""
+    ) -> RecommendationResult:
+        """Full pipeline. Returns a `RecommendationResult` with every
+        decision artifact accessible as a property."""
         patient = PatientState(self.scoring, patient_id)
         if not patient.has_data:
             raise ValueError(f"Patient {patient_id} has no data.")
@@ -657,9 +781,17 @@ class CDSS:
             n_days=self.days, protocols_per_day=self.protocols_per_day,
         )
 
+        # We capture swap_decisions + topup_events from the trace's
+        # structured entries — same data, typed surface.
         recommendations = self._dispatch_branch(patient, protocol_similarity, trace)
         recommendations = self._apply_topup(patient, recommendations, trace)
-        return self._finalize(recommendations, trace)
+        recommendations = self._finalize(recommendations, trace)
+
+        return self._build_result(
+            patient=patient,
+            recommendations=recommendations,
+            trace=trace,
+        )
 
     # ------------------------------------------------------------------
     # Branch dispatch — three mutually exclusive code paths.
@@ -709,3 +841,72 @@ class CDSS:
         attrs["trace"] = trace
         recommendations.attrs = attrs
         return recommendations
+
+    # ------------------------------------------------------------------
+    # Result construction — assemble the introspectable view.
+
+    def _build_result(
+        self,
+        *,
+        patient: PatientState,
+        recommendations: pd.DataFrame,
+        trace: dict,
+    ) -> RecommendationResult:
+        """Pluck typed artifacts out of the trace into a typed
+        RecommendationResult. The trace remains the JSON-serializable
+        canonical record; result fields are typed convenience views."""
+        branch = trace.get("branch") or ""
+        swap_decisions = self._extract_swap_decisions(trace)
+        swap_targets = [s["removed"] for s in trace.get("swaps") or []]
+        swap_reasons = {
+            int(s["removed"]): s.get("reason", "unknown")
+            for s in trace.get("swaps") or []
+        }
+        mvt_mean = self._compute_mvt_mean(trace, branch)
+
+        return RecommendationResult(
+            recommendations=recommendations,
+            trace=trace,
+            patient_state=patient,
+            branch=branch,
+            swap_decisions=swap_decisions,
+            topup_events=list(trace.get("topup") or []),
+            mvt_mean=mvt_mean,
+            swap_targets=swap_targets,
+            swap_reasons=swap_reasons,
+            scoring_attrs=dict(self.scoring.attrs),
+        )
+
+    @staticmethod
+    def _extract_swap_decisions(trace: dict) -> list["SubstituteResult"]:
+        """Convert each `trace["swaps"][i]` dict into a typed
+        SubstituteResult. Carries the candidate pool too."""
+        out: list[SubstituteResult] = []
+        for s in trace.get("swaps") or []:
+            tier = (
+                "exhausted" if s.get("added") == s.get("removed")
+                else s.get("reason", "unknown")
+            )
+            out.append(SubstituteResult(
+                protocol_id=s.get("added"),
+                tier=tier,
+                candidates=list(s.get("candidate_pool") or []),
+                removed_id=int(s.get("removed")),
+                similarity=s.get("similarity"),
+                reason=s.get("reason", "unknown"),
+            ))
+        return out
+
+    @staticmethod
+    def _compute_mvt_mean(trace: dict, branch: str) -> float | None:
+        """MVT mean used by the swap criterion. None for non-update
+        branches (no prior set to average over)."""
+        if branch != "update":
+            return None
+        prior_scores = [
+            p.get("score") for p in (trace.get("prior") or [])
+            if p.get("score") is not None
+        ]
+        if not prior_scores:
+            return None
+        return sum(prior_scores) / len(prior_scores)

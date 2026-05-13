@@ -40,6 +40,9 @@ def _make_iface(staging_count: int):
 
 
 def _fake_cdss():
+    """Mock CDSS.recommend to return a RecommendationResult (the new
+    typed return type as of phase F1)."""
+    from ai_cdss.recommend import PatientState, RecommendationResult
     fake = MagicMock()
     rec = pd.DataFrame({
         "PATIENT_ID":  [1, 1],
@@ -47,7 +50,24 @@ def _fake_cdss():
         "DAYS":        [[0], [1]],
     })
     rec.attrs = {"trace": {"branch": "update"}}
-    fake.recommend.return_value = rec
+    # PatientState requires a scoring frame; build a minimal one.
+    scoring = pd.DataFrame({
+        "PATIENT_ID":  [1, 1],
+        "PROTOCOL_ID": [200, 201],
+        "DAYS":        [[0], [1]],
+    })
+    fake.recommend.return_value = RecommendationResult(
+        recommendations=rec,
+        trace={"branch": "update"},
+        patient_state=PatientState(scoring, 1),
+        branch="update",
+        swap_decisions=[],
+        topup_events=[],
+        mvt_mean=None,
+        swap_targets=[],
+        swap_reasons={},
+        scoring_attrs={},
+    )
     return fake
 
 

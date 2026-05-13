@@ -319,9 +319,11 @@ class CDSSInterface:
                     "status":              "skipped",
                 }
 
-            recommendations = cdss.recommend(patient, protocol_similarity)
-            prescription_df = self._transform_recommendations(recommendations)
-
+            result = cdss.recommend(patient, protocol_similarity)
+            # result is a RecommendationResult — `.recommendations` is the
+            # final DataFrame, `.trace` is the structured audit dict, plus
+            # typed views like `.swap_decisions`, `.mvt_mean`, etc.
+            prescription_df = self._transform_recommendations(result.recommendations)
 
             patient_scores = scores[scores[PATIENT_ID] == patient]
             all_metrics_df = self._transform_metrics(patient_scores)
@@ -337,10 +339,10 @@ class CDSSInterface:
             n_days      = int(prescription_df["WEEKDAY"].nunique()) if "WEEKDAY" in prescription_df.columns and not prescription_df.empty else 0
             n_protocols = int(prescription_df["PROTOCOL_ID"].nunique()) if "PROTOCOL_ID" in prescription_df.columns and not prescription_df.empty else 0
 
-            # Pull the structured decision trace (branch, swaps, top-ups,
-            # final schedule) attached by CDSS.recommend(). Lets a reader
-            # reconstruct exactly what the engine did from the JSON log.
-            trace = recommendations.attrs.get("trace") if hasattr(recommendations, "attrs") else None
+            # Trace is now a first-class field on the result; legacy code
+            # that reads `recommendations.attrs["trace"]` still works
+            # (RecommendationResult proxies that).
+            trace = result.trace
 
             logger.info(
                 "Patient %s shape n_rows=%d n_days=%d n_protocols=%d branch=%s swaps=%d topup=%d",
@@ -357,9 +359,9 @@ class CDSSInterface:
                     ev.get("inherited_days"), ev.get("reason"),
                 )
 
-            result = {
+            payload = {
                 "patient_id": patient,
-                "num_recommendations": len(recommendations),
+                "num_recommendations": len(result.recommendations),
                 "n_rows": n_rows,
                 "n_days": n_days,
                 "n_protocols": n_protocols,
@@ -372,16 +374,16 @@ class CDSSInterface:
                 artifacts = self.debug_service.make_artifacts(
                     run_id=unique_id,
                     scores=scores[scores[PATIENT_ID] == patient],
-                    recs=recommendations,
+                    recs=result.recommendations,
                     presc=prescription_df,
                     metrics=all_metrics_df,
                     subdir=f"patient_{patient}",   # creates <base>/<run_id>/patient_<id>/
                     format="csv",
                     preview=False
                 )
-                result['debug'] = artifacts
+                payload['debug'] = artifacts
 
-            return result
+            return payload
         
         except Exception as e:
             logger.exception(
