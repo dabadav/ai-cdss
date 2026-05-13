@@ -24,6 +24,7 @@ substrate.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
+from functools import cached_property
 from typing import Any, Iterable, Mapping, Protocol, runtime_checkable
 
 import pandas as pd
@@ -221,7 +222,15 @@ class DataFrameBackedState:
     patient in the cohort. This adapter slices to one patient and
     exposes the engine-shaped read methods.
 
-    Read-only — does not mutate the underlying frame.
+    Hot-path optimization (phase F3): every property is cached on first
+    access (`@cached_property`). The "has non-empty DAYS" mask is
+    computed once and reused by `prescribed_rows`, `is_week_skipped`,
+    `lowest_scoring_prescribed`, and `prescriptions`. Per-protocol
+    score-row lookups go through a dict index built lazily — avoids the
+    O(N) boolean-mask scan on each `score_row(pid)` call.
+
+    Read-only — the underlying frame must not be mutated after this
+    state is constructed (the caches assume immutability).
     """
 
     def __init__(self, scoring: pd.DataFrame, patient_id: int) -> None:
@@ -230,61 +239,93 @@ class DataFrameBackedState:
         self.rows = scoring.loc[scoring[PATIENT_ID] == patient_id]
 
     # ------------------------------------------------------------------
+    # Shared cached views — the engine uses these heavily.
+
+    @cached_property
+    def _has_days_mask(self) -> pd.Series:
+        """Boolean mask: True iff DAYS is a non-empty list. Computed
+        once; reused everywhere we ask 'is this protocol prescribed?'"""
+        return self.rows[DAYS].apply(
+            lambda d: isinstance(d, list) and len(d) > 0
+        )
+
+    @cached_property
+    def _prescribed_slice(self) -> pd.DataFrame:
+        """The slice of `rows` where DAYS is non-empty."""
+        return self.rows.loc[self._has_days_mask]
+
+    @cached_property
+    def _row_by_protocol(self) -> dict[int, ProtocolRow]:
+        """O(1) protocol-id → ProtocolRow index. Built once on first
+        `score_row` access."""
+        return {
+            int(r[PROTOCOL_ID]): ProtocolRow.from_dict(r)
+            for r in self.rows.to_dict("records")
+        }
+
+    # ------------------------------------------------------------------
     # EngineState protocol methods.
 
     @property
     def has_data(self) -> bool:
         return not self.rows.empty
 
-    @property
+    @cached_property
     def all_protocols(self) -> list[int]:
         return self.rows[PROTOCOL_ID].astype(int).tolist()
 
-    @property
+    @cached_property
     def prescribed_rows(self) -> list[ProtocolRow]:
-        has_days = self.rows[DAYS].apply(
-            lambda d: isinstance(d, list) and len(d) > 0
-        )
-        return [ProtocolRow.from_dict(r) for r in self.rows.loc[has_days].to_dict("records")]
+        return [
+            ProtocolRow.from_dict(r)
+            for r in self._prescribed_slice.to_dict("records")
+        ]
 
     def is_week_skipped(self) -> bool:
-        has_days = self.rows[DAYS].apply(
-            lambda d: isinstance(d, list) and len(d) > 0
-        )
-        scheduled = self.rows.loc[has_days]
+        scheduled = self._prescribed_slice
         if scheduled.empty:
             return False
         return bool((scheduled[USAGE_WEEK] == 0).all())
 
     def top_protocols(self, n: int) -> list[int]:
-        return self.rows.nlargest(n, SCORE)[PROTOCOL_ID].astype(int).tolist()
+        # nlargest is already fast (C-impl); we don't cache because `n`
+        # varies. The full _sorted_by_score precompute below feeds it
+        # to avoid the partial-sort on each call.
+        if n >= len(self._sorted_by_score):
+            return list(self._sorted_by_score)
+        return self._sorted_by_score[:n]
 
-    @property
+    @cached_property
+    def _sorted_by_score(self) -> list[int]:
+        """Protocol IDs ordered by SCORE descending. Computed once;
+        `top_protocols(n)` slices."""
+        return self.rows.sort_values(SCORE, ascending=False)[
+            PROTOCOL_ID
+        ].astype(int).tolist()
+
+    @cached_property
     def lowest_scoring_prescribed(self) -> int:
-        has_days = self.rows[DAYS].apply(
-            lambda d: isinstance(d, list) and len(d) > 0
-        )
-        pres = self.rows.loc[has_days]
+        pres = self._prescribed_slice
         return int(pres.loc[pres[SCORE].idxmin(), PROTOCOL_ID])
 
     def usage_of(self, protocol_id: int) -> int:
-        match = self.rows.loc[self.rows[PROTOCOL_ID] == protocol_id, USAGE]
-        return int(match.iloc[0]) if not match.empty else 0
+        row = self._row_by_protocol.get(protocol_id)
+        return row.usage if row else 0
 
-    @property
+    @cached_property
     def protocols_with_zero_usage(self) -> list[int]:
         zero = self.rows.loc[self.rows[USAGE] == 0, PROTOCOL_ID]
         return zero.astype(int).tolist()
 
     def score_row(self, protocol_id: int) -> ProtocolRow:
-        match = self.rows.loc[self.rows[PROTOCOL_ID] == protocol_id]
-        if match.empty:
+        row = self._row_by_protocol.get(protocol_id)
+        if row is None:
             raise KeyError(
                 f"No scoring row for patient={self.patient_id}, protocol={protocol_id}"
             )
-        return ProtocolRow.from_dict(match.iloc[0].to_dict())
+        return row
 
-    @property
+    @cached_property
     def scoring_attrs(self) -> dict[str, Any]:
         return dict(self._scoring.attrs)
 
@@ -297,12 +338,9 @@ class DataFrameBackedState:
         """Legacy: same filter as `prescribed_rows` but returns the
         underlying DataFrame slice. Some engine internals + the
         cdss-supervisor read this directly."""
-        has_days = self.rows[DAYS].apply(
-            lambda d: isinstance(d, list) and len(d) > 0
-        )
-        return self.rows.loc[has_days]
+        return self._prescribed_slice
 
-    @property
+    @cached_property
     def usage(self) -> pd.Series:
         """Legacy: per-protocol usage Series, indexed by PROTOCOL_ID."""
         return self.rows.set_index(PROTOCOL_ID)[USAGE]
@@ -345,6 +383,11 @@ class DictBackedState:
         self.patient_id = patient_id
         self._rows: dict[int, ProtocolRow] = dict(rows)
         self._scoring_attrs = scoring_attrs or {}
+        # Pre-sort once. `top_protocols(n)` slices, doesn't re-sort.
+        self._sorted_by_score: list[int] = [
+            r.protocol_id
+            for r in sorted(self._rows.values(), key=lambda r: -r.score)
+        ]
 
     @classmethod
     def from_rows(
@@ -368,12 +411,15 @@ class DictBackedState:
     def has_data(self) -> bool:
         return bool(self._rows)
 
-    @property
+    @cached_property
     def all_protocols(self) -> list[int]:
         return list(self._rows.keys())
 
-    @property
+    @cached_property
     def prescribed_rows(self) -> list[ProtocolRow]:
+        """Rows with non-empty DAYS. Cached; this state is immutable
+        post-construction (see `with_prescribed_set` for a copy-on-
+        change builder)."""
         return [r for r in self._rows.values() if r.days]
 
     def is_week_skipped(self) -> bool:
@@ -383,13 +429,9 @@ class DictBackedState:
         return all(r.usage_week == 0 for r in scheduled)
 
     def top_protocols(self, n: int) -> list[int]:
-        ranked = sorted(
-            self._rows.values(),
-            key=lambda r: -r.score,
-        )
-        return [r.protocol_id for r in ranked[:n]]
+        return self._sorted_by_score[:n]
 
-    @property
+    @cached_property
     def lowest_scoring_prescribed(self) -> int:
         scheduled = self.prescribed_rows
         if not scheduled:
@@ -403,7 +445,7 @@ class DictBackedState:
         row = self._rows.get(protocol_id)
         return row.usage if row else 0
 
-    @property
+    @cached_property
     def protocols_with_zero_usage(self) -> list[int]:
         return [pid for pid, r in self._rows.items() if r.usage == 0]
 
@@ -414,7 +456,7 @@ class DictBackedState:
             )
         return self._rows[protocol_id]
 
-    @property
+    @cached_property
     def scoring_attrs(self) -> dict[str, Any]:
         return dict(self._scoring_attrs)
 
@@ -443,20 +485,34 @@ class DictBackedState:
 
 class DataFrameSimilarity:
     """`SimilarityMatrix` backed by the long-form similarity DataFrame
-    (PROTOCOL_A, PROTOCOL_B, SIMILARITY)."""
+    (PROTOCOL_A, PROTOCOL_B, SIMILARITY).
+
+    Phase F3 optimization: instead of re-scanning the full DataFrame on
+    every `similarities_for(...)` call, build an `_by_a` dict-of-pairs
+    index once at construction. The DataFrame is touched only here.
+    Mirrors `DictSimilarity` — both implementations now share the same
+    query path.
+    """
 
     def __init__(self, similarity_table: pd.DataFrame) -> None:
         self._table = similarity_table
+        self._by_a: dict[int, list[tuple[int, float]]] = {}
+        # One pass — group by PROTOCOL_A, skipping self-similarity rows.
+        for a, b, s in zip(
+            similarity_table[PROTOCOL_A],
+            similarity_table[PROTOCOL_B],
+            similarity_table[SIMILARITY],
+        ):
+            a_int, b_int = int(a), int(b)
+            if a_int == b_int:
+                continue
+            self._by_a.setdefault(a_int, []).append((b_int, float(s)))
 
     def similarities_for(
         self, protocol_id: int, *, exclude: Iterable[int] = (),
     ) -> list[tuple[int, float]]:
-        rows = self._table.loc[self._table[PROTOCOL_A] == protocol_id]
-        rows = rows.loc[rows[PROTOCOL_A] != rows[PROTOCOL_B]]
-        excl = list(exclude)
-        if excl:
-            rows = rows.loc[~rows[PROTOCOL_B].isin(excl)]
-        return [(int(b), float(s)) for b, s in zip(rows[PROTOCOL_B], rows[SIMILARITY])]
+        excl = set(exclude)
+        return [(b, s) for b, s in self._by_a.get(protocol_id, []) if b not in excl]
 
     def top_n_similar(
         self, protocol_id: int, n: int, *, exclude: Iterable[int] = (),
