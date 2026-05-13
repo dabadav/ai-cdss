@@ -18,29 +18,29 @@ collapse from one level to another).
 ```
               (patient × protocol × prescription × session × time)
                                  │
-                  Section 1 ─────┤  feature.py
+                  Section 1 ─────┤  metrics.py
                   time axis      │    EWMA / Savgol / Theil-Sen primitives
                                  ▼
               (patient × protocol × session × time)
                                  │
-                  Section 3 ─────┤  feature.py
+                  Section 3 ─────┤  metrics.py
                   reduce time    │    build_delta_dm
                                  │    build_recent_adherence
                                  ▼
               (patient × protocol × session_date)
                                  │
-                  Section 4 ─────┤  feature.py
+                  Section 4 ─────┤  metrics.py
                   reduce session │    build_usage, build_week_usage
                                  │    build_prescription_days
                                  ▼
                     (patient × protocol)
                                  │
-                  Section 5 ─────┤  feature.py
+                  Section 5 ─────┤  metrics.py
                   patient scalar │    build_week_since_start
                                  ▼
                        (patient)
                                  │
-                  Section 6 ─────┤  feature.py
+                  Section 6 ─────┤  metrics.py
                   cross-cohort   │    compute_ppf
                                  │    compute_protocol_similarity
                                  ▼
@@ -50,29 +50,26 @@ collapse from one level to another).
 
 ## File layout
 
-11 modules at `src/ai_cdss/` root (`data.py` is a package because the
-embedded `protocol_attributes.csv` lives alongside it):
+10 modules at `src/ai_cdss/` root + `interface/` subpackage:
 
 ```
 src/ai_cdss/
-├── __init__.py            (22   — public API: CDSSInterface + schemas)
-├── compute.py             (160  — PPF + similarity offline computations)
+├── __init__.py            (12   — public API: CDSS)
 ├── constants.py           (158  — column names, axis defs, thresholds)
-├── data/__init__.py       (503  — Cohort + CohortRepository + RGSCohortRepository)
+├── data.py                (501  — Cohort + CohortRepository + RGSCohortRepository)
 ├── engine.py              (604  — EngineState protocol + adapters)
-├── feature.py             (556  — feature reductions over the tensor axes)
-├── interface/             (635  — CDSSInterface + DebugReport)
-├── models.py              (113  — pandera schemas, documentation-only)
-├── pipeline.py            (446  — typed contracts + DataPipeline orchestrator)
-├── recommend.py           (783  — branches + MVT + substitute + topup + CDSS)
-├── score.py               (99   — Imputer + Scorer)
+├── metrics.py             (556  — feature reductions over the tensor axes)
+├── interface/             (635  — CDSS + DebugReport)
+├── precompute.py          (160  — PPF + similarity offline computations)
+├── recommender.py         (783  — strategies + MVT + substitute + topup + Recommender)
+├── scoring.py             (540  — typed contracts + Imputer + Scorer + DataPipeline)
 └── utils.py               (107  — MultiKeyDict + small helpers)
                            ─────
-                           ~4 186
+                           ~4 056
 ```
 
-Plus `config/` (YAML configs) and the rest of `data/` (embedded CSV
-resources alongside `data/__init__.py`).
+Plus `config/` (YAML configs) and `resources/` (embedded CSV — namely
+`protocol_attributes.csv`).
 
 ## Dataflow — from raw DB rows to a recommendation
 
@@ -123,12 +120,12 @@ resources alongside `data/__init__.py`).
    │  ┌────────────────────────────────────────────────────────────┐  │
    │  │ PatientState — patient-scoped view of scoring              │  │
    │  ├────────────────────────────────────────────────────────────┤  │
-   │  │ Branch dispatch:                                           │  │
-   │  │   _bootstrap_branch    (no prior)                          │  │
-   │  │   _repeat_branch       (week skipped — USAGE_WEEK=0)       │  │
-   │  │   _update_branch       (MVT swap loop)                     │  │
+   │  │ Strategy dispatch:                                         │  │
+   │  │   _bootstrap_strategy  (no prior)                          │  │
+   │  │   _repeat_strategy     (week skipped — USAGE_WEEK=0)       │  │
+   │  │   _update_strategy     (MVT swap loop)                     │  │
    │  ├────────────────────────────────────────────────────────────┤  │
-   │  │ _fill_grid_coverage  (universal top-up post-step)          │  │
+   │  │ _top_up_schedule     (universal top-up post-step)          │  │
    │  ├────────────────────────────────────────────────────────────┤  │
    │  │ Trace dict attached to .attrs["trace"]                     │  │
    │  └────────────────────────────────────────────────────────────┘  │
@@ -137,7 +134,7 @@ resources alongside `data/__init__.py`).
                                    ▼
                           ┌────────────────────┐
                           │  to caller         │
-                          │  (CDSSInterface,   │
+                          │  (CDSS,   │
                           │   replay engine,   │
                           │   backtest sweep)  │
                           └────────────────────┘
@@ -146,7 +143,7 @@ resources alongside `data/__init__.py`).
 ## Typed contracts at every pipeline boundary
 
 Each stage's input and output is wrapped in a frozen dataclass declared
-in `pipeline.py` SECTION 1. Construction validates required columns —
+in `scoring.py` SECTION 1. Construction validates required columns —
 fail-fast at the boundary instead of cryptic KeyErrors deep in a
 groupby.
 
@@ -168,20 +165,19 @@ Skip validation in hot paths with `validate_on_init=False`.
 
 ## The recommendation algorithm — section map
 
-`recommend.py` is one file with 10 banner-delimited sections that map
+`recommender.py` is one file with 9 banner-delimited sections that map
 1:1 to the algorithm. Read top-to-bottom:
 
 ```
-1.  PatientState        — patient-scoped scoring view
-2.  trace               — trace dict construction helpers
-3.  bootstrap branch    — first-week schedule (top-N + round-robin)
-4.  repeat branch       — week skipped → copy prior unchanged
-5.  MVT swap criterion  — below-mean selection (strict <, prescribed-mean)
-6.  similarity queries  — slice / rank protocol-similarity table
-7.  substitute search   — two-tier (unused / least-used-similar)
-8.  update branch       — swap loop assembly
-9.  top-up coverage     — fill 7×ppd grid (existing → top_pool → exhausted)
-10. CDSS orchestrator   — entry-point class
+1.  trace               — trace dict construction helpers
+2.  bootstrap strategy  — first-week schedule (top-N + round-robin)
+3.  repeat strategy     — week skipped → copy prior unchanged
+4.  MVT swap criterion  — below-mean selection (strict <, prescribed-mean)
+5.  similarity queries  — slice / rank protocol-similarity table
+6.  substitute search   — two-tier (unused / least-used-similar)
+7.  update strategy     — swap loop assembly
+8.  top-up schedule     — fill 7×ppd grid (existing → top_pool → exhausted)
+9.  CDSS orchestrator   — entry-point class — dispatches strategies via `_run_strategy`
 ```
 
 Each section banner is a CSS-style box (`╔═...═╗`) — visible in any
@@ -191,20 +187,20 @@ editor with monospace fonts.
 
 | Question | File / Section |
 |---|---|
-| What columns does the scoring DataFrame have? | `pipeline.py` § 1 (`ScoringOutput.REQUIRED`) |
-| Where does DELTA_DM come from? | `feature.py` § 3 (`build_delta_dm`) |
-| How is the prescribed-days window computed? | `feature.py` § 5 (`_last_completed_week_window`) |
-| What does the MVT criterion test? | `recommend.py` § 5 (`_below_mean_protocols`) |
-| Why is a substitute picked? | `recommend.py` § 7 (`_find_substitute`) |
-| What does top-up do to the grid? | `recommend.py` § 9 (`_fill_grid_coverage`) |
-| How does the engine know if a patient has prior? | `recommend.py` § 1 (`PatientState.prescriptions`) |
-| Where does PPF come from? | `compute.py` § 1 (`compute_ppf_for_patients`) |
-| What's in the trace? | `recommend.py` § 2 (`_init_trace`, `_serialize_*`) |
+| What columns does the scoring DataFrame have? | `scoring.py` § 1 (`ScoringOutput.REQUIRED`) |
+| Where does DELTA_DM come from? | `metrics.py` § 3 (`build_delta_dm`) |
+| How is the prescribed-days window computed? | `metrics.py` § 5 (`_last_completed_week_window`) |
+| What does the MVT criterion test? | `recommender.py` § 5 (`_below_mean_protocols`) |
+| Why is a substitute picked? | `recommender.py` § 7 (`_find_substitute`) |
+| What does top-up do to the schedule? | `recommender.py` § 8 (`_top_up_schedule`) |
+| How does the engine know if a patient has prior? | `recommender.py` § 1 (`PatientState.prescriptions`) |
+| Where does PPF come from? | `precompute.py` § 1 (`compute_ppf_for_patients`) |
+| What's in the trace? | `recommender.py` § 2 (`_init_trace`, `_serialize_*`) |
 
 ## Backward compatibility
 
 The v0.3.1 back-compat shims were all retired during the F0-F5
-refactor. The single public entry is `from ai_cdss import CDSSInterface`
+refactor. The single public entry is `from ai_cdss import CDSS`
 (plus the three pandera schemas — also re-exported at the package root).
 Internal callers (e.g. ai-cdss-cli, cdss-supervisor) coordinate via
 versioned releases rather than import-path shims.
@@ -221,7 +217,7 @@ PYTHONPATH=src python -m pytest tests/unit/
 | Phase | Status | Notes |
 |---|---|---|
 | 1 | ✓ reverted | Split `cdss.py` into a `recommend/` subpackage of 10 files. Over-fragmented; rolled back in phase 2. |
-| 2 | ✓ done | Single `recommend.py` with 10 section banners. |
-| 3 | ✓ done | `processing/` flattened to `feature.py`, `score.py`, `pipeline.py` at root. |
+| 2 | ✓ done | Single `recommender.py` with 10 section banners. |
+| 3 | ✓ done | `processing/` flattened to `metrics.py`, `scoring.py`, `scoring.py` at root. |
 | 4 | ✓ done | `loaders/` + `services/` flattened to `loader.py` + `service.py`. |
-| 5 | ✓ done | Repository-pattern data layer: `loader.py` + `service.py` + `clinical.py` replaced by `data/__init__.py` (Cohort + CohortRepository + RGSCohortRepository) + `compute.py` (4 pure functions for offline PPF / similarity). |
+| 5 | ✓ done | Repository-pattern data layer: `loader.py` + `service.py` + `clinical.py` replaced by `data.py` (Cohort + CohortRepository + RGSCohortRepository) + `precompute.py` (4 pure functions for offline PPF / similarity). |

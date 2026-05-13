@@ -1,4 +1,4 @@
-"""Idempotency / duplication-guard tests for CDSSInterface._process_patient.
+"""Idempotency / duplication-guard tests for CDSS._process_patient.
 
 Covers both duplication paths the guard addresses:
   (1) manual rerun on a patient already prescribed this week
@@ -12,11 +12,11 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
-from ai_cdss.interface.recommender import CDSSInterface
+from ai_cdss.interface.cdss import CDSS
 
 
 def _make_iface(staging_count: int):
-    """Build a CDSSInterface whose duplication-check query returns
+    """Build a CDSS whose duplication-check query returns
     `staging_count` for any (patient, week_start)."""
     fake_df = pd.DataFrame({"n": [staging_count]})
     fake_interface = SimpleNamespace(
@@ -27,7 +27,7 @@ def _make_iface(staging_count: int):
     )
     fake_repository = SimpleNamespace(interface=fake_interface)
     fake_processor = SimpleNamespace()
-    iface = CDSSInterface.__new__(CDSSInterface)
+    iface = CDSS.__new__(CDSS)
     iface.repository = fake_repository
     iface.processor = fake_processor
     # debug=True skips _save_prescriptions/_save_metrics — keeps the test
@@ -42,7 +42,7 @@ def _make_iface(staging_count: int):
 def _fake_cdss():
     """Mock CDSS.recommend to return a RecommendationResult (the new
     typed return type as of phase F1)."""
-    from ai_cdss.recommend import PatientState, RecommendationResult
+    from ai_cdss.recommender import PatientState, RecommendationResult
     fake = MagicMock()
     rec = pd.DataFrame({
         "PATIENT_ID":  [1, 1],

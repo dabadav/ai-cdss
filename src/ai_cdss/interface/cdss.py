@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 import json
 
 import pandas as pd
-from ai_cdss.recommend import CDSS
+from ai_cdss.recommender import Recommender
 from ai_cdss.constants import (
     BY_PP,
     CLINICAL_START,
@@ -27,14 +27,14 @@ from ai_cdss.constants import (
     PROTOCOLS_PER_DAY,
     DEFAULT_LOG_DIR
 )
-from ai_cdss.compute import (
+from ai_cdss.precompute import (
     compute_ppf_for_patients,
     compute_protocol_similarity_matrix,
     persist_ppf,
     persist_similarity,
 )
 from ai_cdss.data import CohortRepository, RGSCohortRepository
-from ai_cdss.pipeline import DataPipeline
+from ai_cdss.scoring import DataPipeline
 from ai_cdss.interface.debug import DebugReport
 from ai_cdss.utils import _json_default
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
@@ -42,7 +42,7 @@ from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
 logger = logging.getLogger(__name__)
 
 
-class CDSSInterface:
+class CDSS:
     """
     Main orchestrator for generating clinical decision support recommendations.
     Coordinates data preparation, processing, and persistence for study cohorts.
@@ -160,7 +160,7 @@ class CDSSInterface:
                 )
             protocol_similarity = cohort.similarity
             scores = self.pipeline.process(cohort, scoring_date or pd.Timestamp.today())
-            cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
+            cdss = Recommender(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
             # Patient start date dict [PATIENT_ID, CLINICAL_START]
             patient_data = cohort.patient
@@ -279,7 +279,7 @@ class CDSSInterface:
 
         Args:
             patient: The patient ID to process.
-            cdss: The CDSS instance for generating recommendations.
+            cdss: The Recommender instance for generating recommendations.
             protocol_similarity: Protocol similarity data for recommendations.
             scores: DataFrame of all scored protocols.
             unique_id: UUID for this batch run.

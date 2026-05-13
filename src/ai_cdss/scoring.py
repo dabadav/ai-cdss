@@ -1,9 +1,9 @@
-"""Data pipeline — feature-build → impute → score, in that order.
+"""Scoring pipeline — feature-build → impute → score, in that order.
 
 Turns a `Cohort` (sessions / patient metadata / PPF cohort, supplied
-by `MySQLCohortRepository` or any other `CohortRepository`
+by `RGSCohortRepository` or any other `CohortRepository`
 implementation) into a one-row-per-(patient, protocol) scoring
-DataFrame that `recommend.CDSS.recommend` consumes.
+DataFrame that `recommender.Recommender.recommend` consumes.
 
 The flow (each arrow is a typed contract — see SECTION 1 below):
 
@@ -23,7 +23,11 @@ This file is sectioned by the algorithm's logical phases:
                expects.
     SECTION 2  get_nth — generic helper used by the imputer for first/
                last per-group lookups.
-    SECTION 3  DataPipeline — orchestrator class; one method per stage.
+    SECTION 3  Imputer — NaN-fill + count-column zero-fill for the
+               scoring input frame.
+    SECTION 4  Scorer — linear combination of the three feature columns
+               into a single SCORE.
+    SECTION 5  DataPipeline — orchestrator class; one method per stage.
 """
 from __future__ import annotations
 
@@ -56,7 +60,7 @@ from ai_cdss.constants import (
     WEEKS_SINCE_START,
 )
 from ai_cdss.data import Cohort
-from ai_cdss.feature import (
+from ai_cdss.metrics import (
     build_delta_dm,
     build_prescription_days,
     build_recent_adherence,
@@ -65,8 +69,6 @@ from ai_cdss.feature import (
     build_week_usage,
     include_missing_sessions,
 )
-from ai_cdss.score import Imputer, Scorer
-
 logger = logging.getLogger(__name__)
 
 
@@ -216,7 +218,7 @@ class ScoringOutput:
 # ║  SECTION 2 — get_nth helper                                          ║
 # ║                                                                      ║
 # ║  Generic 'first/last value per group' lookup used by the imputer.    ║
-# ║  Lives here (not in feature.py) because only the pipeline stages     ║
+# ║  Lives here (not in metrics.py) because only the pipeline stages    ║
 # ║  call it.                                                            ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
@@ -235,7 +237,83 @@ def get_nth(
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 3 — DataPipeline (orchestrator)                             ║
+# ║  SECTION 3 — Imputer                                                 ║
+# ║                                                                      ║
+# ║  Fill NaNs and seed default values for the scoring input frame.      ║
+# ║  Stateless — constructor takes no config.                            ║
+# ╚═════════════════════════════════════════════════════════════════════╝
+
+class Imputer:
+    """Fill NaNs and seed default values for the scoring input frame.
+
+    Two operations:
+      `init_metrics` — coerce dtypes + zero-fill the count columns
+                       (USAGE, USAGE_WEEK, SESSION_INDEX,
+                       WEEKS_SINCE_START) and default DAYS to an empty
+                       list.
+      `impute_metrics` — fill NaNs in a target column with a per-patient
+                       median (passed in as a separate frame).
+    """
+
+    def init_metrics(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Coerce count-style columns to Int64 + zero-fill. DAYS gets an
+        empty list whenever it's NaN/None."""
+        data[DAYS] = data[DAYS].apply(
+            lambda x: [] if x is None or (not isinstance(x, list) and pd.isna(x)) else x
+        )
+        data[USAGE] = data[USAGE].astype("Int64").fillna(0)
+        data[USAGE_WEEK] = data[USAGE_WEEK].astype("Int64").fillna(0)
+        data[SESSION_INDEX] = data[SESSION_INDEX].astype("Int64").fillna(0)
+        data[WEEKS_SINCE_START] = data[WEEKS_SINCE_START].astype("Int64").fillna(0)
+        return data
+
+    def impute_metrics(
+        self, data: pd.DataFrame, column: str, values: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Fill NaNs in `data[column]` with the per-patient value from
+        `values[PATIENT_ID, column]`. Left-merges, fills, drops the
+        join column."""
+        imputed = data.copy()
+        merged = imputed.merge(
+            values[[PATIENT_ID, column]],
+            on=PATIENT_ID, how="left", suffixes=("", "_median"),
+        )
+        merged[column] = merged[column].fillna(merged[f"{column}_median"])
+        merged.drop(columns=[f"{column}_median"], inplace=True)
+        return merged
+
+
+# ╔═════════════════════════════════════════════════════════════════════╗
+# ║  SECTION 4 — Scorer                                                  ║
+# ║                                                                      ║
+# ║  Linear combination of the three feature columns into a single       ║
+# ║  SCORE. One row in, one row out — no aggregation.                    ║
+# ╚═════════════════════════════════════════════════════════════════════╝
+
+class Scorer:
+    """Linear combination scoring: weighted sum of three metric columns.
+
+    `SCORE = w0 * RECENT_ADHERENCE + w1 * DELTA_DM + w2 * PPF`
+
+    Default weights = [1, 1, 1] (equal). NaNs are filled with 0 inside
+    the formula so a missing component doesn't drag the score to NaN.
+    """
+
+    def __init__(self, weights: list[float] | None = None) -> None:
+        self.weights = weights or [1, 1, 1]
+
+    def compute_score(self, data: pd.DataFrame) -> pd.DataFrame:
+        scored = data.copy()
+        scored[SCORE] = (
+            scored[RECENT_ADHERENCE].astype("float64").fillna(0.0) * self.weights[0]
+            + scored[DELTA_DM].astype("float64").fillna(0.0) * self.weights[1]
+            + scored[PPF].astype("float64").fillna(0.0) * self.weights[2]
+        )
+        return scored.sort_values(by=BY_PP)
+
+
+# ╔═════════════════════════════════════════════════════════════════════╗
+# ║  SECTION 5 — DataPipeline (orchestrator)                             ║
 # ║                                                                      ║
 # ║  One method per stage. `process` is the public entry; everything     ║
 # ║  underscore-prefixed is internal.                                    ║

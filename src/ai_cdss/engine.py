@@ -1,6 +1,6 @@
 """Substrate-agnostic engine input — `EngineState` + `SimilarityMatrix`.
 
-The recommendation engine in `recommend.py` used to require a
+The recommendation engine in `recommender.py` used to require a
 `pandas.DataFrame` for its `scoring` input and another `pandas.DataFrame`
 for `protocol_similarity`. This module breaks that requirement:
 
@@ -12,12 +12,12 @@ for `protocol_similarity`. This module breaks that requirement:
     Plain dataclass — no pandas dependency.
   * `PatientState` / `DataFrameSimilarity` adapt the existing
     pandas-based pipeline output to the protocols. Used by
-    `CDSSInterface` and production code.
+    `CDSS` and production code.
   * `DictPatientState` / `DictSimilarity` are pandas-free alternatives.
     Useful for synthetic backtests, unit tests, ad-hoc replays.
 
-The engine internals (`_bootstrap_branch`, `_update_branch`,
-`_fill_grid_coverage`, etc. in `recommend.py`) now type-hint
+The engine internals (`_bootstrap_strategy`, `_update_strategy`,
+`_top_up_schedule`, etc. in `recommender.py`) now type-hint
 `EngineState` instead of `PatientState` — they work with either
 substrate.
 """
@@ -211,7 +211,7 @@ class SimilarityMatrix(Protocol):
 # ╔═════════════════════════════════════════════════════════════════════╗
 # ║  PatientState — adapter over the existing scoring frame     ║
 # ║                                                                      ║
-# ║  Used by CDSSInterface. Wraps the `pd.DataFrame` the pipeline       ║
+# ║  Used by CDSS. Wraps the `pd.DataFrame` the pipeline       ║
 # ║  produces. Same behavior as the v0.3.1 `PatientState`.               ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 

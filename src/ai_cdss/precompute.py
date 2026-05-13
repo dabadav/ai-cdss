@@ -3,7 +3,7 @@
 Pure functions. No classes. No state. These run during the offline
 patient-registration + protocol-addition workflows, NOT during a
 recommendation call (the recommender reads precomputed PPF / similarity
-from disk via `MySQLCohortRepository`).
+from disk via `RGSCohortRepository`).
 
 Sections:
 
@@ -30,7 +30,7 @@ from ai_cdss.constants import (
     PROTOCOL_SIMILARITY_CSV,
 )
 from ai_cdss.data import ClinicalSubscales, ProtocolToClinicalMapper
-from ai_cdss.feature import compute_ppf, compute_protocol_similarity
+from ai_cdss.metrics import compute_ppf, compute_protocol_similarity
 
 logger = logging.getLogger(__name__)
 

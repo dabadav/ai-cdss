@@ -1,4 +1,4 @@
-"""Behaviour tests for CDSS.recommend output shape.
+"""Behaviour tests for Recommender.recommend output shape.
 
 These tests pin the AISN trial invariant: every weekly recommendation must
 cover ``days × protocols_per_day`` slots with ``n`` distinct protocols, no
@@ -9,7 +9,7 @@ prior week must not collapse next week's coverage.
 import pandas as pd
 import pytest
 
-from ai_cdss.recommend import CDSS
+from ai_cdss.recommender import Recommender
 from ai_cdss.constants import (
     DAYS,
     DELTA_DM,
@@ -149,7 +149,7 @@ def test_update_branch_tops_up_when_inherited_thin_4904_case():
     scoring = _scoring_frame(n_protocols=20, n_prescribed=5, days_inherited=[1])
     similarity = _similarity_frame(scoring)
 
-    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+    cdss = Recommender(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
     rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
 
     flat_days = [d for lst in rec[DAYS] for d in lst]
@@ -172,7 +172,7 @@ def test_update_branch_tops_up_when_inherited_six_days_distributed():
         days_available=[1, 2, 3, 4, 5, 6], protocols_per_day=ppd,
     )
     similarity = _similarity_frame(scoring)
-    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+    cdss = Recommender(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
     rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
 
     flat_days = [d for lst in rec[DAYS] for d in lst]
@@ -190,7 +190,7 @@ def test_update_branch_full_grid_distributed_seven_days():
         days_available=list(range(7)), protocols_per_day=ppd,
     )
     similarity = _similarity_frame(scoring)
-    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+    cdss = Recommender(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
     rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
 
     flat_days = [d for lst in rec[DAYS] for d in lst]
@@ -211,7 +211,7 @@ def test_update_branch_preserves_kept_protocol_days():
         days_available=[1, 2, 3, 4, 5, 6], protocols_per_day=ppd,
     )
     similarity = _similarity_frame(scoring)
-    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+    cdss = Recommender(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
 
     # Identify which prescribed protocols would survive the swap. Swap rule:
     # SCORE < mean(SCORE) among current prescriptions. Kept = score >= mean.
@@ -242,7 +242,7 @@ def test_recommend_attaches_full_trace_for_update_branch():
         days_available=[1, 2, 3, 4, 5, 6], protocols_per_day=ppd,
     )
     similarity = _similarity_frame(scoring)
-    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+    cdss = Recommender(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
     rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
 
     trace = rec.attrs["trace"]
@@ -269,7 +269,7 @@ def test_bootstrap_branch_emits_full_grid():
     # Still need a few non-empty rows? No — bootstrap branch triggers when
     # _get_prescriptions returns empty (DAYS lists all empty).
     similarity = _similarity_frame(scoring)
-    cdss = CDSS(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
+    cdss = Recommender(scoring=scoring, n=n, days=days, protocols_per_day=ppd)
     rec = cdss.recommend(patient_id=1, protocol_similarity=similarity)
 
     assert rec[PROTOCOL_ID].nunique() == n

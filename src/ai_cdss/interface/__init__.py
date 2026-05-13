@@ -1,1 +1,1 @@
-from .recommender import CDSSInterface
+from .cdss import CDSS

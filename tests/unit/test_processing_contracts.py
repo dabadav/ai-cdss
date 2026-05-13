@@ -28,7 +28,7 @@ from ai_cdss.constants import (
     USAGE_WEEK,
     WEEKS_SINCE_START,
 )
-from ai_cdss.pipeline import (
+from ai_cdss.scoring import (
     ContractError,
     MergedFeatures,
     PreparedInputs,

@@ -149,7 +149,7 @@
       <div class="pan-content" id="pan-content">
     <div class="mermaid" id="diagram">
 classDiagram
-class CDSSInterface
+class CDSS
 class DebugReport
 class Cohort
 class CohortRepository
@@ -173,18 +173,18 @@ class PatientState
 class DictPatientState
 class DataFrameSimilarity
 class DictSimilarity
-class CDSS
+class Recommender
 class RecommendationResult
 class SubstituteResult
 class SessionSchema
 class PPFSchema
 class ScoringSchema
 
-CDSSInterface --> DebugReport
-CDSSInterface --> CohortRepository
-CDSSInterface --> DataPipeline
-CDSSInterface --> CDSS
-CDSSInterface ..> compute
+CDSS --> DebugReport
+CDSS --> CohortRepository
+CDSS --> DataPipeline
+CDSS --> Recommender
+CDSS ..> compute
 DataPipeline --> Imputer
 DataPipeline --> Scorer
 RGSCohortRepository ..|> CohortRepository
@@ -201,10 +201,10 @@ DataPipeline ..> ProtocolLevelFeatures
 DataPipeline ..> MergedFeatures
 DataPipeline ..> ScoringInput
 DataPipeline ..> ScoringOutput
-CDSS ..> EngineState
-CDSS ..> SimilarityMatrix
-CDSS ..> RecommendationResult
-CDSS ..> ScoringOutput
+Recommender ..> EngineState
+Recommender ..> SimilarityMatrix
+Recommender ..> RecommendationResult
+Recommender ..> ScoringOutput
 
 PatientState ..|> EngineState
 DictPatientState ..|> EngineState
@@ -231,14 +231,14 @@ DictSimilarity ..|> SimilarityMatrix
         <tr><th>Layer</th><th>Classes</th><th>Role</th></tr>
       </thead>
       <tbody>
-        <tr><td><b>Public entry</b></td><td><code>CDSSInterface</code></td><td>Production wrapper — DB writes, debug artifacts, persistence</td></tr>
+        <tr><td><b>Public entry</b></td><td><code>CDSS</code></td><td>Production wrapper — DB writes, debug artifacts, persistence</td></tr>
         <tr><td><b>Data ingest</b></td><td><code>Cohort</code>, <code>CohortRepository</code> (Protocol), <code>RGSCohortRepository</code>, <code>ClinicalSubscales</code>, <code>ProtocolToClinicalMapper</code>, <code>DebugReport</code></td><td>Repository pattern — assemble one typed <code>Cohort</code> from MySQL + local files</td></tr>
-        <tr><td><b>Offline computations</b></td><td><code>compute.py</code> (module — 4 pure functions)</td><td>Compute + persist PPF and protocol similarity</td></tr>
+        <tr><td><b>Offline computations</b></td><td><code>precompute.py</code> (module — 4 pure functions)</td><td>Compute + persist PPF and protocol similarity</td></tr>
         <tr><td><b>Pipeline contracts</b></td><td><code>PreparedInputs</code>, <code>SessionLevelFeatures</code>, <code>ProtocolLevelFeatures</code>, <code>MergedFeatures</code>, <code>ScoringInput</code>, <code>ScoringOutput</code></td><td>Typed wrappers around the internal DataFrame stages</td></tr>
         <tr><td><b>Pipeline orchestrator</b></td><td><code>DataPipeline</code>, <code>Imputer</code>, <code>Scorer</code></td><td>Run feature build → impute → score</td></tr>
         <tr><td><b>Engine protocols</b></td><td><code>EngineState</code>, <code>SimilarityMatrix</code></td><td>Substrate-agnostic input contract (PEP 544)</td></tr>
         <tr><td><b>Engine adapters</b></td><td><code>PatientState</code>, <code>DictPatientState</code>, <code>DataFrameSimilarity</code>, <code>DictSimilarity</code></td><td>Concrete implementations of the protocols</td></tr>
-        <tr><td><b>Engine core</b></td><td><code>CDSS</code>, <code>ProtocolRow</code>, <code>RecommendationResult</code>, <code>SubstituteResult</code></td><td>Recommendation algorithm + introspectable output</td></tr>
+        <tr><td><b>Engine core</b></td><td><code>Recommender</code>, <code>ProtocolRow</code>, <code>RecommendationResult</code>, <code>SubstituteResult</code></td><td>Recommendation algorithm + introspectable output</td></tr>
         <tr><td><b>Pandera schemas</b></td><td><code>SessionSchema</code>, <code>PPFSchema</code>, <code>ScoringSchema</code></td><td>Inline column-shape documentation (no runtime enforcement)</td></tr>
       </tbody>
     </table>
@@ -246,7 +246,7 @@ DictSimilarity ..|> SimilarityMatrix
     <h2 style="margin-top:18px;">Where to add a new cohort source</h2>
     <ol style="font-size:13px;">
       <li>Write a new class implementing <code>CohortRepository.find(patient_ids) -> Cohort</code>. Example: <code>SyntheticCohortRepository</code>, <code>InMemoryCohortRepository</code>.</li>
-      <li>Pass an instance to <code>CDSSInterface(repository=...)</code>.</li>
+      <li>Pass an instance to <code>CDSS(repository=...)</code>.</li>
     </ol>
     <p style="font-size:13px; color:#57606a; margin: 6px 0 0;">No pipeline algorithm changes. No engine changes. The protocol is the integration point.</p>
 

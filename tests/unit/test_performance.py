@@ -18,7 +18,7 @@ from ai_cdss.engine import (
     DictSimilarity,
     ProtocolRow,
 )
-from ai_cdss.recommend import CDSS
+from ai_cdss.recommender import Recommender
 
 
 def _build_synthetic(n_protocols: int = 27, prescribed: int = 12) -> tuple[DictPatientState, DictSimilarity]:
@@ -84,7 +84,7 @@ def test_100_dataframe_recommendations_under_five_seconds() -> None:
             })
     sim_df = pd.DataFrame(sim_rows)
 
-    cdss = CDSS(scoring=scoring_df, n=12)
+    cdss = Recommender(scoring=scoring_df, n=12)
     start = time.perf_counter()
     for _ in range(100):
         cdss.recommend(1, sim_df)
@@ -104,7 +104,7 @@ def test_100_synthetic_recommendations_under_five_seconds(n_calls: int) -> None:
     regression.
     """
     state, sim = _build_synthetic()
-    cdss = CDSS(scoring=state, n=12)
+    cdss = Recommender(scoring=state, n=12)
     start = time.perf_counter()
     for _ in range(n_calls):
         result = cdss.recommend(1, sim)

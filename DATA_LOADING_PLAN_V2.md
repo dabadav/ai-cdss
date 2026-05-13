@@ -25,7 +25,7 @@ Why Repository pattern wins for THIS codebase:
    consistency.
 3. **Future-proofs SYNTHETIC_DATA_PLAN.md.** Synthetic data injection
    becomes `SyntheticCohortRepository implements CohortRepository`. Direct
-   peer of `MySQLCohortRepository`.
+   peer of `RGSCohortRepository`.
 4. **Less ceremony than full DDD.** One Cohort dataclass + one Protocol +
    one concrete implementation today. Add more implementations when needed.
 
@@ -123,14 +123,14 @@ class CohortRepository(Protocol):
     substrate-agnostic INPUT to the recommendation pipeline.
 
     Implementations:
-      MySQLCohortRepository       production — DB + local files
+      RGSCohortRepository       production — DB + local files
       SyntheticCohortRepository   future — see SYNTHETIC_DATA_PLAN.md
       InMemoryCohortRepository    tests — pre-built Cohort, no I/O
     """
     def find(self, patient_ids: list[int]) -> Cohort: ...
 
-# ╔═══ SECTION 4 — MySQLCohortRepository (production) ═══╗
-class MySQLCohortRepository:
+# ╔═══ SECTION 4 — RGSCohortRepository (production) ═══╗
+class RGSCohortRepository:
     """Pulls from RGS MySQL via DatabaseInterface;
     reads precomputed PPF + similarity from ~/.ai_cdss/output/."""
 
@@ -208,7 +208,7 @@ class CDSSInterface:
 class CDSSInterface:
     def __init__(self, repository: CohortRepository | None = None,
                  pipeline: DataPipeline | None = None, debug: bool = False):
-        self.repository = repository or MySQLCohortRepository()
+        self.repository = repository or RGSCohortRepository()
         self.pipeline = pipeline or DataPipeline()
 ```
 
@@ -236,9 +236,9 @@ service = PPFService(loader)
 result = service.compute_and_persist_patient_fit([pid])
 
 # AFTER
-from ai_cdss.data import MySQLCohortRepository
+from ai_cdss.data import RGSCohortRepository
 from ai_cdss.compute import compute_ppf_for_patients, persist_ppf
-repo = MySQLCohortRepository()
+repo = RGSCohortRepository()
 subscales = repo.patient_subscales([pid])
 attributes = repo.protocol_attributes()
 ppf = compute_ppf_for_patients(subscales, attributes)
@@ -253,7 +253,7 @@ Verbose? Slightly. But every step does exactly one thing visibly. The old
 | Metric | Today | v2 |
 |---|---|---|
 | Files for data loading | 3 | 2 |
-| Classes | 7 | 3 (MySQLCohortRepository + 2 mappers) |
+| Classes | 7 | 3 (RGSCohortRepository + 2 mappers) |
 | Protocols | 0 | 1 (CohortRepository) |
 | Module helpers | 7 | 5 (3 IO + load_whitelist + decode_subscales) |
 | Compute functions | (buried in 2 services) | 4 (compute + persist × 2) |
@@ -264,7 +264,7 @@ Verbose? Slightly. But every step does exactly one thing visibly. The old
 
 | Phase | Scope | Effort |
 |---|---|---|
-| **f5a** | Add `data.py` with `Cohort` + `CohortRepository` Protocol + `MySQLCohortRepository`. Keep old `loader.py` / `service.py` alongside. Update `CDSSInterface` to use the new path. Tests pass. | 4-6 h |
+| **f5a** | Add `data.py` with `Cohort` + `CohortRepository` Protocol + `RGSCohortRepository`. Keep old `loader.py` / `service.py` alongside. Update `CDSSInterface` to use the new path. Tests pass. | 4-6 h |
 | **f5b** | Add `compute.py` with the 4 standalone functions. Update ai-cdss-cli usage sites. | 2-3 h |
 | **f5c** | Delete `loader.py`, `service.py`, `clinical.py`. Fold clinical mappers into `data.py § 5`. | 1 h |
 | **f5d** | Update `docs/architecture.md`, `docs/code_structure.md`, `docs/class_diagram.{md,html}`, `docs/dataflow.md`. | 30 min |
@@ -306,7 +306,7 @@ Total: 8-10 h, single branch. 83/83 tests green at every commit.
    keeping shims defeats that.
 
 5. **Should there be an `InMemoryCohortRepository` for tests?**
-   Yes — define alongside `MySQLCohortRepository` in `data.py § 4.5`. Takes
+   Yes — define alongside `RGSCohortRepository` in `data.py § 4.5`. Takes
    a `Cohort` at construction, `find()` returns it regardless of `patient_ids`.
    Useful for unit tests that need to exercise the full pipeline without DB.
    ~20 lines.

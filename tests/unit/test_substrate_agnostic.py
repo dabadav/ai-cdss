@@ -24,7 +24,7 @@ from ai_cdss.engine import (
     coerce_engine_state,
     coerce_similarity,
 )
-from ai_cdss.recommend import CDSS, RecommendationResult
+from ai_cdss.recommender import Recommender, RecommendationResult
 
 
 # ---------------------------------------------------------------------------
@@ -132,13 +132,13 @@ def test_dict_backed_state_with_prescribed_set_clones_with_days():
 
 
 # ---------------------------------------------------------------------------
-# End-to-end: CDSS.recommend with DictPatientState + DictSimilarity
+# End-to-end: Recommender.recommend with DictPatientState + DictSimilarity
 # — no pandas inside the engine.
 
 def test_recommend_with_dict_state_bootstrap_branch():
     state = _synthetic_state()
     similarity = _synthetic_similarity()
-    cdss = CDSS(scoring=state, n=12)
+    cdss = Recommender(scoring=state, n=12)
     result = cdss.recommend(state.patient_id, similarity)
     assert isinstance(result, RecommendationResult)
     assert result.branch == "bootstrap"
@@ -148,7 +148,7 @@ def test_recommend_with_dict_state_bootstrap_branch():
 def test_recommend_with_dict_state_update_branch():
     state = _synthetic_state(prescribed_subset=list(range(200, 212)))
     similarity = _synthetic_similarity()
-    cdss = CDSS(scoring=state, n=12)
+    cdss = Recommender(scoring=state, n=12)
     result = cdss.recommend(state.patient_id, similarity)
     assert result.branch == "update"
     assert isinstance(result.mvt_mean, float)
@@ -167,7 +167,7 @@ def test_recommend_with_dict_state_repeat_branch():
     }
     state = DictPatientState(patient_id=1, rows=rows)
     similarity = _synthetic_similarity()
-    cdss = CDSS(scoring=state, n=12)
+    cdss = Recommender(scoring=state, n=12)
     result = cdss.recommend(1, similarity)
     assert result.branch == "repeat_skipped_week"
 
@@ -177,7 +177,7 @@ def test_recommend_with_dict_state_returns_dataframe_output():
     is still a pd.DataFrame (boundary materialization)."""
     state = _synthetic_state()
     similarity = _synthetic_similarity()
-    cdss = CDSS(scoring=state, n=12)
+    cdss = Recommender(scoring=state, n=12)
     result = cdss.recommend(state.patient_id, similarity)
     assert isinstance(result.recommendations, pd.DataFrame)
 
@@ -201,7 +201,7 @@ def test_recommend_dataframe_input_still_works():
         {"PROTOCOL_A": a, "PROTOCOL_B": b, "SIMILARITY": 0.5}
         for a in range(200, 212) for b in range(200, 212) if a != b
     ])
-    cdss = CDSS(scoring=scoring, n=12)
+    cdss = Recommender(scoring=scoring, n=12)
     result = cdss.recommend(1, sim_df)
     assert isinstance(result, RecommendationResult)
     assert result.branch == "bootstrap"
@@ -288,7 +288,7 @@ def test_synthetic_backtest_in_ten_lines():
         (202, 200): 0.7, (202, 201): 0.5, (202, 203): 0.9,
         (203, 200): 0.6, (203, 201): 0.4, (203, 202): 0.9,
     })
-    result = CDSS(scoring=state, n=4, days=7, protocols_per_day=2).recommend(
+    result = Recommender(scoring=state, n=4, days=7, protocols_per_day=2).recommend(
         4378, sim,
     )
     assert result.branch == "bootstrap"

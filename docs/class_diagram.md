@@ -12,7 +12,7 @@ classDiagram
     %% ============================================================
     %%  ENTRY POINT
     %% ============================================================
-    class CDSSInterface {
+    class CDSS {
         +repository: CohortRepository
         +pipeline: DataPipeline
         +debug: bool
@@ -30,7 +30,7 @@ classDiagram
         +make_artifacts(run_id, scores, recs, ...) dict
     }
 
-    CDSSInterface --> DebugReport : owns when debug=True
+    CDSS --> DebugReport : owns when debug=True
 
     %% ============================================================
     %%  DATA INGEST  (Repository pattern — Cohort + CohortRepository)
@@ -81,11 +81,11 @@ classDiagram
     }
 
     RGSCohortRepository ..|> CohortRepository : implements
-    CDSSInterface --> CohortRepository : owns
+    CDSS --> CohortRepository : owns
     RGSCohortRepository ..> Cohort : produces
     compute ..> ClinicalSubscales : uses
     compute ..> ProtocolToClinicalMapper : uses
-    CDSSInterface ..> compute : calls for PPF / similarity
+    CDSS ..> compute : calls for PPF / similarity
 
     %% ============================================================
     %%  PIPELINE  (RawInputs → ScoringOutput, typed at every step)
@@ -144,7 +144,7 @@ classDiagram
         +attrs: dict
     }
 
-    CDSSInterface --> DataPipeline : owns
+    CDSS --> DataPipeline : owns
     DataPipeline --> Imputer : owns
     DataPipeline --> Scorer : owns
     DataPipeline ..> Cohort : consumes
@@ -232,15 +232,15 @@ classDiagram
     %% ============================================================
     %%  RECOMMENDATION CORE
     %% ============================================================
-    class CDSS {
+    class Recommender {
         +scoring: DataFrame | EngineState
         +n: int
         +days: int
         +protocols_per_day: int
         +recommend(pid, sim) RecommendationResult
-        -_dispatch_branch(state, sim, trace) list~ProtocolRow~
-        -_materialize_dataframe(rows, state) DataFrame
-        -_build_result(state, rows, df, trace) RecommendationResult
+        -_run_strategy(state, sim, trace) list~ProtocolRow~
+        -_rows_to_dataframe(rows, state) DataFrame
+        -_assemble_result(state, rows, df, trace) RecommendationResult
     }
 
     class RecommendationResult {
@@ -272,11 +272,11 @@ classDiagram
         +reason: str
     }
 
-    CDSSInterface --> CDSS : constructs per-call
-    CDSS ..> EngineState : consumes
-    CDSS ..> SimilarityMatrix : consumes
-    CDSS ..> RecommendationResult : produces
-    CDSS ..> ScoringOutput : consumes its df
+    CDSS --> Recommender : constructs per-call
+    Recommender ..> EngineState : consumes
+    Recommender ..> SimilarityMatrix : consumes
+    Recommender ..> RecommendationResult : produces
+    Recommender ..> ScoringOutput : consumes its df
     RecommendationResult --> SubstituteResult : contains list
     RecommendationResult --> EngineState : holds reference
 
@@ -311,40 +311,40 @@ classDiagram
 
 | Layer | Class(es) | Role |
 |---|---|---|
-| **Public entry** | `CDSSInterface` | Production wrapper — DB writes, debug artifacts, persistence |
+| **Public entry** | `CDSS` | Production wrapper — DB writes, debug artifacts, persistence |
 | **Data ingest** | `Cohort`, `CohortRepository` (Protocol), `RGSCohortRepository`, `ClinicalSubscales`, `ProtocolToClinicalMapper`, `DebugReport` | Repository pattern — assemble one typed `Cohort` from MySQL + local files |
-| **Offline computations** | `compute.py` (module — 4 pure functions) | Compute + persist PPF and protocol similarity from raw inputs (registration / protocol-add workflows) |
+| **Offline computations** | `precompute.py` (module — 4 pure functions) | Compute + persist PPF and protocol similarity from raw inputs (registration / protocol-add workflows) |
 | **Pipeline contracts** | `PreparedInputs`, `SessionLevelFeatures`, `ProtocolLevelFeatures`, `MergedFeatures`, `ScoringInput`, `ScoringOutput` | Typed wrappers around the internal DataFrame stages |
 | **Pipeline orchestrator** | `DataPipeline`, `Imputer`, `Scorer` | Run feature build → impute → score |
 | **Engine protocols** | `EngineState`, `SimilarityMatrix` | Substrate-agnostic input contract |
 | **Engine adapters** | `PatientState`, `DictPatientState`, `DataFrameSimilarity`, `DictSimilarity` | Concrete implementations of the protocols |
-| **Engine core** | `CDSS`, `ProtocolRow`, `RecommendationResult`, `SubstituteResult` | Recommendation algorithm + introspectable output |
+| **Engine core** | `Recommender`, `ProtocolRow`, `RecommendationResult`, `SubstituteResult` | Recommendation algorithm + introspectable output |
 | **Pandera schemas** | `SessionSchema`, `PPFSchema`, `ScoringSchema` | Inline column-shape documentation (currently no runtime enforcement) |
 
 ## Cardinality
 
-  * **One `CDSSInterface` per process** — holds the repository and the
+  * **One `CDSS` per process** — holds the repository and the
     pipeline.
-  * **One `CohortRepository` per `CDSSInterface`** — production
+  * **One `CohortRepository` per `CDSS`** — production
     instance is `RGSCohortRepository`; future implementations
     (`SyntheticCohortRepository`, `InMemoryCohortRepository`) plug in
     at the same seam.
   * **One `Cohort` per recommendation call** — produced by
     `repository.find(patient_ids)`; consumed by the pipeline + engine.
-  * **One `DataPipeline` per `CDSSInterface`** — stateless aside from
+  * **One `DataPipeline` per `CDSS`** — stateless aside from
     the imputer / scorer it owns.
-  * **One `CDSS` per recommendation call** — constructed inline in
-    `CDSSInterface._recommend_for_patients_core`.
+  * **One `Recommender` per recommendation call** — constructed inline in
+    `CDSS._recommend_for_patients_core`.
   * **One `EngineState` per patient** — created at the
-    `CDSS.recommend` boundary via `coerce_engine_state`.
+    `Recommender.recommend` boundary via `coerce_engine_state`.
   * **One `RecommendationResult` per `(patient, week)`** — returned
-    from `CDSS.recommend`, consumed by `CDSSInterface._process_patient`.
+    from `Recommender.recommend`, consumed by `CDSS._process_patient`.
 
 ## Where to add a new cohort source
 
 1. Write a new class that implements `CohortRepository.find(patient_ids)
    -> Cohort`. Example: `SyntheticCohortRepository`.
-2. Pass an instance to `CDSSInterface(repository=...)`.
+2. Pass an instance to `CDSS(repository=...)`.
 
 No pipeline algorithm changes. No engine changes. The protocol is the
 integration point.
@@ -356,7 +356,7 @@ integration point.
 2. Optionally write the matching `SimilarityMatrix` adapter.
 3. Add a branch in `engine.coerce_engine_state` so a polars input
    gets wrapped automatically — OR pass an explicit
-   `PolarsBackedState(df, pid)` to `CDSS.recommend`.
+   `PolarsBackedState(df, pid)` to `Recommender.recommend`.
 
 No engine algorithm changes. No interface changes. The protocols are
 the integration point.

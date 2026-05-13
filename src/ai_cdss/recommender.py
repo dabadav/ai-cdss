@@ -19,14 +19,14 @@ appears at two boundaries:
 This file is organized in **sections that mirror the algorithm's steps**:
 
     1.  trace               — build the structured audit dict
-    2.  bootstrap branch    — first-ever schedule
-    3.  repeat branch       — week was skipped, copy prior
+    2.  bootstrap strategy  — first-ever schedule
+    3.  repeat strategy     — week was skipped, copy prior
     4.  MVT criterion       — which prescribed protocols to swap
     5.  substitute search   — two-tier pick: unused / least-used-similar
-    6.  update branch       — swap loop assembly
+    6.  update strategy     — swap loop assembly
     7.  topup               — fill the 7×ppd grid post-step
     8.  RecommendationResult — introspectable output (PCA-style)
-    9.  CDSS orchestrator   — entry-point class wiring everything
+    9.  Recommender         — entry-point class wiring everything
 
 Behavior is byte-for-byte identical to v0.3.1; all unit tests pass.
 """
@@ -92,7 +92,7 @@ def _serialize_prior(prior: list[ProtocolRow]) -> list[dict[str, Any]]:
     ]
 
 
-def _serialize_final(rows: list[ProtocolRow]) -> list[dict[str, Any]]:
+def _serialize_final_rows(rows: list[ProtocolRow]) -> list[dict[str, Any]]:
     return [
         {"protocol_id": int(r.protocol_id), "days": sorted(int(d) for d in r.days)}
         for r in rows
@@ -100,13 +100,13 @@ def _serialize_final(rows: list[ProtocolRow]) -> list[dict[str, Any]]:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 2 — Bootstrap branch                                        ║
+# ║  SECTION 2 — Bootstrap strategy                                      ║
 # ║                                                                      ║
 # ║  Patient has no prior week. Pick top-N by SCORE and round-robin      ║
 # ║  across the week.                                                    ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-def _bootstrap_branch(
+def _bootstrap_strategy(
     state: EngineState, *, n: int, n_days: int, protocols_per_day: int,
 ) -> list[ProtocolRow]:
     top_protocols = state.top_protocols(n)
@@ -149,13 +149,13 @@ def _round_robin_across_days(
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 3 — Repeat branch                                           ║
+# ║  SECTION 3 — Repeat strategy                                         ║
 # ║                                                                      ║
 # ║  Every prescribed row recorded USAGE_WEEK == 0 → patient skipped     ║
 # ║  the entire week. Repeat the prior schedule.                         ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-def _repeat_branch(state: EngineState) -> list[ProtocolRow]:
+def _repeat_strategy(state: EngineState) -> list[ProtocolRow]:
     prior = state.prescribed_rows
     if not prior:
         logger.info(
@@ -288,13 +288,13 @@ def _least_used_among(state: EngineState, candidates: list[int]) -> list[int]:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 6 — Update branch                                           ║
+# ║  SECTION 6 — Update strategy                                         ║
 # ║                                                                      ║
 # ║  Prior week exists and wasn't skipped. MVT picks swap targets;       ║
 # ║  substitute search fills each.  Universal top-up runs afterwards.    ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-def _update_branch(
+def _update_strategy(
     state: EngineState,
     similarity: SimilarityMatrix,
     *,
@@ -447,7 +447,7 @@ def _swap_trace_event(
 # ║  removes existing pairs.                                             ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-def _fill_grid_coverage(
+def _top_up_schedule(
     state: EngineState,
     rows: list[ProtocolRow],
     *, n_days: int, protocols_per_day: int, n: int,
@@ -609,13 +609,13 @@ class RecommendationResult:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 9 — CDSS orchestrator (entry-point class)                   ║
+# ║  SECTION 9 — Recommender (entry-point class)                         ║
 # ║                                                                      ║
-# ║  Internal engine entry. CDSSInterface wraps this for production.     ║
+# ║  Internal engine entry. interface.cdss.CDSS wraps this for prod.    ║
 # ║  Accepts any EngineState / SimilarityMatrix substrate.               ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-class CDSS:
+class Recommender:
     """Clinical Decision Support System core.
 
     Recommends a 7-day × `protocols_per_day` schedule for ONE patient.
@@ -633,7 +633,7 @@ class CDSS:
         days: int = N_DAYS,
         protocols_per_day: int = PROTOCOLS_PER_DAY,
     ) -> None:
-        self._scoring_raw = scoring
+        self._scoring = scoring
         self.n = n
         self.days = days
         self.protocols_per_day = protocols_per_day
@@ -645,7 +645,7 @@ class CDSS:
     ) -> RecommendationResult:
         """Full pipeline. Accepts any substrate; coerces to the engine
         protocols at the boundary."""
-        state = coerce_engine_state(self._scoring_raw, patient_id)
+        state = coerce_engine_state(self._scoring, patient_id)
         sim   = coerce_similarity(protocol_similarity)
 
         if not state.has_data:
@@ -656,49 +656,49 @@ class CDSS:
             n_days=self.days, protocols_per_day=self.protocols_per_day,
         )
 
-        rows = self._dispatch_branch(state, sim, trace)
-        rows = _fill_grid_coverage(
+        rows = self._run_strategy(state, sim, trace)
+        rows = _top_up_schedule(
             state, rows,
             n_days=self.days,
             protocols_per_day=self.protocols_per_day,
             n=self.n, trace=trace,
         )
 
-        recommendations_df = self._materialize_dataframe(rows, state)
-        trace["final"] = _serialize_final(rows)
+        recommendations = self._rows_to_dataframe(rows, state)
+        trace["final"] = _serialize_final_rows(rows)
         attrs = dict(state.scoring_attrs)
         attrs["trace"] = trace
-        recommendations_df.attrs = attrs
+        recommendations.attrs = attrs
 
-        return self._build_result(
+        return self._assemble_result(
             state=state, rows=rows,
-            recommendations=recommendations_df, trace=trace,
+            recommendations=recommendations, trace=trace,
         )
 
     # ------------------------------------------------------------------
-    # Branch dispatch — three mutually exclusive paths.
+    # Strategy dispatch — three mutually exclusive paths.
 
-    def _dispatch_branch(
+    def _run_strategy(
         self, state: EngineState, similarity: SimilarityMatrix, trace: dict,
     ) -> list[ProtocolRow]:
         prior = state.prescribed_rows
         if not prior:
             trace["branch"] = "bootstrap"
-            return _bootstrap_branch(
+            return _bootstrap_strategy(
                 state, n=self.n, n_days=self.days,
                 protocols_per_day=self.protocols_per_day,
             )
         if state.is_week_skipped():
             trace["branch"] = "repeat_skipped_week"
-            return _repeat_branch(state)
+            return _repeat_strategy(state)
         trace["branch"] = "update"
         trace["prior"] = _serialize_prior(prior)
-        return _update_branch(state, similarity, trace=trace)
+        return _update_strategy(state, similarity, trace=trace)
 
     # ------------------------------------------------------------------
     # Output materialization — ProtocolRow list → DataFrame at boundary.
 
-    def _materialize_dataframe(
+    def _rows_to_dataframe(
         self, rows: list[ProtocolRow], state: EngineState,
     ) -> pd.DataFrame:
         """Convert list of ProtocolRow to a pd.DataFrame for the legacy
@@ -712,7 +712,7 @@ class CDSS:
     # ------------------------------------------------------------------
     # Result construction — assemble the introspectable view.
 
-    def _build_result(
+    def _assemble_result(
         self, *, state: EngineState, rows: list[ProtocolRow],
         recommendations: pd.DataFrame, trace: dict,
     ) -> RecommendationResult:

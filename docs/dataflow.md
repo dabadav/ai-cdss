@@ -17,12 +17,12 @@ flowchart TD
     FS[("~/.ai_cdss/output/<br/>PPF parquet + similarity csv")]
     REPO["data.RGSCohortRepository.find<br/><i>fetch + whitelist filter</i>"]
     COHORT["Cohort<br/>patient / session / ppf /<br/>similarity / whitelist / missing_ppf"]
-    PIPE["pipeline.DataPipeline.process"]
+    PIPE["scoring.DataPipeline.process"]
     SO["ScoringOutput<br/><i>wraps pd.DataFrame</i>"]
     STATE["engine.PatientState<br/><i>adapter implements EngineState</i>"]
-    CDSS["recommend.CDSS.recommend"]
+    CDSS["recommender.Recommender.recommend"]
     RESULT["RecommendationResult<br/>recommendations + trace +<br/>swap_decisions + topup_events"]
-    IFACE["interface.CDSSInterface<br/>persist + build payload"]
+    IFACE["interface.CDSS<br/>persist + build payload"]
     PAYLOAD["payload dict<br/>nested per-patient list"]
     CONSUMER["cli / supervisor / JSON log"]
 
@@ -52,7 +52,7 @@ flowchart TD
 - Pipeline takes the `Cohort` and produces `ScoringOutput` (yellow — typed wrapper around a DataFrame; columns checked but values are pure pandas).
 - Engine adapts the scoring DataFrame to `PatientState` (green — Protocol-conforming) and consumes `cohort.similarity` alongside. Engine internals operate on `list[ProtocolRow]`.
 - CDSS returns `RecommendationResult` (green dataclass with cached_property breakdowns).
-- CDSSInterface unwraps the result into an untyped nested dict for the cli / supervisor / JSON log.
+- CDSS unwraps the result into an untyped nested dict for the cli / supervisor / JSON log.
 
 ## B · Pipeline internals (zoom into the green PIPE box)
 
@@ -114,7 +114,7 @@ flowchart TD
     REP["repeat_skipped_week<br/>copy prior"]
     UPD["update<br/>MVT swap loop"]
     ROWS["list[ProtocolRow]"]
-    TOPUP["_fill_grid_coverage<br/>existing → top_pool"]
+    TOPUP["_top_up_schedule<br/>existing → top_pool"]
     FINAL["list[ProtocolRow]<br/>+ trace dict"]
     DF["pd.DataFrame<br/>(materialized at boundary)"]
     RR["RecommendationResult"]

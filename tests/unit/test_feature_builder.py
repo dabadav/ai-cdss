@@ -3,7 +3,7 @@ import datetime
 import numpy as np
 import pandas as pd
 import pytest
-from ai_cdss.feature import (
+from ai_cdss.metrics import (
     apply_savgol_filter_groupwise,
     build_delta_dm,
     build_prescription_days,
@@ -15,7 +15,7 @@ from ai_cdss.feature import (
 
 
 class FeatureBuilder:
-    """Test shim — the FeatureBuilder class was removed from ai_cdss.feature
+    """Test shim — the FeatureBuilder class was removed from ai_cdss.metrics
     in the functionality refactor. Tests construct this local stub so
     existing test bodies (`fb = FeatureBuilder(); fb.build_usage(...)`)
     keep working. Methods just delegate to the module-level functions."""
@@ -56,15 +56,15 @@ def test_build_delta_dm_basic(monkeypatch):
     print(df)
 
     # Patch the feature_builder module's constants to use our test values
-    monkeypatch.setattr("ai_cdss.feature.BY_PP", BY_PP)
-    monkeypatch.setattr("ai_cdss.feature.SESSION_DATE", SESSION_DATE)
-    monkeypatch.setattr("ai_cdss.feature.DM_VALUE", DM_VALUE)
-    # monkeypatch.setattr("ai_cdss.feature.SAVGOL_WINDOW_SIZE", 3)
-    # monkeypatch.setattr("ai_cdss.feature.SAVGOL_POLY_ORDER", 1)
+    monkeypatch.setattr("ai_cdss.metrics.BY_PP", BY_PP)
+    monkeypatch.setattr("ai_cdss.metrics.SESSION_DATE", SESSION_DATE)
+    monkeypatch.setattr("ai_cdss.metrics.DM_VALUE", DM_VALUE)
+    # monkeypatch.setattr("ai_cdss.metrics.SAVGOL_WINDOW_SIZE", 3)
+    # monkeypatch.setattr("ai_cdss.metrics.SAVGOL_POLY_ORDER", 1)
     # monkeypatch.setattr(
-    #     "ai_cdss.feature.THEILSON_REGRESSION_WINDOW_SIZE", 2
+    #     "ai_cdss.metrics.THEILSON_REGRESSION_WINDOW_SIZE", 2
     # )
-    monkeypatch.setattr("ai_cdss.feature.DELTA_DM", "DELTA_DM")
+    monkeypatch.setattr("ai_cdss.metrics.DELTA_DM", "DELTA_DM")
 
     fb = FeatureBuilder()
     result = fb.build_delta_dm(df)

@@ -3,7 +3,7 @@
 Column reference for the canonical input/output frames of the
 recommendation pipeline. Documentation-only — these are NOT validated
 at runtime. The pipeline relies on the typed pipeline contracts
-(`pipeline.py` § 1) for column enforcement; pandera was retired in F5e.
+(`scoring.py` § 1) for column enforcement; pandera was retired in F5e.
 
 The three frames documented here are the boundary frames between the
 data layer, the pipeline, and the engine. Internal pipeline stages
@@ -48,7 +48,7 @@ Granularity: one row per (patient, protocol).
 ## `ScoringSchema` — pipeline output
 
 Source: `DataPipeline.process(cohort)`. Returned wrapped in
-`ScoringOutput` (`pipeline.py` § 1).
+`ScoringOutput` (`scoring.py` § 1).
 Granularity: one row per (patient, protocol).
 
 | Column | Type | Nullable | Constraint |
@@ -75,4 +75,4 @@ Pandera was kept through the F4 refactor as documentation but never
 exercised at runtime — recovery on `SchemaError` was dead code (no
 validator was ever called on the load path). In F5e we removed
 pandera from the dependency footprint; the typed pipeline contracts
-(`pipeline.py` § 1) carry column enforcement where it matters.
+(`scoring.py` § 1) carry column enforcement where it matters.

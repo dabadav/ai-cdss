@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from ai_cdss.constants import DAYS, PATIENT_ID, PROTOCOL_ID, SCORE, USAGE, USAGE_WEEK, PPF
-from ai_cdss.recommend import CDSS, PatientState, RecommendationResult, SubstituteResult
+from ai_cdss.recommender import Recommender, PatientState, RecommendationResult, SubstituteResult
 
 
 # ---------------------------------------------------------------------------
@@ -61,25 +61,25 @@ def _make_similarity(min_id: int = 200, max_id: int = 211) -> pd.DataFrame:
 # Bootstrap branch result.
 
 def test_result_returned_from_recommend_is_recommendation_result():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert isinstance(result, RecommendationResult)
 
 
 def test_result_bootstrap_branch_label():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert result.branch == "bootstrap"
 
 
 def test_result_bootstrap_has_no_mvt_mean():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert result.mvt_mean is None
 
 
 def test_result_bootstrap_has_no_swap_decisions():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert result.swap_decisions == []
     assert result.swap_targets == []
@@ -88,14 +88,14 @@ def test_result_bootstrap_has_no_swap_decisions():
 
 
 def test_result_recommendations_is_dataframe():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert isinstance(result.recommendations, pd.DataFrame)
     assert len(result.recommendations) > 0
 
 
 def test_result_final_protocols_property():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     final = result.final_protocols
     assert isinstance(final, list)
@@ -106,14 +106,14 @@ def test_result_final_protocols_property():
 def test_result_trace_matches_attrs():
     """The structured trace is accessible both as `.trace` and via the
     legacy `.attrs["trace"]` pathway."""
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert result.trace is result.recommendations.attrs["trace"]
     assert result.attrs["trace"] is result.trace
 
 
 def test_result_patient_state_is_patientstate():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert isinstance(result.patient_state, PatientState)
     assert result.patient_state.patient_id == 1
@@ -123,20 +123,20 @@ def test_result_patient_state_is_patientstate():
 # Update branch result — swap decisions populated.
 
 def test_result_update_branch_label():
-    cdss = CDSS(scoring=_make_scoring(prescriptions_have_days=True))
+    cdss = Recommender(scoring=_make_scoring(prescriptions_have_days=True))
     result = cdss.recommend(1, _make_similarity())
     assert result.branch == "update"
 
 
 def test_result_update_branch_has_mvt_mean():
-    cdss = CDSS(scoring=_make_scoring(prescriptions_have_days=True))
+    cdss = Recommender(scoring=_make_scoring(prescriptions_have_days=True))
     result = cdss.recommend(1, _make_similarity())
     assert result.mvt_mean is not None
     assert isinstance(result.mvt_mean, float)
 
 
 def test_result_update_branch_swap_decisions_typed():
-    cdss = CDSS(scoring=_make_scoring(prescriptions_have_days=True))
+    cdss = Recommender(scoring=_make_scoring(prescriptions_have_days=True))
     result = cdss.recommend(1, _make_similarity())
     assert len(result.swap_decisions) > 0
     for swap in result.swap_decisions:
@@ -148,7 +148,7 @@ def test_result_update_branch_swap_decisions_typed():
 
 
 def test_result_candidate_pool_for_returns_pool():
-    cdss = CDSS(scoring=_make_scoring(prescriptions_have_days=True))
+    cdss = Recommender(scoring=_make_scoring(prescriptions_have_days=True))
     result = cdss.recommend(1, _make_similarity())
     if result.swap_decisions:
         first = result.swap_decisions[0]
@@ -157,7 +157,7 @@ def test_result_candidate_pool_for_returns_pool():
 
 
 def test_result_candidate_pool_for_unknown_returns_empty():
-    cdss = CDSS(scoring=_make_scoring(prescriptions_have_days=True))
+    cdss = Recommender(scoring=_make_scoring(prescriptions_have_days=True))
     result = cdss.recommend(1, _make_similarity())
     assert result.candidate_pool_for(99999) == []
 
@@ -167,27 +167,27 @@ def test_result_candidate_pool_for_unknown_returns_empty():
 
 def test_result_subscript_proxies_to_recommendations():
     """`result[col]` reads the underlying recommendations DataFrame."""
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     protocol_col = result[PROTOCOL_ID]
     assert isinstance(protocol_col, pd.Series)
 
 
 def test_result_iter_proxies_to_recommendations():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     columns = list(iter(result))
     assert PROTOCOL_ID in columns
 
 
 def test_result_len_proxies_to_recommendations():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert len(result) == len(result.recommendations)
 
 
 def test_result_to_dataframe_explicit_unwrap():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert result.to_dataframe() is result.recommendations
 
@@ -196,13 +196,13 @@ def test_result_to_dataframe_explicit_unwrap():
 # Topup events surface as both a list and via the trace.
 
 def test_result_topup_events_match_trace_topup():
-    cdss = CDSS(scoring=_make_scoring(prescriptions_have_days=True))
+    cdss = Recommender(scoring=_make_scoring(prescriptions_have_days=True))
     result = cdss.recommend(1, _make_similarity())
     assert result.topup_events == (result.trace.get("topup") or [])
 
 
 def test_result_n_topup_matches_event_count():
-    cdss = CDSS(scoring=_make_scoring(prescriptions_have_days=True))
+    cdss = Recommender(scoring=_make_scoring(prescriptions_have_days=True))
     result = cdss.recommend(1, _make_similarity())
     assert result.n_topup == len(result.topup_events)
 
@@ -211,6 +211,6 @@ def test_result_n_topup_matches_event_count():
 # Scoring attrs propagated.
 
 def test_result_scoring_attrs_carries_subscales():
-    cdss = CDSS(scoring=_make_scoring())
+    cdss = Recommender(scoring=_make_scoring())
     result = cdss.recommend(1, _make_similarity())
     assert result.scoring_attrs.get("SUBSCALES") == ["motor", "cognitive"]
