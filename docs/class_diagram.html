@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ai-cdss · class diagram</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: #f6f8fa;
+      color: #1f2328;
+      line-height: 1.5;
+    }
+    header {
+      max-width: 1400px;
+      margin: 0 auto 16px;
+    }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: #57606a; font-size: 13px; }
+    .diagram-wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid #d0d7de;
+      border-radius: 8px;
+      padding: 20px;
+      overflow: auto;
+    }
+    .mermaid {
+      text-align: center;
+      min-height: 600px;
+    }
+    .legend {
+      max-width: 1400px;
+      margin: 24px auto 0;
+      background: #fff;
+      border: 1px solid #d0d7de;
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+    .legend h2 { font-size: 16px; margin: 0 0 10px; }
+    .legend ul { margin: 0; padding-left: 22px; }
+    .legend li { margin: 4px 0; font-size: 13px; }
+    .legend code {
+      background: #f6f8fa;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 1px solid #d0d7de;
+      vertical-align: top;
+    }
+    th { background: #f6f8fa; }
+    .controls {
+      max-width: 1400px;
+      margin: 0 auto 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    button {
+      padding: 6px 12px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    button:hover { background: #f3f4f6; }
+    .scale-info { color: #57606a; font-size: 12px; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ai-cdss — class diagram</h1>
+    <div class="sub">
+      Self-contained HTML render of <code>docs/class_diagram.md</code>.
+      All public classes, Protocols and dataclasses in
+      <code>src/ai_cdss/</code>. Branch: <code>functionality-refactor</code>.
+    </div>
+  </header>
+
+  <div class="controls">
+    <button onclick="zoomIn()">＋ zoom in</button>
+    <button onclick="zoomOut()">－ zoom out</button>
+    <button onclick="resetZoom()">↻ reset</button>
+    <span class="scale-info" id="scale">scale: 100%</span>
+  </div>
+
+  <div class="diagram-wrap">
+    <div class="mermaid" id="diagram">
+classDiagram
+    %% ============================================================
+    %%  ENTRY POINT
+    %% ============================================================
+    class CDSSInterface {
+        +loader: DataLoader
+        +pipeline: DataPipeline
+        +data_service: RecommendationDataService
+        +ppf_service: PPFService
+        +protocol_similarity_service: ProtocolSimilarityService
+        +debug: bool
+        +debug_service: DebugReport
+        +recommend_for_patients(ids, n, days, ppd, scoring_date, force) Dict
+        +recommend_for_study(study_id, ...) Dict
+    }
+
+    class DebugReport {
+        +base_dir: Path
+        +dump_df(df, run_id, name) str
+        +preview_df(df) str
+        +make_artifacts(run_id, scores, recs, ...) dict
+    }
+
+    CDSSInterface --> DebugReport : owns when debug=True
+
+    %% ============================================================
+    %%  DATA INGEST  (loader → services → RawInputs)
+    %% ============================================================
+    class DataLoader {
+        +interface: DatabaseInterface
+        +rgs_mode: str
+        +load_patient_data(ids) DataFrame
+        +load_session_data(ids) DataFrame
+        +load_ppf_data(ids) DataFrame
+        +load_protocol_similarity() DataFrame
+        +load_patient_subscales(ids) DataFrame
+        +load_protocol_attributes(path) DataFrame
+        +fetch_and_validate_patients(study_ids) list
+    }
+
+    class RecommendationDataService {
+        +loader: DataLoader
+        +protocol_pool: list~int~
+        +prepare(patient_list) tuple~RawInputs, DataFrame~
+    }
+
+    class ProtocolWhitelistService {
+        +scales_path: Path
+        +load_whitelist() list~int~
+    }
+
+    class PPFService {
+        +loader: DataLoader
+        +compute_patient_fit(ids) DataFrame
+        +persist_ppf(df) str
+        +compute_and_persist_patient_fit(ids) Dict
+    }
+
+    class ProtocolSimilarityService {
+        +loader: DataLoader
+        +compute_protocol_similarity() DataFrame
+        +persist_protocol_similarity(df) str
+    }
+
+    class ClinicalSubscales {
+        +scales_path: Path
+        +scales_dict: MultiKeyDict
+        +compute_deficit_matrix(df) DataFrame
+    }
+
+    class ProtocolToClinicalMapper {
+        +mapping_path: Path
+        +mapping: MultiKeyDict
+        +map_protocol_features(df, agg_func) DataFrame
+    }
+
+    CDSSInterface --> DataLoader : owns
+    CDSSInterface --> RecommendationDataService : owns
+    CDSSInterface --> PPFService : owns
+    CDSSInterface --> ProtocolSimilarityService : owns
+    RecommendationDataService --> DataLoader : reads
+    RecommendationDataService --> ProtocolWhitelistService : uses
+    PPFService --> DataLoader : reads
+    PPFService --> ClinicalSubscales : uses
+    PPFService --> ProtocolToClinicalMapper : uses
+    ProtocolSimilarityService --> DataLoader : reads
+    ProtocolSimilarityService --> ProtocolToClinicalMapper : uses
+
+    %% ============================================================
+    %%  PIPELINE  (RawInputs → ScoringOutput, typed at every step)
+    %% ============================================================
+    class DataPipeline {
+        +imputer: Imputer
+        +scorer: Scorer
+        +process(raw, scoring_date) DataFrame
+        -_prepare(raw, date) PreparedInputs
+        -_build_features(inputs, date) MergedFeatures
+        -_impute_features(features) ScoringInput
+        -_score(input, raw) ScoringOutput
+    }
+
+    class Imputer {
+        +init_metrics(df) DataFrame
+        +impute_metrics(df, column, values) DataFrame
+    }
+
+    class Scorer {
+        +weights: list~float~
+        +compute_score(df) DataFrame
+    }
+
+    class RawInputs {
+        <<frozen dataclass>>
+        +patient: DataFrame
+        +session: DataFrame
+        +ppf: DataFrame
+    }
+
+    class PreparedInputs {
+        <<frozen dataclass + validation>>
+        +patient: DataFrame
+        +session: DataFrame
+        +ppf: DataFrame
+        +has_sessions: bool
+    }
+
+    class SessionLevelFeatures {
+        <<frozen dataclass>>
+        +df: DataFrame
+    }
+
+    class ProtocolLevelFeatures {
+        <<frozen dataclass>>
+        +df: DataFrame
+    }
+
+    class MergedFeatures {
+        <<frozen dataclass>>
+        +df: DataFrame
+    }
+
+    class ScoringInput {
+        <<frozen dataclass>>
+        +df: DataFrame
+    }
+
+    class ScoringOutput {
+        <<frozen dataclass>>
+        +df: DataFrame
+        +attrs: dict
+    }
+
+    CDSSInterface --> DataPipeline : owns
+    DataPipeline --> Imputer : owns
+    DataPipeline --> Scorer : owns
+    DataPipeline ..> RawInputs : consumes
+    DataPipeline ..> PreparedInputs : produces internally
+    DataPipeline ..> SessionLevelFeatures : produces internally
+    DataPipeline ..> ProtocolLevelFeatures : produces internally
+    DataPipeline ..> MergedFeatures : produces internally
+    DataPipeline ..> ScoringInput : produces internally
+    DataPipeline ..> ScoringOutput : produces internally
+    RecommendationDataService ..> RawInputs : produces
+
+    %% ============================================================
+    %%  ENGINE  (Protocols + substrate adapters)
+    %% ============================================================
+    class EngineState {
+        <<Protocol>>
+        +patient_id: int
+        +has_data: bool
+        +all_protocols: list~int~
+        +prescribed_rows: list~ProtocolRow~
+        +is_week_skipped() bool
+        +top_protocols(n) list~int~
+        +lowest_scoring_prescribed: int
+        +usage_of(pid) int
+        +protocols_with_zero_usage: list~int~
+        +score_row(pid) ProtocolRow
+        +scoring_attrs: dict
+    }
+
+    class SimilarityMatrix {
+        <<Protocol>>
+        +similarities_for(pid, exclude) list
+        +top_n_similar(pid, n, exclude) list~int~
+    }
+
+    class ProtocolRow {
+        <<dataclass>>
+        +patient_id: int
+        +protocol_id: int
+        +score: float
+        +days: list~int~
+        +usage: int
+        +usage_week: int
+        +ppf: float
+        +delta_dm: float
+        +recent_adherence: float
+        +weeks_since_start: int
+        +contrib: list~float~
+        +as_dict() dict
+        +from_dict(row) ProtocolRow$
+    }
+
+    class DataFrameBackedState {
+        +scoring: DataFrame
+        +patient_id: int
+        +rows: DataFrame
+    }
+
+    class DictBackedState {
+        +patient_id: int
+        +with_prescribed_set(days_by_proto) DictBackedState
+        +from_rows(pid, rows) DictBackedState$
+    }
+
+    class DataFrameSimilarity
+    class DictSimilarity
+
+    DataFrameBackedState ..|> EngineState : implements
+    DictBackedState ..|> EngineState : implements
+    DataFrameSimilarity ..|> SimilarityMatrix : implements
+    DictSimilarity ..|> SimilarityMatrix : implements
+
+    %% ============================================================
+    %%  RECOMMENDATION CORE
+    %% ============================================================
+    class CDSS {
+        +scoring: DataFrame | EngineState
+        +n: int
+        +days: int
+        +protocols_per_day: int
+        +recommend(pid, sim) RecommendationResult
+        -_dispatch_branch(state, sim, trace) list~ProtocolRow~
+        -_materialize_dataframe(rows, state) DataFrame
+        -_build_result(state, rows, df, trace) RecommendationResult
+    }
+
+    class RecommendationResult {
+        <<dataclass>>
+        +recommendations: DataFrame
+        +trace: dict
+        +patient_state: EngineState
+        +branch: str
+        +swap_decisions: list~SubstituteResult~
+        +topup_events: list~dict~
+        +mvt_mean: float
+        +swap_targets: list~int~
+        +swap_reasons: dict
+        +scoring_attrs: dict
+        +final_protocols: list~int~
+        +n_swaps: int
+        +n_topup: int
+        +candidate_pool_for(pid) list~int~
+        +to_dataframe() DataFrame
+    }
+
+    class SubstituteResult {
+        <<dataclass>>
+        +protocol_id: int
+        +tier: str
+        +candidates: list~int~
+        +removed_id: int
+        +similarity: float
+        +reason: str
+    }
+
+    CDSSInterface --> CDSS : constructs per-call
+    CDSS ..> EngineState : consumes
+    CDSS ..> SimilarityMatrix : consumes
+    CDSS ..> RecommendationResult : produces
+    CDSS ..> ScoringOutput : consumes its df
+    RecommendationResult --> SubstituteResult : contains list
+    RecommendationResult --> EngineState : holds reference
+
+    %% ============================================================
+    %%  PANDERA SCHEMAS  (documentation only, no runtime validation)
+    %% ============================================================
+    class SessionSchema {
+        <<pandera>>
+        +PATIENT_ID, PROTOCOL_ID, SESSION_DATE, ADHERENCE, DM_VALUE, ...
+    }
+    class PPFSchema {
+        <<pandera>>
+        +PATIENT_ID, PROTOCOL_ID, PPF, CONTRIB
+    }
+    class ScoringSchema {
+        <<pandera>>
+        +PATIENT_ID, PROTOCOL_ID, SCORE, PPF, DELTA_DM, ...
+    }
+    </div>
+  </div>
+
+  <div class="legend">
+    <h2>How to read it</h2>
+    <ul>
+      <li><b>Solid arrows</b> (<code>--&gt;</code>) — ownership / composition (one class holds another as an attribute).</li>
+      <li><b>Dotted arrows</b> (<code>..&gt;</code>) — uses / produces / consumes (data flow without ownership).</li>
+      <li><b><code>..|&gt;</code></b> — implements a Protocol (PEP 544 structural).</li>
+      <li><b><code>$</code></b> suffix on a method — static / classmethod.</li>
+      <li><b><code>~</code></b> prefix on a field — private (underscore-prefixed in source code).</li>
+    </ul>
+
+    <h2 style="margin-top:18px;">Layers (top to bottom)</h2>
+    <table>
+      <thead>
+        <tr><th>Layer</th><th>Classes</th><th>Role</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><b>Public entry</b></td><td><code>CDSSInterface</code></td><td>Production wrapper — DB writes, debug artifacts, persistence</td></tr>
+        <tr><td><b>Data ingest</b></td><td><code>DataLoader</code>, <code>RecommendationDataService</code>, <code>PPFService</code>, <code>ProtocolSimilarityService</code>, <code>ProtocolWhitelistService</code>, <code>ClinicalSubscales</code>, <code>ProtocolToClinicalMapper</code>, <code>DebugReport</code></td><td>Pull from MySQL + local files, assemble RawInputs</td></tr>
+        <tr><td><b>Pipeline contracts</b></td><td><code>RawInputs</code>, <code>PreparedInputs</code>, <code>SessionLevelFeatures</code>, <code>ProtocolLevelFeatures</code>, <code>MergedFeatures</code>, <code>ScoringInput</code>, <code>ScoringOutput</code></td><td>Typed wrappers around the seven DataFrame stages</td></tr>
+        <tr><td><b>Pipeline orchestrator</b></td><td><code>DataPipeline</code>, <code>Imputer</code>, <code>Scorer</code></td><td>Run feature build → impute → score</td></tr>
+        <tr><td><b>Engine protocols</b></td><td><code>EngineState</code>, <code>SimilarityMatrix</code></td><td>Substrate-agnostic input contract (PEP 544)</td></tr>
+        <tr><td><b>Engine adapters</b></td><td><code>DataFrameBackedState</code>, <code>DictBackedState</code>, <code>DataFrameSimilarity</code>, <code>DictSimilarity</code></td><td>Concrete implementations of the protocols</td></tr>
+        <tr><td><b>Engine core</b></td><td><code>CDSS</code>, <code>ProtocolRow</code>, <code>RecommendationResult</code>, <code>SubstituteResult</code></td><td>Recommendation algorithm + introspectable output</td></tr>
+        <tr><td><b>Pandera schemas</b></td><td><code>SessionSchema</code>, <code>PPFSchema</code>, <code>ScoringSchema</code></td><td>Inline column-shape documentation (no runtime enforcement)</td></tr>
+      </tbody>
+    </table>
+
+    <h2 style="margin-top:18px;">Where to add a new substrate (e.g. polars)</h2>
+    <ol style="font-size:13px;">
+      <li>Write a new class implementing the <code>EngineState</code> protocol (7 methods + 5 properties). Example: <code>PolarsBackedState</code>.</li>
+      <li>Optionally write the matching <code>SimilarityMatrix</code> adapter.</li>
+      <li>Either branch in <code>engine.coerce_engine_state</code> so the new type is wrapped automatically, or pass <code>PolarsBackedState(df, pid)</code> explicitly to <code>CDSS.recommend</code>.</li>
+    </ol>
+    <p style="font-size:13px; color:#57606a; margin: 6px 0 0;">No engine algorithm changes. No interface changes. The protocols are the integration point.</p>
+  </div>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "default",
+      flowchart: { useMaxWidth: false },
+      classDiagram: { useMaxWidth: false }
+    });
+  </script>
+
+  <script>
+    let scale = 1.0;
+    const el = document.getElementById('diagram');
+    const scaleInfo = document.getElementById('scale');
+    function applyScale() {
+      el.style.transform = `scale(${scale})`;
+      el.style.transformOrigin = 'top left';
+      scaleInfo.textContent = `scale: ${Math.round(scale * 100)}%`;
+    }
+    function zoomIn()    { scale = Math.min(scale + 0.1, 3.0); applyScale(); }
+    function zoomOut()   { scale = Math.max(scale - 0.1, 0.4); applyScale(); }
+    function resetZoom() { scale = 1.0; applyScale(); }
+    window.zoomIn = zoomIn;
+    window.zoomOut = zoomOut;
+    window.resetZoom = resetZoom;
+  </script>
+</body>
+</html>
