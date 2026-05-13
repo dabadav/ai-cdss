@@ -29,7 +29,7 @@ import logging
 import shutil
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional
 
 import pandas as pd
 from pandera.errors import SchemaError
@@ -49,9 +49,6 @@ from ai_cdss.constants import (
     PROTOCOL_SIMILARITY_CSV,
 )
 from ai_cdss.models import (
-    DataUnit,
-    DataUnitName,
-    Granularity,
     PPFSchema,
     SessionSchema,
     TimeseriesSchema,
@@ -224,19 +221,19 @@ def _load_ppf_data(patient_list: List[int]) -> pd.DataFrame:
 
 class DataLoaderBase(ABC):
     @abstractmethod
-    def load_session_data(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]: ...
+    def load_session_data(self, patient_list: List[int]) -> pd.DataFrame: ...
 
     @abstractmethod
-    def load_timeseries_data(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]: ...
+    def load_timeseries_data(self, patient_list: List[int]) -> pd.DataFrame: ...
 
     @abstractmethod
-    def load_ppf_data(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]: ...
+    def load_ppf_data(self, patient_list: List[int]) -> pd.DataFrame: ...
 
     @abstractmethod
-    def load_protocol_similarity(self) -> Union[pd.DataFrame, DataUnit]: ...
+    def load_protocol_similarity(self) -> pd.DataFrame: ...
 
     @abstractmethod
-    def load_patient_subscales(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]: ...
+    def load_patient_subscales(self, patient_list: List[int]) -> pd.DataFrame: ...
 
     @abstractmethod
     def load_protocol_attributes(self, file_path: Optional[str] = None) -> pd.DataFrame: ...
@@ -260,54 +257,35 @@ class DataLoader(DataLoaderBase):
         self.interface: DatabaseInterface = DatabaseInterface()
         self.rgs_mode = rgs_mode
 
-    def load_patient_data(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]:
-        return self._load_data(
-            fetch_fn=self.interface.fetch_clinical_data,
-            patient_list=patient_list,
-            name=DataUnitName.PATIENT,
-            granularity=Granularity.PATIENT_ID,
-            wrap_in_dataunit=True,
+    def load_patient_data(self, patient_list: List[int]) -> pd.DataFrame:
+        return self._fetch(
+            self.interface.fetch_clinical_data, patient_list, name="patient",
         )
 
-    def load_session_data(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]:
-        return self._load_data(
-            fetch_fn=lambda p: self.interface.fetch_rgs_data(p, rgs_mode=self.rgs_mode),
-            patient_list=patient_list,
-            name=DataUnitName.SESSIONS,
-            granularity=Granularity.BY_PPS,
-            schema_cls=SessionSchema,
-            wrap_in_dataunit=True,
+    def load_session_data(self, patient_list: List[int]) -> pd.DataFrame:
+        return self._fetch(
+            lambda p: self.interface.fetch_rgs_data(p, rgs_mode=self.rgs_mode),
+            patient_list, name="sessions", schema_cls=SessionSchema,
         )
 
-    def load_timeseries_data(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]:
-        return self._load_data(
-            fetch_fn=lambda p: self.interface.fetch_dm_data(p, rgs_mode=self.rgs_mode),
-            patient_list=patient_list,
-            schema_cls=TimeseriesSchema,
+    def load_timeseries_data(self, patient_list: List[int]) -> pd.DataFrame:
+        return self._fetch(
+            lambda p: self.interface.fetch_dm_data(p, rgs_mode=self.rgs_mode),
+            patient_list, name="timeseries", schema_cls=TimeseriesSchema,
         )
 
-    def load_ppf_data(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]:
-        return self._load_data(
-            fetch_fn=lambda p: _load_ppf_data(p),
-            patient_list=patient_list,
-            name=DataUnitName.PPF,
-            granularity=Granularity.BY_PP,
-            schema_cls=PPFSchema,
-            wrap_in_dataunit=True,
+    def load_ppf_data(self, patient_list: List[int]) -> pd.DataFrame:
+        return self._fetch(
+            lambda p: _load_ppf_data(p),
+            patient_list, name="ppf", schema_cls=PPFSchema,
         )
 
-    def load_patient_subscales(self, patient_list: List[int]) -> Union[pd.DataFrame, DataUnit]:
+    def load_patient_subscales(self, patient_list: List[int]) -> pd.DataFrame:
         """Patient subscales come from `clinical_data.CLINICAL_SCORES`
         (JSON-encoded). Decode the latest evaluation per patient, return
         as a flat DataFrame indexed by PATIENT_ID."""
-        patient_data = self._load_data(
-            fetch_fn=self.interface.fetch_clinical_data,
-            patient_list=patient_list,
-            name=DataUnitName.PATIENT,
-            granularity=Granularity.PATIENT_ID,
-            wrap_in_dataunit=True,
-        )
-        decoded = patient_data.data.apply(_decode_subscales, axis=1)
+        patient = self.load_patient_data(patient_list)
+        decoded = patient.apply(_decode_subscales, axis=1)
         return decoded.set_index(PATIENT_ID)
 
     def load_protocol_attributes(self, file_path: Optional[str] = None) -> pd.DataFrame:
@@ -322,38 +300,29 @@ class DataLoader(DataLoaderBase):
             logger.error("Failed to load protocol similarity data: %s", e)
             raise
 
-    def _load_data(
+    def _fetch(
         self,
         fetch_fn: Callable[[List[int]], Any],
         patient_list: List[int],
-        name: Optional[DataUnitName] = None,
-        granularity: Optional[Granularity] = None,
+        *,
+        name: str,
         schema_cls: Optional[Any] = None,
-        wrap_in_dataunit: bool = False,
-    ) -> Union[pd.DataFrame, DataUnit]:
-        """Generic fetch + optional schema validation + optional DataUnit
-        wrapping. Used by all the `load_*` methods above."""
-        if wrap_in_dataunit:
-            assert name is not None, "Name must not be None"
-            assert granularity is not None, "Granularity must not be None"
+    ) -> pd.DataFrame:
+        """Run a fetch, log success, swallow pandera SchemaError into an
+        empty (typed) frame so the rest of the pipeline can decide what
+        to do. Other exceptions propagate as `RuntimeError`."""
         try:
             data = fetch_fn(patient_list)
-            logger.debug("%s data loaded successfully.", name or fetch_fn.__name__)
-            if wrap_in_dataunit:
-                metadata = dict(data.attrs) if hasattr(data, "attrs") else {}
-                return DataUnit(name, data, granularity, metadata, schema_cls)  # type: ignore[arg-type]
+            logger.debug("%s data loaded successfully.", name)
             return data
         except SchemaError as e:
             logger.error("Data validation failed: %s", e)
             if schema_cls:
-                empty_df = pd.DataFrame(columns=schema_cls.to_schema().columns.keys())
-                if wrap_in_dataunit:
-                    return DataUnit(name, empty_df, granularity, {}, schema_cls)  # type: ignore[arg-type]
-                return empty_df
+                return pd.DataFrame(columns=schema_cls.to_schema().columns.keys())
             raise
         except Exception as e:
-            logger.error("Failed to load %s: %s", name or fetch_fn.__name__, e)
-            raise RuntimeError(f"Failed to load {name or fetch_fn.__name__}: {e}") from e
+            logger.error("Failed to load %s: %s", name, e)
+            raise RuntimeError(f"Failed to load {name}: {e}") from e
 
     def fetch_and_validate_patients(self, study_ids: List[int]) -> List[int]:
         """Patient IDs for one or more study cohorts.

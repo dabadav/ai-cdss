@@ -27,7 +27,6 @@ from ai_cdss.constants import (
     PROTOCOLS_PER_DAY,
     DEFAULT_LOG_DIR
 )
-from ai_cdss.models import DataUnitName
 from ai_cdss.loader import DataLoader
 from ai_cdss.pipeline import DataPipeline
 from ai_cdss.service import (
@@ -157,12 +156,12 @@ class CDSSInterface:
                 logger.info("No patients to process. Context: %s | Result: %s", context, payload)
                 return payload
 
-            rgs_data, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
-            scores = self.pipeline.process(rgs_data, scoring_date or pd.Timestamp.today())
+            raw_inputs, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
+            scores = self.pipeline.process(raw_inputs, scoring_date or pd.Timestamp.today())
             cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
             # Patient start date dict [PATIENT_ID, CLINICAL_START]
-            patient_data = rgs_data.get(DataUnitName.PATIENT).data
+            patient_data = raw_inputs.patient
             patient_dict = dict(zip(patient_data[PATIENT_ID], patient_data[CLINICAL_START]))
 
             patient_results = []

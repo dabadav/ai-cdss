@@ -51,7 +51,7 @@ from ai_cdss.constants import (
 )
 from ai_cdss.feature import compute_ppf, compute_protocol_similarity
 from ai_cdss.loader import DataLoader
-from ai_cdss.models import DataUnitSet
+from ai_cdss.pipeline import RawInputs
 
 logger = logging.getLogger(__name__)
 
@@ -99,14 +99,14 @@ class ProtocolWhitelistService:
 # ╚═════════════════════════════════════════════════════════════════════╝
 
 class RecommendationDataService:
-    """Loader-orchestration service. Returns the `(rgs_data, similarity)`
+    """Loader-orchestration service. Returns the `(raw_inputs, similarity)`
     pair the DataPipeline consumes."""
 
     def __init__(self, loader: DataLoader) -> None:
         self.loader = loader
         self.protocol_pool: List[int] = ProtocolWhitelistService().load_whitelist()
 
-    def prepare(self, patient_list: List[int]) -> Tuple[DataUnitSet, pd.DataFrame]:
+    def prepare(self, patient_list: List[int]) -> Tuple["RawInputs", pd.DataFrame]:
         """Load + filter the four input frames for `patient_list`.
 
         Raises if any patient is missing PPF — callers should
@@ -114,7 +114,7 @@ class RecommendationDataService:
         applied to session, PPF, and similarity (both sides).
         """
         ppf = self.loader.load_ppf_data(patient_list)
-        missing = ppf.metadata.get("missing_patients", [])
+        missing = ppf.attrs.get("missing_patients", [])
         if missing:
             raise RuntimeError(
                 f"PPF data missing for patients: {missing}. "
@@ -122,19 +122,19 @@ class RecommendationDataService:
             )
 
         session = self.loader.load_session_data(patient_list)
-        patient_data = self.loader.load_patient_data(patient_list)
+        patient = self.loader.load_patient_data(patient_list)
         protocol_similarity = self.loader.load_protocol_similarity()
 
         logger.info("Loaded data for patients: %s", patient_list)
-        logger.info("Session data shape: %s", session.data.shape)
-        logger.info("PPF data shape: %s", ppf.data.shape)
+        logger.info("Session data shape: %s", session.shape)
+        logger.info("PPF data shape: %s", ppf.shape)
 
         if self.protocol_pool:
             allowed = set(self.protocol_pool)
-            if PROTOCOL_ID in session.data.columns:
-                session.data = session.data[session.data[PROTOCOL_ID].isin(allowed)]
-            if PROTOCOL_ID in ppf.data.columns:
-                ppf.data = ppf.data[ppf.data[PROTOCOL_ID].isin(allowed)]
+            if PROTOCOL_ID in session.columns:
+                session = session[session[PROTOCOL_ID].isin(allowed)]
+            if PROTOCOL_ID in ppf.columns:
+                ppf = ppf[ppf[PROTOCOL_ID].isin(allowed)]
             # similarity is long-form (PROTOCOL_A, PROTOCOL_B, SIMILARITY)
             # — filter on both sides of each pair.
             protocol_similarity = protocol_similarity[
@@ -144,8 +144,7 @@ class RecommendationDataService:
                 protocol_similarity[PROTOCOL_B].isin(allowed)
             ]
 
-        rgs_data = DataUnitSet([session, patient_data, ppf])
-        return rgs_data, protocol_similarity
+        return RawInputs(patient=patient, session=session, ppf=ppf), protocol_similarity
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗

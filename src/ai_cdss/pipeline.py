@@ -63,7 +63,6 @@ from ai_cdss.feature import (
     build_week_usage,
     include_missing_sessions,
 )
-from ai_cdss.models import DataUnitName, DataUnitSet
 from ai_cdss.score import Imputer, Scorer
 
 logger = logging.getLogger(__name__)
@@ -95,6 +94,24 @@ def _validate_columns(
             f"{stage_name}: missing required columns {missing}. "
             f"Got: {list(df.columns)}"
         )
+
+
+@dataclass(frozen=True)
+class RawInputs:
+    """Raw frames as they come out of the loader / service.
+
+    Three plain DataFrames. No metadata wrapper, no granularity enum —
+    those were removed in F4b because nothing exercised them. PPF
+    carries its "missing_patients" warning via pandas `.attrs` if
+    needed (set by the loader; consumed by the service before this
+    object is even built).
+
+    The pipeline's first stage (`_prepare`) cleans + windows these into
+    `PreparedInputs` below.
+    """
+    patient: pd.DataFrame
+    session: pd.DataFrame
+    ppf:     pd.DataFrame
 
 
 @dataclass(frozen=True)
@@ -255,10 +272,10 @@ class DataPipeline:
     # Public entry.
 
     def process(
-        self, data: DataUnitSet, scoring_date: Timestamp,
+        self, raw: "RawInputs", scoring_date: Timestamp,
     ) -> pd.DataFrame:
         """Run the pipeline and return the scored DataFrame."""
-        inputs = self._prepare(data, scoring_date)
+        inputs = self._prepare(raw, scoring_date)
 
         if not inputs.has_sessions:
             logger.info("Bootstrapping system, no session data available for patients.")
@@ -273,21 +290,16 @@ class DataPipeline:
     # Stage 1 — prepare: clean and window the inputs.
 
     def _prepare(
-        self, data: DataUnitSet, scoring_date: Timestamp,
+        self, raw: "RawInputs", scoring_date: Timestamp,
     ) -> PreparedInputs:
-        """Resolve DataUnitSet, attach clinical window to sessions,
-        clamp session_date to [CLINICAL_START, min(CLINICAL_END,
-        scoring_date)]."""
-        patient = data.get(DataUnitName.PATIENT).data
-        session = data.get(DataUnitName.SESSIONS).data
-        ppf     = data.get(DataUnitName.PPF).data
-
-        session = include_missing_sessions(session)
-        session = self._attach_clinical_window(session, patient)
+        """Attach clinical window to sessions, clamp session_date to
+        [CLINICAL_START, min(CLINICAL_END, scoring_date)]."""
+        session = include_missing_sessions(raw.session)
+        session = self._attach_clinical_window(session, raw.patient)
         session = self._clamp_to_window(session, scoring_date)
 
         return PreparedInputs(
-            patient=patient, session=session, ppf=ppf,
+            patient=raw.patient, session=session, ppf=raw.ppf,
             validate_on_init=False,
         )
 

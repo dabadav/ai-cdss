@@ -1,11 +1,16 @@
 # ai_cdss/models.py
-import logging
-from dataclasses import dataclass, field
-from enum import Enum
-from functools import partial
-from typing import Any, Dict, List, Optional, Type
+"""Pandera DataFrame schemas for the canonical input/output frames.
 
-import pandas as pd
+Only schemas live here after F4b. The DataUnit / DataUnitSet /
+Granularity / DataUnitName machinery was removed — it was a 5-field
+wrapper around a single DataFrame where 3 of the 5 fields had no
+caller. The pipeline now takes `RawInputs` (in `pipeline.py`) and
+returns `ScoringOutput` directly.
+"""
+import logging
+from functools import partial
+from typing import List
+
 import pandera as pa
 from ai_cdss.constants import *
 
@@ -13,93 +18,6 @@ NullableField = partial(pa.Field, nullable=True)
 
 logger = logging.getLogger(__name__)
 
-
-# ---------------------------------------------------------------------
-# Dataclasses
-
-
-class Granularity(Enum):
-    PATIENT_ID = "PATIENT_ID"
-    BY_PP = "BY_PP"
-    BY_PPS = "BY_PPS"
-    BY_PPST = "BY_PPST"
-    BY_ID = "BY_ID"
-
-    def id_cols(self) -> List[str]:
-        try:
-            return {
-                Granularity.BY_PP: BY_PP,
-                Granularity.BY_PPS: BY_PPS,
-                Granularity.BY_PPST: BY_PPST,
-                Granularity.BY_ID: BY_ID,
-                Granularity.PATIENT_ID: [PATIENT_ID],
-            }[self]
-        except KeyError:
-            raise ValueError("Unsupported Granularity: %s" % self)
-
-
-class DataUnitName(str, Enum):
-    PATIENT = "patient"
-    SESSIONS = "sessions"
-    PPF = "ppf"
-
-
-@dataclass
-class DataUnit:
-    """
-    A unit of data with an associated granularity and optional metadata.
-    """
-
-    name: DataUnitName
-    data: pd.DataFrame
-    level: Granularity
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    schema: Optional[Type[pa.DataFrameModel]] = None
-
-    @property
-    def id_cols(self) -> List[str]:
-        return self.level.id_cols()
-
-    def validate(self):
-        """Validate the data using the attached schema, if present."""
-        if self.schema is not None:
-            try:
-                self.data = self.schema.validate(self.data)
-            except SchemaError as e:
-                logger.error(
-                    "Schema validation failed for DataUnit '%s': %s", self.name, e
-                )
-                raise
-        return self
-
-    def __post_init__(self):
-        if self.name is None:
-            raise ValueError("DataUnit.name must not be None")
-        if self.level is None:
-            raise ValueError("DataUnit.level (granularity) must not be None")
-
-
-# class DataUnitSet:
-#     def __init__(self, units: List[DataUnit]):
-#         self.units: Dict[str, DataUnit] = {unit.name: unit for unit in units}
-
-#     def get(self, name: DataUnitName) -> DataUnit:
-#         return self.units[name.value]
-
-
-class DataUnitSet:
-    def __init__(self, units: List[DataUnit]):
-        self.units: Dict[DataUnitName, DataUnit] = {unit.name: unit for unit in units}
-
-    def get(self, name: DataUnitName) -> DataUnit:
-        return self.units[name]
-
-    def __getitem__(self, name: DataUnitName) -> DataUnit:
-        return self.units[name]
-    
-    def __repr__(self) -> str:
-        unit_names = ", ".join(self.units.keys())
-        return f"<DataUnitSet units=[{unit_names}]>"
 
 # ---------------------------------------------------------------------
 # RGS Data Input
