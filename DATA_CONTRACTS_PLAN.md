@@ -384,23 +384,105 @@ Once these are settled the implementation plan crystallizes.
 
 ---
 
-## J · My current lean (not yet committed)
+## J · Findings from Q5 audit + revised lean
 
-  * **Score lineage**: sidecar dict on `ScoringOutput` (`breakdowns:
-    dict[(pid, proto), ScoreBreakdown]`). Bubble up into
-    `RecommendationResult.scoring_breakdown`. Keep the DataFrame.
-  * **Provenance**: sidecar dict on `ScoringOutput`. Each pipeline
-    stage that mutates a cell registers `(pid, proto, column, source)`.
-  * **Trace dataclass**: yes, but in a second commit. Backward-compat
-    via `__getitem__` so existing dict-style readers keep working.
-  * **Pandera**: do nothing for now. Schemas in models.py document
-    the shape but don't run. F4 deleted the validation decorator; the
-    boundary dataclasses already validate column presence, which is
-    what matters most.
-  * **Migration**: additive. Add new fields, keep old.
-  * **CDSSInterface payload**: leave as dict. Out of scope.
+### Q5 answered: cohort-wide vectorized ops on `ScoringOutput.df`
 
-This is option **D** from the earlier discussion. ~1-2 day implementation.
+Walked every caller of `pipeline.process()` (in-package + cdss-supervisor
++ cli). Findings:
+
+| Where | What it does | Cohort-wide? |
+|---|---|---|
+| `interface/recommender.py:160` | `scores = pipeline.process(...)` | n/a — get |
+| `interface/recommender.py:213-214` | debug-mode `dump_df` / `preview_df` | passive |
+| `interface/recommender.py:327` | `scores[scores[PATIENT_ID] == pid]` | **the one filter** |
+| `interface/recommender.py:375` | same filter again (debug artifacts) | same |
+| `interface/recommender.py:412` | `pd.melt(patient_scores, id_vars=BY_PP, value_vars=[PPF, DELTA_DM, ...])` | on patient-filtered slice → **not cohort-wide** |
+| `engine.py:239` | `scoring.loc[scoring[PATIENT_ID] == pid]` at `DataFrameBackedState.__init__` | filter once, then cached dict lookups |
+| engine internals | per-protocol dict lookups, cached sorts | **never** cohort-wide |
+| `cdss-supervisor/cdss-replay/replay_cdss.py:351, 432` | `cdss.scoring[cdss.scoring["PATIENT_ID"] == pid]` | **the same filter** |
+| `cdss-supervisor/cdss-replay/replay_cdss.py:352-354` | `nlargest` / `sort_values` | runs on the single-patient slice |
+| `ai-cdss-cli` | never touches `scoring` | n/a |
+
+**Verdict**: the only cohort-wide operation anyone does on
+`ScoringOutput.df` is `df[df[PATIENT_ID] == pid]` — the "extract one
+patient's slice" filter. After that, every operation is per-patient.
+
+Nobody groups across patients. Nobody aggregates cohort-wide. Nobody
+joins frames at the cohort scoring level.
+
+This means: **`ScoringOutput.df` as a wide cohort frame buys us
+essentially nothing**. The pandas vectorization that justified the
+"keep the DataFrame" decision in Option D doesn't actually get
+exercised.
+
+### Implication for the option matrix
+
+The "we'd lose pandas vectorization" objection that pushed me toward
+Option D (hybrid sidecars) is **weaker than I represented**. Reading
+the matrix from Section F with this new info:
+
+| Option | Wide-DataFrame justification | Standing |
+|---|---|---|
+| **A**: drop DataFrame, return `list[ProtocolRow]` | "loses cohort vectorization" — but **nobody uses it** | Stronger than I said |
+| **C**: long-form (one row per metric per PP) | maximal auditability, "bigger blast radius" — but blast radius is moderate, not big, since the wide DataFrame has few callers | Stronger than I said |
+| **D**: hybrid keeps DataFrame + adds sidecars | conservative, additive | Cheapest migration, but ends with two row representations |
+
+### New synthesis: Option A++
+
+Adopt Option A's no-DataFrame return shape, but **enrich it with
+breakdown + provenance** (the wins from Option D):
+
+```python
+@dataclass(frozen=True)
+class ScoringOutput:
+    per_patient: dict[int, PatientScoring]   # {pid: PatientScoring}
+    scoring_date: pd.Timestamp
+    weights: tuple[float, float, float]
+    subscales: list[str]
+
+@dataclass(frozen=True)
+class PatientScoring:
+    patient_id: int
+    rows:        list[ProtocolRow]                   # the scoring rows
+    breakdowns:  dict[int, ScoreBreakdown]           # per-protocol lineage
+    provenance:  dict[int, dict[str, str]]           # per-protocol provenance
+```
+
+  * NO DataFrame at the boundary.
+  * Engine input adapter (`DataFrameBackedState`) is no longer needed —
+    `PatientScoring.rows` already satisfies what the engine wants.
+    Engine becomes one degree more substrate-agnostic.
+  * CDSSInterface's `_transform_metrics` builds a local long-form
+    DataFrame on the fly from `[row.as_dict() for row in scoring.rows]`
+    + `pd.melt`. The "ScoringOutput as cohort frame" was its only
+    callsite — easy to localize.
+  * cdss-supervisor's `cdss.scoring[cdss.scoring["PATIENT_ID"] == pid]`
+    reach-in becomes `cdss.scoring.per_patient[pid]`. ~10-line patch.
+
+### Two viable plans, different costs
+
+| Plan | What ships | Effort | Blast radius |
+|---|---|---|---|
+| **Plan D** (cautious) | `ScoringOutput` keeps `df`; adds `breakdowns` + `provenance` + `subscales` sidecars. `RecommendationResult.scoring_breakdown` populated. | 1-2 days | additive, no caller churn |
+| **Plan A++** (clean end-state) | `ScoringOutput.per_patient: dict[int, PatientScoring]`. Drop the wide DataFrame entirely. Engine consumes `PatientScoring.rows` directly. | 2-3 days | ~10-line patch in CDSSInterface + supervisor; no engine algorithm change |
+
+### Revised practical recommendation
+
+**Ship Plan D first, migrate to A++ later.** Reasoning:
+
+1. D is additive — no caller breaks. The new fields land alongside the
+   existing DataFrame.
+2. With D in place, callers naturally migrate from
+   `cdss.scoring[scoring[PATIENT_ID] == pid]` to
+   `cdss.scoring.breakdowns[pid]` etc.
+3. After a quarter of D usage, removing the DataFrame becomes a
+   mechanical cleanup — the wide form will have no callers left.
+4. A++ in one step is achievable but bundles "add lineage" + "drop
+   wide form" — two distinct migrations conflated.
 
 Final commit when ready: `f5: ScoreBreakdown + provenance on
-ScoringOutput / RecommendationResult`.
+ScoringOutput / RecommendationResult` (Plan D).
+
+Follow-up commit some quarter from now: `f6: drop ScoringOutput.df,
+adopt per_patient dict` (Plan A++).
