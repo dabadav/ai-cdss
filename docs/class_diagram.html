@@ -24,9 +24,10 @@
       background: #fff;
       border: 1px solid #d0d7de;
       border-radius: 8px;
-      padding: 20px;
-      overflow: auto;
+      padding: 0;
       position: relative;
+      height: 720px;
+      overflow: hidden;
     }
     .diagram-wrap.fullscreen {
       position: fixed;
@@ -37,14 +38,30 @@
       margin: 0;
       border-radius: 0;
       z-index: 1000;
-      padding: 60px 20px 20px;
+      padding: 0;
+    }
+    .pan-viewport {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      cursor: grab;
+      position: relative;
+      background:
+        linear-gradient(#f6f8fa 1px, transparent 1px) 0 0 / 40px 40px,
+        linear-gradient(90deg, #f6f8fa 1px, transparent 1px) 0 0 / 40px 40px,
+        #ffffff;
+    }
+    .pan-viewport.grabbing { cursor: grabbing; }
+    .pan-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+      will-change: transform;
     }
     .mermaid {
-      text-align: center;
       min-height: 600px;
-    }
-    .diagram-wrap.fullscreen .mermaid {
-      min-height: calc(100vh - 80px);
+      padding: 20px;
     }
     .fullscreen-controls {
       position: absolute;
@@ -128,6 +145,8 @@
     <div class="fullscreen-controls">
       <button onclick="toggleFullscreen()" id="fs-btn">⛶ fullscreen</button>
     </div>
+    <div class="pan-viewport" id="pan-viewport">
+      <div class="pan-content" id="pan-content">
     <div class="mermaid" id="diagram">
 classDiagram
 class CDSSInterface
@@ -200,6 +219,8 @@ DictBackedState ..|> EngineState
 DataFrameSimilarity ..|> SimilarityMatrix
 DictSimilarity ..|> SimilarityMatrix
 </div>
+      </div>
+    </div>
   </div>
 
   <div class="legend">
@@ -244,44 +265,135 @@ DictSimilarity ..|> SimilarityMatrix
       startOnLoad: true,
       theme: "default",
       securityLevel: "loose",
-      logLevel: "debug",
       flowchart: { useMaxWidth: false },
       class: { useMaxWidth: false }
+    });
+    // Mermaid renders asynchronously after this module loads. Defer the
+    // initial fit until the SVG exists in the DOM.
+    window.addEventListener('load', () => {
+      // Give mermaid one extra tick to finish rendering.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (typeof window.fitDiagram === 'function') {
+            window.fitDiagram();
+          }
+        });
+      });
     });
   </script>
 
   <script>
-    let scale = 1.0;
-    const el = document.getElementById('diagram');
     const scaleInfo = document.getElementById('scale');
-    const wrap = document.getElementById('diagram-wrap');
-    const fsBtn = document.getElementById('fs-btn');
+    const wrap     = document.getElementById('diagram-wrap');
+    const fsBtn    = document.getElementById('fs-btn');
+    const viewport = document.getElementById('pan-viewport');
+    const content  = document.getElementById('pan-content');
 
-    function applyScale() {
-      el.style.transform = `scale(${scale})`;
-      el.style.transformOrigin = 'top left';
+    // CSS transform on SVG is vector — no rasterization, text stays
+    // crisp at every zoom. translate first, then scale.
+    const MIN_SCALE = 0.3;
+    const MAX_SCALE = 8.0;
+    const DEFAULT_SCALE = 2.5;
+    let scale = DEFAULT_SCALE;
+    let tx = 0, ty = 0;
+
+    function applyTransform() {
+      content.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
       scaleInfo.textContent = `scale: ${Math.round(scale * 100)}%`;
     }
-    function zoomIn()    { scale = Math.min(scale + 0.1, 3.0); applyScale(); }
-    function zoomOut()   { scale = Math.max(scale - 0.1, 0.4); applyScale(); }
-    function resetZoom() { scale = 1.0; applyScale(); }
+
+    function zoomBy(factor, anchorX, anchorY) {
+      const rect = viewport.getBoundingClientRect();
+      const cx = anchorX ?? rect.width / 2;
+      const cy = anchorY ?? rect.height / 2;
+      const worldX = (cx - tx) / scale;
+      const worldY = (cy - ty) / scale;
+      scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
+      tx = cx - worldX * scale;
+      ty = cy - worldY * scale;
+      applyTransform();
+    }
+
+    function zoomIn()  { zoomBy(1.2); }
+    function zoomOut() { zoomBy(1 / 1.2); }
+
+    function fitDiagram() {
+      const svg = content.querySelector('svg');
+      if (!svg) { setTimeout(fitDiagram, 80); return; }
+
+      // Lift only the constraints, keep Mermaid's other styling.
+      svg.style.maxWidth = 'none';
+      svg.style.maxHeight = 'none';
+
+      // Read SVG natural size at scale=1 (force unscaled, measure, restore).
+      const prev = content.style.transform;
+      content.style.transform = 'translate(0px, 0px) scale(1)';
+      const bb = svg.getBoundingClientRect();
+      const vp = viewport.getBoundingClientRect();
+
+      scale = DEFAULT_SCALE;
+      const w = bb.width  * scale;
+      const h = bb.height * scale;
+      tx = w < vp.width  ? (vp.width  - w) / 2 : 20;
+      ty = h < vp.height ? (vp.height - h) / 2 : 20;
+      applyTransform();
+    }
+
+    function resetZoom() { fitDiagram(); }
+
+    // Mouse-wheel zoom anchored at cursor.
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = viewport.getBoundingClientRect();
+      zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1, e.clientX - rect.left, e.clientY - rect.top);
+    }, { passive: false });
+
+    // Drag-to-pan.
+    let isDown = false, lastX = 0, lastY = 0;
+    viewport.addEventListener('mousedown', (e) => {
+      isDown = true;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      viewport.classList.add('grabbing');
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!isDown) return;
+      tx += e.clientX - lastX;
+      ty += e.clientY - lastY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      applyTransform();
+    });
+    window.addEventListener('mouseup', () => {
+      isDown = false;
+      viewport.classList.remove('grabbing');
+    });
 
     function toggleFullscreen() {
       const isFull = wrap.classList.toggle('fullscreen');
       fsBtn.textContent = isFull ? '⤓ exit fullscreen' : '⛶ fullscreen';
       document.body.style.overflow = isFull ? 'hidden' : '';
+      // Re-fit since the viewport size just changed.
+      requestAnimationFrame(fitDiagram);
     }
 
-    // ESC exits fullscreen
+    // ESC exits fullscreen; "0" resets zoom; "+"/"-" zoom.
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && wrap.classList.contains('fullscreen')) {
         toggleFullscreen();
+      } else if (e.key === '0') {
+        resetZoom();
+      } else if (e.key === '+' || e.key === '=') {
+        zoomIn();
+      } else if (e.key === '-' || e.key === '_') {
+        zoomOut();
       }
     });
 
     window.zoomIn = zoomIn;
     window.zoomOut = zoomOut;
     window.resetZoom = resetZoom;
+    window.fitDiagram = fitDiagram;
     window.toggleFullscreen = toggleFullscreen;
   </script>
 </body>
