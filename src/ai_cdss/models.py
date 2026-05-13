@@ -60,29 +60,6 @@ class SessionSchema(pa.DataFrameModel):
     dm_value: float = NullableField(alias=DM_VALUE)
 
 
-class TimeseriesSchema(pa.DataFrameModel):
-    """
-    Schema for timeseries session data. Includes measurements per-second of difficulty modulators (DM) and performance estimates (PE).
-    """
-
-    # Identifiers
-    patient_id: int = NullableField(alias=PATIENT_ID, gt=0)
-    session_id: int = NullableField(alias=SESSION_ID, gt=0)
-    protocol_id: int = NullableField(alias=PROTOCOL_ID, gt=0)
-
-    # Protocol
-    game_mode: str = NullableField(alias=GAME_MODE)
-
-    # Time
-    timepoint: int = NullableField(alias=SECONDS_FROM_START)
-
-    # Metrics
-    dm_key: str = NullableField(alias=DM_KEY)
-    dm_value: float = NullableField(alias=DM_VALUE)
-    pe_key: str = NullableField(alias=PE_KEY)
-    pe_value: float = NullableField(alias=PE_VALUE)
-
-
 class PPFSchema(pa.DataFrameModel):
     """
     Schema for Patient-Protocol Fit (PPF) data. Represents how well a protocol fits a patient, including a PPF score and feature contributions.

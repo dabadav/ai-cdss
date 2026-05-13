@@ -1,11 +1,11 @@
 import importlib.resources
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 from ai_cdss import config
-from ai_cdss.constants import *
+from ai_cdss.constants import MAPPING_YAML, PROTOCOL_ID, SCALES_YAML
 from ai_cdss.utils import MultiKeyDict
 
 # ------------------------------

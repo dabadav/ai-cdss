@@ -37,25 +37,19 @@ from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import pandas as pd
 
 from ai_cdss.constants import (
-    DAYS,
     N,
     N_DAYS,
-    PATIENT_ID,
     PROTOCOL_ID,
     PROTOCOLS_PER_DAY,
-    SCORE,
-    USAGE,
-    USAGE_WEEK,
 )
 from ai_cdss.engine import (
     DataFrameBackedState,
-    DictBackedState,
     EngineState,
     ProtocolRow,
     SimilarityMatrix,

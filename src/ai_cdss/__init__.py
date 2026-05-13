@@ -12,12 +12,11 @@ constructors in tests).
 """
 
 from .interface import CDSSInterface
-from .models import PPFSchema, ScoringSchema, SessionSchema, TimeseriesSchema
+from .models import PPFSchema, ScoringSchema, SessionSchema
 
 __all__ = [
     "CDSSInterface",
     "PPFSchema",
     "ScoringSchema",
     "SessionSchema",
-    "TimeseriesSchema",
 ]

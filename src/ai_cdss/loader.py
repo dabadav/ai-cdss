@@ -1,33 +1,30 @@
 """Data loaders — one file for all I/O.
 
-    DataLoaderBase    — abstract: defines the contract every loader
-                        must satisfy (session / timeseries / ppf /
-                        similarity / subscales / attributes / patient
-                        validation).
-    DataLoader        — production: pulls from the RGS MySQL via
-                        `rgs_interface.DatabaseInterface`, augmented
-                        with local Parquet/CSV reads for PPF +
-                        similarity (which live in `~/.ai_cdss/`).
+    DataLoader   — pulls from the RGS MySQL via
+                   `rgs_interface.DatabaseInterface`, augmented with
+                   local Parquet/CSV reads for PPF + similarity (which
+                   live in `~/.ai_cdss/`).
 
-CSV-backed and synthetic-data loader variants existed in v0.3.1; they
-were removed in the cleanup pass because nothing imported them. If a
-local-file or fake-data loader is needed again, the simplest path is to
-construct a `DictBackedState` directly (see `engine.py`) — bypass the
-loader contract entirely for synthetic data.
+This is the only loader implementation. CSV-backed and synthetic
+loader variants existed in v0.3.1; they were removed when nothing
+imported them. For synthetic data, construct a `DictBackedState`
+directly (see `engine.py`) — bypass the loader contract entirely.
+
+The abstract `DataLoaderBase` was removed for the same reason. If a
+second concrete loader is ever needed, lean on duck typing or a PEP
+544 Protocol rather than reintroducing an ABC.
 
 The file is sectioned:
 
     SECTION 1  File-IO helpers (CSV / Parquet readers, JSON-encoded
                subscale decoding). Pure functions used by the loader.
-    SECTION 2  DataLoaderBase (abstract)
-    SECTION 3  DataLoader (DB-backed)
+    SECTION 2  DataLoader (DB-backed)
 """
 from __future__ import annotations
 
 import json
 import logging
 import shutil
-from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Callable, List, Optional
 
@@ -48,11 +45,7 @@ from ai_cdss.constants import (
     PROTOCOL_ID,
     PROTOCOL_SIMILARITY_CSV,
 )
-from ai_cdss.models import (
-    PPFSchema,
-    SessionSchema,
-    TimeseriesSchema,
-)
+from ai_cdss.models import PPFSchema, SessionSchema
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +78,7 @@ def _decode_subscales(
 
 
 def _safe_load_csv(
-    file_path: Optional[Union[str, Path]] = None,
+    file_path: Optional[Path | str] = None,
     default_filename: Optional[str] = None,
 ) -> pd.DataFrame:
     """Load a CSV from `file_path` (if given) or from the default data
@@ -120,13 +113,13 @@ def _safe_load_csv(
         raise ValueError(f"Error reading {file_path}: {e}") from e
 
 
-def _load_patient_subscales(file_path: Optional[Union[str, Path]] = None) -> pd.DataFrame:
+def _load_patient_subscales(file_path: Optional[Path | str] = None) -> pd.DataFrame:
     """Load patient clinical subscale scores. Defaults to the standard
     location under `DEFAULT_DATA_DIR/CLINICAL_SCORES_CSV`."""
     return _safe_load_csv(file_path, CLINICAL_SCORES_CSV)
 
 
-def _load_protocol_attributes(file_path: Optional[Union[str, Path]] = None) -> pd.DataFrame:
+def _load_protocol_attributes(file_path: Optional[Path | str] = None) -> pd.DataFrame:
     """Load protocol attributes from disk; fall back to the embedded
     package data if the disk file is missing.
 
@@ -155,7 +148,7 @@ def _load_protocol_attributes(file_path: Optional[Union[str, Path]] = None) -> p
         ) from e
 
 
-def _load_protocol_similarity(file_path: Optional[Union[str, Path]] = None) -> pd.DataFrame:
+def _load_protocol_similarity(file_path: Optional[Path | str] = None) -> pd.DataFrame:
     """Load the protocol similarity CSV from `DEFAULT_OUTPUT_DIR`."""
     target = Path(file_path) if file_path is not None else DEFAULT_OUTPUT_DIR / PROTOCOL_SIMILARITY_CSV
     if not target.exists():
@@ -212,45 +205,14 @@ def _load_ppf_data(patient_list: List[int]) -> pd.DataFrame:
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 2 — DataLoaderBase (abstract interface)                     ║
+# ║  SECTION 2 — DataLoader (DB-backed)                                  ║
 # ║                                                                      ║
-# ║  Every loader must implement these methods. The pipeline             ║
-# ║  (RecommendationDataService) holds a DataLoaderBase reference and    ║
-# ║  doesn't care which subclass is plugged in.                          ║
+# ║  Pulls from RGS MySQL via DatabaseInterface for sessions and patient ║
+# ║  metadata. PPF + similarity come from local Parquet / CSV in         ║
+# ║  ~/.ai_cdss/output/ since they're precomputed offline.               ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-class DataLoaderBase(ABC):
-    @abstractmethod
-    def load_session_data(self, patient_list: List[int]) -> pd.DataFrame: ...
-
-    @abstractmethod
-    def load_timeseries_data(self, patient_list: List[int]) -> pd.DataFrame: ...
-
-    @abstractmethod
-    def load_ppf_data(self, patient_list: List[int]) -> pd.DataFrame: ...
-
-    @abstractmethod
-    def load_protocol_similarity(self) -> pd.DataFrame: ...
-
-    @abstractmethod
-    def load_patient_subscales(self, patient_list: List[int]) -> pd.DataFrame: ...
-
-    @abstractmethod
-    def load_protocol_attributes(self, file_path: Optional[str] = None) -> pd.DataFrame: ...
-
-    @abstractmethod
-    def fetch_and_validate_patients(self, study_ids: Optional[List[int]] = None) -> List[int]: ...
-
-
-# ╔═════════════════════════════════════════════════════════════════════╗
-# ║  SECTION 3 — DataLoader (production, DB-backed)                      ║
-# ║                                                                      ║
-# ║  Pulls from RGS MySQL via DatabaseInterface for sessions, patient    ║
-# ║  metadata, and timeseries. PPF + similarity come from local Parquet  ║
-# ║  / CSV in ~/.ai_cdss/output/ since they're precomputed offline.      ║
-# ╚═════════════════════════════════════════════════════════════════════╝
-
-class DataLoader(DataLoaderBase):
+class DataLoader:
     """RGS-MySQL-backed loader. PPF + similarity from local FS."""
 
     def __init__(self, rgs_mode: str = "plus") -> None:
@@ -266,12 +228,6 @@ class DataLoader(DataLoaderBase):
         return self._fetch(
             lambda p: self.interface.fetch_rgs_data(p, rgs_mode=self.rgs_mode),
             patient_list, name="sessions", schema_cls=SessionSchema,
-        )
-
-    def load_timeseries_data(self, patient_list: List[int]) -> pd.DataFrame:
-        return self._fetch(
-            lambda p: self.interface.fetch_dm_data(p, rgs_mode=self.rgs_mode),
-            patient_list, name="timeseries", schema_cls=TimeseriesSchema,
         )
 
     def load_ppf_data(self, patient_list: List[int]) -> pd.DataFrame:
