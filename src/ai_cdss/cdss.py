@@ -115,16 +115,9 @@ class CDSS:
             recommendations = self._repeat_prescriptions(prescriptions)
         else:
             trace["branch"] = "update"
-            # Pre-swap shape trim — gated by AI_CDSS_NORMALIZE_INPUT env var
-            # (default "1" = on). Set to "0" for instant rollback to the
-            # pre-trim behaviour without code changes. Records every
-            # dropped (protocol, day) pair to trace["trimmed"].
-            import os as _os
-            if _os.environ.get("AI_CDSS_NORMALIZE_INPUT", "1") == "1":
-                prescriptions = self._normalize_input(patient_id, prescriptions)
-                trace["normalize_input"] = "applied"
-            else:
-                trace["normalize_input"] = "skipped"
+            # Pre-swap shape trim. Always runs — records every dropped
+            # (protocol, day) pair to trace["trimmed"].
+            prescriptions = self._normalize_input(patient_id, prescriptions)
             trace["prior"] = [
                 {
                     "protocol_id": int(r[PROTOCOL_ID]),
