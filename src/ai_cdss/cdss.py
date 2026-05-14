@@ -349,14 +349,21 @@ class CDSS:
             unused protocols. No existing (protocol, day) pair is moved
             or removed.
         """
-        # Identify protocols to swap and those to exclude from substitution
-        protocols_to_swap: list[int] = self._decide_prescription_swap(patient_id)
+        # Identify protocols to swap and those to exclude from substitution.
+        # Pass the (possibly normalize-trimmed) `prescriptions` through so
+        # the swap loop only references protocols actually present here —
+        # avoids IndexError in `_swap_protocol` when looking up DAYS.
+        protocols_to_swap: list[int] = self._decide_prescription_swap(
+            patient_id, prescriptions=prescriptions
+        )
         protocols_excluded: list[int] = prescriptions[PROTOCOL_ID].tolist()
         swap_reason: Dict[int, str] = {p: "below_mean_score" for p in protocols_to_swap}
 
         # [AISN RCT] enforce a minimum of one swap per week
         if not protocols_to_swap:
-            forced = self._get_lowest_performing_protocol(patient_id)
+            forced = self._get_lowest_performing_protocol(
+                patient_id, prescriptions=prescriptions
+            )
             protocols_to_swap.append(forced)
             swap_reason[forced] = "aisn_min_one_swap"
 
@@ -490,7 +497,11 @@ class CDSS:
     ###########################################################################
     # Marginal Value Theorem (Swapping Criteria)
 
-    def _decide_prescription_swap(self, patient_id: int) -> List[int]:
+    def _decide_prescription_swap(
+        self,
+        patient_id: int,
+        prescriptions: Optional[pd.DataFrame] = None,
+    ) -> List[int]:
         """
         Determine which prescribed protocols to swap.
 
@@ -505,8 +516,13 @@ class CDSS:
         prescribed set only, which made the threshold self-referential —
         ~half of any uniform prescribed set was always tagged for swap
         regardless of how well it scored against unused alternatives.
+
+        `prescriptions` may be passed in by callers that have already
+        applied `_normalize_input` — otherwise we re-fetch from the
+        full scoring frame (default behaviour, used by external callers).
         """
-        prescriptions = self._get_prescriptions(patient_id)
+        if prescriptions is None:
+            prescriptions = self._get_prescriptions(patient_id)
         if prescriptions.empty:
             return []
         env_scores = self.scoring.loc[
@@ -605,11 +621,20 @@ class CDSS:
     ###########################################################################
     # SCORE
 
-    def _get_lowest_performing_protocol(self, patient_id: int) -> int:
+    def _get_lowest_performing_protocol(
+        self,
+        patient_id: int,
+        prescriptions: Optional[pd.DataFrame] = None,
+    ) -> int:
         """
         Get the protocol with lowest SCORE from a patient prescriptions dataframe.
+
+        Same `prescriptions` override as `_decide_prescription_swap` —
+        callers that have already trimmed the set should pass it in to
+        avoid forced-swap picking a protocol that's no longer present.
         """
-        prescriptions = self._get_prescriptions(patient_id)
+        if prescriptions is None:
+            prescriptions = self._get_prescriptions(patient_id)
         return prescriptions[
             prescriptions[SCORE] == prescriptions[SCORE].min()
         ][PROTOCOL_ID].iloc[0]
