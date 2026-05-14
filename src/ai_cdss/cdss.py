@@ -428,13 +428,20 @@ class CDSS:
         Find a suitable substitute for a given protocol.
         Returns the protocol ID of the substitute, or None if not found.
         """
+        excluded = protocols_excluded or []
         usage = self._get_patient_protocol_usage(patient_id)
         similarities = self._get_protocol_similarities(
             protocol_id, protocol_similarity, protocols_excluded
         )
 
-        # Try to find unused protocols first
-        unused_candidates = self._get_unused_candidates(usage)
+        # Try to find unused protocols first. Explicitly drop any excluded
+        # protocols here; previously the filter was applied only indirectly
+        # via `similarities` (which already excludes them), but that
+        # coupled correctness to a downstream intersection and broke when
+        # similarity rows were missing for a candidate.
+        unused_candidates = [
+            p for p in self._get_unused_candidates(usage) if p not in excluded
+        ]
         if unused_candidates:
             logger.info(
                 "No usage for %s, selecting most similar from %s",
@@ -443,7 +450,9 @@ class CDSS:
             )
             return self._select_most_similar(unused_candidates, similarities)
 
-        # Otherwise, pick from top 5 similar protocols the least used
+        # Otherwise, pick from top 5 similar protocols the least used.
+        # `similarities` already excludes `protocols_excluded`, so the
+        # top_similar list is automatically excluded-safe.
         top_similar_protocols = self._get_top_similar_protocols(similarities, top_n=5)
         least_used_candidates = self._get_least_used_candidates(
             usage, top_similar_protocols
