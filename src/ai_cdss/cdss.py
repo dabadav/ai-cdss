@@ -140,6 +140,21 @@ class CDSS:
              "days":        sorted([int(d) for d in (r.get(DAYS) or [])])}
             for _, r in out.iterrows()
         ]
+        # Snapshot the full per-protocol scoring the engine evaluated against
+        # for this (patient, week) decision. Lets downstream tools (supervisor
+        # heatmap, viewer) render bars from the SAME snapshot the engine used
+        # for swap decisions — instead of mixing live `recsys_metrics` scores
+        # with trace-derived swap decisions.
+        _pat_scores = self.scoring[self.scoring[PATIENT_ID] == patient_id]
+        trace["scoring"] = [
+            {
+                "protocol_id":  int(r[PROTOCOL_ID]),
+                "score":        float(r[SCORE]) if pd.notna(r.get(SCORE)) else None,
+                "usage":        int(r[USAGE]) if pd.notna(r.get(USAGE)) else 0,
+                "usage_week":   int(r[USAGE_WEEK]) if pd.notna(r.get(USAGE_WEEK)) else 0,
+            }
+            for _, r in _pat_scores.iterrows()
+        ]
         attrs = dict(self.scoring.attrs)
         attrs["trace"] = trace
         out.attrs = attrs
@@ -266,20 +281,33 @@ class CDSS:
             inherited_days = sorted(
                 {int(d) for d in (substitute_row.get(DAYS) or [])}
             )
+            # `_swap_protocol` returns the SAME protocol when `_get_substitute`
+            # finds no candidate (pool exhausted, top-similar all excluded,
+            # similarity matrix gap, …). Surface that explicitly in the trace
+            # so the supervisor can flag a "below-MVT but kept" row instead
+            # of having the silent no-op fallback look like a normal kept
+            # prescription.
+            substitute_found = sub_id != int(protocol_id)
+            effective_reason = (
+                swap_reason.get(protocol_id, "unknown")
+                if substitute_found else "no_substitute_found"
+            )
             logger.info(
                 "Swap patient=%s removed=%s (score=%s) -> added=%s (sim=%s) days=%s reason=%s",
                 patient_id, protocol_id, removed_score, sub_id, sub_sim,
-                inherited_days, swap_reason.get(protocol_id),
+                inherited_days, effective_reason,
             )
             if trace is not None:
                 trace["swaps"].append({
-                    "removed":         int(protocol_id),
-                    "removed_score":   removed_score,
-                    "added":           sub_id,
-                    "similarity":      sub_sim,
-                    "inherited_days":  inherited_days,
-                    "candidate_pool":  similarities[PROTOCOL_B].astype(int).tolist(),
-                    "reason":          swap_reason.get(protocol_id, "unknown"),
+                    "removed":           int(protocol_id),
+                    "removed_score":     removed_score,
+                    "added":             sub_id,
+                    "similarity":        sub_sim,
+                    "inherited_days":    inherited_days,
+                    "candidate_pool":    similarities[PROTOCOL_B].astype(int).tolist(),
+                    "reason":            effective_reason,
+                    "intended_reason":   swap_reason.get(protocol_id, "unknown"),
+                    "substitute_found":  substitute_found,
                 })
             updated_rows.append(substitute_row)
             protocols_excluded.append(sub_id)
