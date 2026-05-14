@@ -276,37 +276,50 @@ class CDSS:
                 })
 
         # Trim 2: per-day count > ppd
+        #
+        # Policy: the protocol with the MOST current day assignments loses
+        # the over-crowded day. Tiebreak on PROTOCOL_ID asc for
+        # determinism. Score is NOT used as a tiebreaker — it preserves
+        # diversity (a low-scoring protocol on a single day stays alive)
+        # at the cost of MVT alignment (an above-mean protocol may lose
+        # a day before a below-mean one). Reduces / eliminates Trim 3
+        # events because no protocol gets stripped to empty.
+        #
+        # Re-evaluated dynamically: each day's victim is chosen by
+        # current |DAYS|, not the pre-trim snapshot. So a protocol that
+        # loses a day on day 0 will rank lower for day 1's pick.
         if not df.empty:
             ppd_max = self.protocols_per_day
-            day_protos: Dict[int, list[tuple[int, float]]] = {}
-            for _, r in df.iterrows():
-                pid_p = int(r[PROTOCOL_ID])
-                s     = float(r[SCORE]) if pd.notna(r.get(SCORE)) else 0.0
-                for d in (r.get(DAYS) or []):
-                    day_protos.setdefault(int(d), []).append((pid_p, s))
+            # Current day count per protocol — recomputed each pick.
+            def _count_days(_df):
+                return {int(r[PROTOCOL_ID]): len(r.get(DAYS) or []) for _, r in _df.iterrows()}
 
-            for d in sorted(day_protos.keys()):
-                items = day_protos[d]
-                if len(items) <= ppd_max:
-                    continue
-                # Keep top-ppd_max by score desc, then protocol_id asc.
-                items.sort(key=lambda x: (-x[1], x[0]))
-                keep_ids = {p for p, _ in items[:ppd_max]}
-                drop_ids = [p for p, _ in items[ppd_max:]]
-                for pid_p in drop_ids:
-                    mask = df[PROTOCOL_ID] == pid_p
-                    if not mask.any():
-                        continue
+            # Loop until every day is within cap. Process days in
+            # ascending order; each pass picks the worst offender.
+            for d in sorted({int(d) for row in df[DAYS] for d in row}):
+                while True:
+                    on_day = []
+                    for _, r in df.iterrows():
+                        if int(d) in (r.get(DAYS) or []):
+                            on_day.append(int(r[PROTOCOL_ID]))
+                    if len(on_day) <= ppd_max:
+                        break
+                    day_count_now = _count_days(df)
+                    # Pick protocol with most current days; tiebreak on protocol_id asc.
+                    on_day.sort(key=lambda p: (-day_count_now.get(p, 0), p))
+                    victim = on_day[0]
+                    mask = df[PROTOCOL_ID] == victim
                     row_idx = df.index[mask][0]
                     current_days = list(df.at[row_idx, DAYS] or [])
                     new_days = [x for x in current_days if int(x) != d]
                     df.at[row_idx, DAYS] = new_days
                     score_val = float(df.at[row_idx, SCORE]) if pd.notna(df.at[row_idx, SCORE]) else None
                     trimmed.append({
-                        "protocol_id":  pid_p,
-                        "removed_days": [d],
-                        "reason":       "per_day_over_max",
-                        "score":        score_val,
+                        "protocol_id":      victim,
+                        "removed_days":     [d],
+                        "reason":           "per_day_over_max",
+                        "score":            score_val,
+                        "victim_day_count": day_count_now.get(victim, 0),
                     })
 
         # Trim 3: drop protocols whose DAYS became empty

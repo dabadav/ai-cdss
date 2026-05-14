@@ -94,60 +94,100 @@ def test_normalize_input_trim_distinct():
 
 
 def test_normalize_input_trim_per_day():
-    """Day 0 has 7 prescribed protocols → 5 kept (top by score), 2 lose day 0.
-
-    Other days kept under ppd cap so only the day-0 trim fires."""
-    # Day 0: 7 protocols. Day 1 / day 2 / day 3: at-spec (≤ 5).
+    """Day 0 over cap → protocol with MOST current days loses day 0
+    (regardless of score). Preserves diversity for single-day protocols."""
+    # Day 0: 6 protocols. Day 1, 2, 3 used as filler so 200's multi-day
+    # presence is unambiguous. Cap = 5 → drop 1 from day 0.
     prescriptions = [
-        {"protocol_id": 200, "score": 1.00, "days": [0, 1]},
-        {"protocol_id": 201, "score": 0.95, "days": [0, 1]},
-        {"protocol_id": 202, "score": 0.90, "days": [0, 1]},
-        {"protocol_id": 203, "score": 0.85, "days": [0, 1]},
-        {"protocol_id": 204, "score": 0.80, "days": [0, 1]},
-        # The two extras on day 0 also live on day 2 (where there's room)
-        {"protocol_id": 205, "score": 0.75, "days": [0, 2]},
-        {"protocol_id": 206, "score": 0.70, "days": [0, 2]},  # 7th on day 0
-        # Filler so n is reasonable and day 2 has ≤ 5
-        {"protocol_id": 207, "score": 0.65, "days": [3]},
-        {"protocol_id": 208, "score": 0.60, "days": [3]},
-        {"protocol_id": 209, "score": 0.55, "days": [3]},
+        # 200 is on 4 days total → should be the day-0 victim under
+        # "most days" policy even though it has the highest score.
+        {"protocol_id": 200, "score": 1.00, "days": [0, 1, 2, 3]},
+        {"protocol_id": 201, "score": 0.90, "days": [0, 1]},
+        {"protocol_id": 202, "score": 0.80, "days": [0]},
+        {"protocol_id": 203, "score": 0.70, "days": [0]},
+        {"protocol_id": 204, "score": 0.60, "days": [0]},
+        # 6th on day 0, lowest score — under OLD policy this would be
+        # the victim. Under NEW policy 200 (most days) loses day 0
+        # instead, and 205 survives.
+        {"protocol_id": 205, "score": 0.50, "days": [0]},
     ]
     scoring = _scoring_with(prescriptions)
     cdss   = _make_cdss(scoring)
     prior  = cdss._get_prescriptions(1)
     out    = cdss._normalize_input(1, prior)
 
-    # Build day-protocol map from output
+    # Build day-protocol map
+    day_count: dict[int, set[int]] = {}
+    for _, r in out.iterrows():
+        for d in r[DAYS]:
+            day_count.setdefault(int(d), set()).add(int(r[PROTOCOL_ID]))
+
+    assert len(day_count[0]) == 5
+    # 200 (most days) lost day 0
+    assert 200 not in day_count[0]
+    # 205 (lowest score) is preserved
+    assert 205 in day_count[0]
+    # 200 still alive on its other days
+    assert 200 in day_count[1] and 200 in day_count[2] and 200 in day_count[3]
+
+    trimmed = cdss._trace["trimmed"]
+    per_day = [t for t in trimmed if t["reason"] == "per_day_over_max"]
+    assert len(per_day) == 1
+    assert per_day[0]["protocol_id"] == 200
+    assert per_day[0]["removed_days"] == [0]
+    # New victim_day_count field records load at decision time
+    assert per_day[0]["victim_day_count"] == 4
+
+
+def test_normalize_input_trim_per_day_iterates_when_needed():
+    """If trim 1 isn't enough (day still over cap), the inner loop picks
+    a second victim — each pass re-evaluates current day counts."""
+    # Two protocols tied for "most days" on day 0; both have 3 days,
+    # day 0 has 7 protocols → need to drop 2 from day 0.
+    prescriptions = [
+        {"protocol_id": 200, "score": 1.00, "days": [0, 1, 2]},
+        {"protocol_id": 201, "score": 0.95, "days": [0, 3, 4]},
+        {"protocol_id": 202, "score": 0.90, "days": [0]},
+        {"protocol_id": 203, "score": 0.80, "days": [0]},
+        {"protocol_id": 204, "score": 0.70, "days": [0]},
+        {"protocol_id": 205, "score": 0.60, "days": [0]},
+        {"protocol_id": 206, "score": 0.50, "days": [0]},
+    ]
+    scoring = _scoring_with(prescriptions)
+    cdss   = _make_cdss(scoring)
+    prior  = cdss._get_prescriptions(1)
+    out    = cdss._normalize_input(1, prior)
+
     day_count: dict[int, set[int]] = {}
     for _, r in out.iterrows():
         for d in r[DAYS]:
             day_count.setdefault(int(d), set()).add(int(r[PROTOCOL_ID]))
     assert len(day_count[0]) == 5
-    # The 2 lowest-scoring on day 0 (205, 206) should have lost it
-    assert 205 not in day_count[0]
-    assert 206 not in day_count[0]
-    # And kept their other-day prescriptions
-    assert 205 in day_count[2]
-    assert 206 in day_count[2]
-
-    trimmed = cdss._trace["trimmed"]
-    per_day = [t for t in trimmed if t["reason"] == "per_day_over_max"]
-    assert len(per_day) == 2
-    assert {t["protocol_id"] for t in per_day} == {205, 206}
+    # 200 and 201 (the 3-day protocols) should each lose day 0 — they
+    # were tied on |DAYS|=3, then 200 loses first (lower protocol_id),
+    # after which 201 still has 3 days and 200 has 2 → 201 is next.
+    assert 200 not in day_count[0]
+    assert 201 not in day_count[0]
+    trimmed_per_day = [t for t in cdss._trace["trimmed"] if t["reason"] == "per_day_over_max"]
+    assert len(trimmed_per_day) == 2
+    assert {t["protocol_id"] for t in trimmed_per_day} == {200, 201}
 
 
 def test_normalize_input_empty_after_trim():
-    """Protocol whose only day gets trimmed by per-day rule is dropped entirely."""
-    # Day 0 has 6 protocols, one of which has DAYS=[0] only. Trim 1 leaves it.
-    # Trim 2 removes day 0 from the lowest-scoring on day 0 — that's also the
-    # one with only [0], so its DAYS goes empty → Trim 3 drops it.
+    """Under the 'most days' policy, Trim 3 only fires when EVERY protocol
+    on the over-cap day has the same minimal day count. Tiebreak by
+    PROTOCOL_ID ascending picks the smallest id as victim, which then
+    becomes empty and is dropped by Trim 3.
+    """
+    # 6 protocols all on day 0 only — every protocol has |DAYS|=1.
+    # Tie on day count → tiebreak picks 200 → 200 loses day 0 → empty.
     prescriptions = [
-        {"protocol_id": 200, "score": 1.00, "days": [0, 1]},
-        {"protocol_id": 201, "score": 0.95, "days": [0, 1]},
-        {"protocol_id": 202, "score": 0.90, "days": [0, 1]},
-        {"protocol_id": 203, "score": 0.85, "days": [0, 1]},
-        {"protocol_id": 204, "score": 0.80, "days": [0, 2]},
-        {"protocol_id": 205, "score": 0.40, "days": [0]},      # only day 0; will be empty after Trim 2
+        {"protocol_id": 200, "score": 1.00, "days": [0]},
+        {"protocol_id": 201, "score": 0.95, "days": [0]},
+        {"protocol_id": 202, "score": 0.90, "days": [0]},
+        {"protocol_id": 203, "score": 0.85, "days": [0]},
+        {"protocol_id": 204, "score": 0.80, "days": [0]},
+        {"protocol_id": 205, "score": 0.75, "days": [0]},
     ]
     scoring = _scoring_with(prescriptions)
     cdss   = _make_cdss(scoring)
@@ -155,9 +195,10 @@ def test_normalize_input_empty_after_trim():
     out    = cdss._normalize_input(1, prior)
 
     out_ids = set(out[PROTOCOL_ID].astype(int))
-    assert 205 not in out_ids
+    # 200 was picked (lowest pid on tie), stripped to empty, dropped
+    assert 200 not in out_ids
     trimmed = cdss._trace["trimmed"]
-    reasons = [t["reason"] for t in trimmed if t["protocol_id"] == 205]
+    reasons = [t["reason"] for t in trimmed if t["protocol_id"] == 200]
     assert "per_day_over_max" in reasons
     assert "empty_after_per_day_trim" in reasons
 
