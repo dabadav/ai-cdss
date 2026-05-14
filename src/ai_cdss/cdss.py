@@ -100,6 +100,7 @@ class CDSS:
             "prior":          [],
             "swaps":          [],
             "topup":          [],
+            "trimmed":        [],
             "final":          [],
         }
         self._trace = trace  # available to inner helpers via self
@@ -114,6 +115,16 @@ class CDSS:
             recommendations = self._repeat_prescriptions(prescriptions)
         else:
             trace["branch"] = "update"
+            # Pre-swap shape trim — gated by AI_CDSS_NORMALIZE_INPUT env var
+            # (default "1" = on). Set to "0" for instant rollback to the
+            # pre-trim behaviour without code changes. Records every
+            # dropped (protocol, day) pair to trace["trimmed"].
+            import os as _os
+            if _os.environ.get("AI_CDSS_NORMALIZE_INPUT", "1") == "1":
+                prescriptions = self._normalize_input(patient_id, prescriptions)
+                trace["normalize_input"] = "applied"
+            else:
+                trace["normalize_input"] = "skipped"
             trace["prior"] = [
                 {
                     "protocol_id": int(r[PROTOCOL_ID]),
@@ -220,6 +231,101 @@ class CDSS:
                     schedule[day].append(protocol)
 
         return schedule  # protocol: [day, ...]
+
+    ###########################################################################
+    # Pre-swap input shape normalization
+    ###########################################################################
+
+    def _normalize_input(
+        self,
+        patient_id: int,
+        prescriptions: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """Trim a patient's prior-week prescription down to AISN spec
+        before the swap loop sees it.
+
+        Three independent trims, applied in order:
+          1. distinct count > N         → drop lowest-scoring excess
+          2. per-day count > ppd        → drop lowest-scoring surplus
+                                          (per affected day)
+          3. protocols with empty DAYS  → drop entirely (housekeeping)
+
+        Every dropped (protocol, day) pair is recorded to
+        trace["trimmed"] with a reason tag so the supervisor can show
+        the user WHY a row disappeared between prior week and final.
+
+        Score ties broken on PROTOCOL_ID ascending for deterministic
+        output across runs.
+        """
+        trace = getattr(self, "_trace", None)
+        trimmed: list[dict] = []
+        df = prescriptions.copy()
+
+        # Trim 1: distinct count > N
+        if len(df) > self.n:
+            df = df.sort_values(by=[SCORE, PROTOCOL_ID], ascending=[True, True])
+            drop_count = len(df) - self.n
+            dropped = df.head(drop_count)
+            df      = df.tail(self.n).copy()
+            for _, r in dropped.iterrows():
+                trimmed.append({
+                    "protocol_id":  int(r[PROTOCOL_ID]),
+                    "removed_days": [int(d) for d in (r.get(DAYS) or [])],
+                    "reason":       "n_distinct_over_max",
+                    "score":        float(r[SCORE]) if pd.notna(r.get(SCORE)) else None,
+                })
+
+        # Trim 2: per-day count > ppd
+        if not df.empty:
+            ppd_max = self.protocols_per_day
+            day_protos: Dict[int, list[tuple[int, float]]] = {}
+            for _, r in df.iterrows():
+                pid_p = int(r[PROTOCOL_ID])
+                s     = float(r[SCORE]) if pd.notna(r.get(SCORE)) else 0.0
+                for d in (r.get(DAYS) or []):
+                    day_protos.setdefault(int(d), []).append((pid_p, s))
+
+            for d in sorted(day_protos.keys()):
+                items = day_protos[d]
+                if len(items) <= ppd_max:
+                    continue
+                # Keep top-ppd_max by score desc, then protocol_id asc.
+                items.sort(key=lambda x: (-x[1], x[0]))
+                keep_ids = {p for p, _ in items[:ppd_max]}
+                drop_ids = [p for p, _ in items[ppd_max:]]
+                for pid_p in drop_ids:
+                    mask = df[PROTOCOL_ID] == pid_p
+                    if not mask.any():
+                        continue
+                    row_idx = df.index[mask][0]
+                    current_days = list(df.at[row_idx, DAYS] or [])
+                    new_days = [x for x in current_days if int(x) != d]
+                    df.at[row_idx, DAYS] = new_days
+                    score_val = float(df.at[row_idx, SCORE]) if pd.notna(df.at[row_idx, SCORE]) else None
+                    trimmed.append({
+                        "protocol_id":  pid_p,
+                        "removed_days": [d],
+                        "reason":       "per_day_over_max",
+                        "score":        score_val,
+                    })
+
+        # Trim 3: drop protocols whose DAYS became empty
+        if not df.empty:
+            before_ids = set(df[PROTOCOL_ID].astype(int))
+            df = df[df[DAYS].apply(lambda x: isinstance(x, list) and len(x) > 0)].reset_index(drop=True)
+            after_ids = set(df[PROTOCOL_ID].astype(int))
+            for pid_p in (before_ids - after_ids):
+                trimmed.append({
+                    "protocol_id":  int(pid_p),
+                    "removed_days": [],
+                    "reason":       "empty_after_per_day_trim",
+                    "score":        None,
+                })
+
+        if trace is not None and trimmed:
+            trace["trimmed"].extend(trimmed)
+
+        return df
 
     ###########################################################################
     # Prescription Updates (Substitution Logic)
