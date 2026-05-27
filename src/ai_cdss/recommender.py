@@ -74,6 +74,7 @@ def _init_trace(
         "top_protocols":  state.top_protocols(n),
         "branch":         None,
         "prior":          [],
+        "mvt_mean":       None,
         "swaps":          [],
         "topup":          [],
         "final":          [],
@@ -175,20 +176,37 @@ def _repeat_strategy(state: EngineState) -> list[ProtocolRow]:
 # ║  SECTION 4 — MVT swap criterion                                      ║
 # ║                                                                      ║
 # ║  A prescribed protocol is a swap candidate when its SCORE is         ║
-# ║  strictly below the mean of currently-prescribed SCOREs. Strict      ║
-# ║  `<` — ties at the mean stay.                                        ║
+# ║  strictly below the COHORT-WIDE mean SCORE — the mean over ALL of    ║
+# ║  the patient's protocols, not just the prescribed set. The candidate ║
+# ║  pool is already cohort-wide (Section 5); this makes the threshold   ║
+# ║  symmetric with it. Strict `<` — ties at the mean stay. The keep/    ║
+# ║  swap criterion still applies only to PRESCRIBED protocols (the only ║
+# ║  ones we can swap out).                                              ║
 # ╚═════════════════════════════════════════════════════════════════════╝
 
-def _below_mean_protocols(prior: list[ProtocolRow]) -> list[int]:
-    """Protocol IDs strictly below the prescribed-set mean SCORE.
-    Returns in iteration order (caller decides further sorting)."""
-    if not prior:
-        return []
-    scores = [r.score for r in prior if r.score is not None]
-    if not scores:
-        return []
-    mean = sum(scores) / len(scores)
-    return [r.protocol_id for r in prior if r.score is not None and r.score < mean]
+def _below_mean_protocols(
+    prior: list[ProtocolRow], state: EngineState,
+) -> tuple[list[int], float | None]:
+    """Prescribed protocol IDs strictly below the cohort-wide mean SCORE.
+
+    The mean is taken over every protocol the patient has
+    (`state.all_protocols`) — not the prescribed set — so a homogeneous
+    prescribed set no longer hides swap pressure when better-scoring
+    unprescribed protocols exist. Returns (targets, mean); targets in
+    `prior` iteration order (caller decides further sorting)."""
+    all_scores = [
+        row.score
+        for pid in state.all_protocols
+        if (row := state.score_row(pid)).score is not None
+    ]
+    if not all_scores:
+        return [], None
+    mean = sum(all_scores) / len(all_scores)
+    targets = [
+        r.protocol_id for r in prior
+        if r.score is not None and r.score < mean
+    ]
+    return targets, mean
 
 
 # ╔═════════════════════════════════════════════════════════════════════╗
@@ -301,7 +319,9 @@ def _update_strategy(
     trace: dict | None = None,
 ) -> list[ProtocolRow]:
     prior = state.prescribed_rows
-    swap_targets, reasons = _select_swap_targets(prior, state)
+    swap_targets, reasons, mvt_mean = _select_swap_targets(prior, state)
+    if trace is not None:
+        trace["mvt_mean"] = mvt_mean
 
     # Keep rows whose protocol is NOT being swapped — preserved verbatim.
     kept_rows: list[ProtocolRow] = [
@@ -321,16 +341,17 @@ def _update_strategy(
 def _select_swap_targets(
     prior: list[ProtocolRow],
     state: EngineState,
-) -> tuple[list[int], dict[int, str]]:
-    """Pick swap targets + reason per target. If MVT yields none, force
-    a single swap on the lowest-scoring prior (AISN min-1-swap rule)."""
-    targets = _below_mean_protocols(prior)
+) -> tuple[list[int], dict[int, str], float | None]:
+    """Pick swap targets + reason per target + the cohort-wide MVT mean.
+    If MVT yields none, force a single swap on the lowest-scoring prior
+    (AISN min-1-swap rule — unchanged under the cohort-wide threshold)."""
+    targets, mvt_mean = _below_mean_protocols(prior, state)
     reasons = {p: "below_mean_score" for p in targets}
     if not targets:
         forced = state.lowest_scoring_prescribed
         targets = [forced]
         reasons = {forced: "aisn_min_one_swap"}
-    return targets, reasons
+    return targets, reasons, mvt_mean
 
 
 def _build_swap_rows(
@@ -758,12 +779,9 @@ class Recommender:
 
     @staticmethod
     def _compute_mvt_mean(trace: dict, branch: str) -> float | None:
+        """The cohort-wide MVT threshold — mean SCORE over all of the
+        patient's protocols — recorded by the update strategy. Only the
+        update branch runs the MVT criterion."""
         if branch != "update":
             return None
-        prior_scores = [
-            p.get("score") for p in (trace.get("prior") or [])
-            if p.get("score") is not None
-        ]
-        if not prior_scores:
-            return None
-        return sum(prior_scores) / len(prior_scores)
+        return trace.get("mvt_mean")
