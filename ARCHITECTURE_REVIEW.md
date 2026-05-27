@@ -23,7 +23,19 @@ Ranked by payoff.
 
 ---
 
-## 1. `interface/cdss.py` is the unrefactored island — biggest gap
+## Progress
+
+- ✅ **#1 — orchestrator rename + decomposition** — `f9`. `CDSS` →
+  `RecommendationService` (+ back-compat alias), `cdss` local → `engine`,
+  `_recommend_for_patients_core` split into 6 helpers.
+- ✅ **#2 — PrescriptionStore write-side port** — `f8`. Writes + idempotency
+  no longer touch `repository.interface`.
+- ⬜ #3 — `metrics.py` split (internal, not API).
+- ⬜ Smaller seams (internal).
+
+---
+
+## 1. `interface/cdss.py` is the unrefactored island — biggest gap [DONE — f9]
 
 The F-series rewrote everything except this module. It is still
 v0.3.1-style: 544 lines, no section banners, `"""` docstrings, bare
@@ -54,7 +66,7 @@ loop, section-banner the file like the rest of the package.
 
 ---
 
-## 2. Read/write asymmetry — missing write-side port
+## 2. Read/write asymmetry — missing write-side port [DONE — f8]
 
 `CohortRepository` is a clean **read** abstraction (`find() → Cohort`).
 Every **write** bypasses it and reaches into the concrete DB internals:
