@@ -1,73 +1,52 @@
 """
-Script to run PPF and Protocol Similarity computation.
-It runs for all patients existing in the clinical scores file.
+Compute + persist PPF and protocol similarity for a study cohort.
+=================================================================
 
-**Requirements:**
+Offline job, run on patient enrollment or after a protocol-set change.
+PPF (patient-protocol fit) and the protocol similarity matrix are
+precomputed and written to ``~/.ai_cdss/output/`` so the recommender can
+read them at recommend time (it never computes them on the hot path).
 
-The following input files must be located in `~/.ai_cdss/data/`:
+Outputs:
+    ~/.ai_cdss/output/ppf.parquet           (PATIENT_ID, PROTOCOL_ID, PPF, CONTRIB)
+    ~/.ai_cdss/output/protocol_similarity.csv (PROTOCOL_A, PROTOCOL_B, SIMILARITY)
 
-- `clinical_scores.csv`  
-  Patient clinical subscales (clinical baseline scores for patients)
+Both steps are exposed on `RecommendationService` (which wraps
+`precompute.py` + the repository's offline accessors). This script just
+resolves the cohort and calls them.
 
-- `protocol_attributes.csv`  
-  Protocol attributes (matrix of protocols and the domains they target for rehabilitation)
-
-**Outputs:**
-
-Results are saved to `~/.ai_cdss/output/`:
-
-- `ppf.parquet`  
-  PPF Matrix in long format (`PATIENT_ID`, `PROTOCOL_ID`, `PPF`, `CONTRIB`)  
-  Follows schema: :class:`ai_cdss.models.PPFSchema`
-
-- `protocol_similarity.csv`  
-  Protocol similarity matrix in long format (`PROTOCOL_A`, `PROTOCOL_B`, `SIMILARITY`)  
-  Follows schema: :class:`ai_cdss.models.PCMSchema`
-
-**How to run:**
-
-Run this script from the command line:
-
-.. code-block:: bash
-
-    python -m ai_cdss.ppf
+Run:  python scripts/compute_ppf.py --study 2
 """
-# %%
-from pathlib import Path
-import pandas as pd
-from ai_cdss.loaders import DataLoaderLocal
-from ai_cdss.processing import ClinicalSubscales, ProtocolToClinicalMapper, compute_ppf, compute_protocol_similarity
+import argparse
+import logging
 
-def main():
+from ai_cdss import RecommendationService
 
-    # Get platform-appropriate application data directory
-    output_dir = Path.home() / ".ai_cdss" / "output"
-    output_dir.mkdir(parents=True, exist_ok=True)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 
-    # Loader 
-    loader = DataLoaderLocal()
-    patient = loader.load_patient_subscales()
-    protocol = loader.load_protocol_attributes()
 
-    # patient = load_patient_subscales()
-    # protocol = load_protocol_attributes()
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--study", type=int, nargs="+", default=[2],
+        help="Study ID(s) whose patients get PPF computed.",
+    )
+    args = parser.parse_args()
 
-    patient_deficiency = ClinicalSubscales().compute_deficit_matrix(patient)
-    protocol_mapped    = ProtocolToClinicalMapper().map_protocol_features(protocol)
+    service = RecommendationService()
 
-    ppf, contrib = compute_ppf(patient_deficiency, protocol_mapped)
-    ppf_contrib = pd.merge(ppf, contrib, on=["PATIENT_ID", "PROTOCOL_ID"], how="left")
-    # Save Contrib Subscales as metadata
-    ppf_contrib.attrs = {"SUBSCALES": list(protocol_mapped.columns)}
+    # Resolve the cohort (DB), then compute + persist both artifacts.
+    patient_ids = service.repository.fetch_and_validate_patients(study_ids=args.study)
+    if not patient_ids:
+        logging.warning("No patients resolved for study %s — nothing to do.", args.study)
+        return
 
-    # Save to CSV in versioned output directory
-    output_path = output_dir / "ppf.parquet"
-    ppf_contrib.to_parquet(output_path, index=False)
+    ppf_result = service.compute_patient_fit(patient_ids)
+    print(ppf_result)
 
-    print(ppf_contrib)
-    print(f"Results saved to: {output_path.absolute()}")
+    similarity_result = service.compute_protocol_similarity()
+    print(similarity_result)
+
 
 if __name__ == "__main__":
-
     main()
-# %%

@@ -1,19 +1,11 @@
-Examples Gallery
-================
+Examples
+========
 
-The examples gallery provides working code samples demonstrating various
-analysis and visualization techniques. These examples often lack the narrative
-explanations seen in the tutorials, and do not follow any specific order. These
-examples are a useful way to discover new analysis or plotting ideas, or to see
-how a particular technique you’ve read about can be applied using MNE-Python.
+recommend_usage.py
+    Generate a protocol recommendation with no database, using the dict
+    substrate (DictPatientState + DictSimilarity). Self-contained and
+    CI-friendly. Run: python examples/recommend_usage.py
 
-.. note::
-    If example-scripts contain plots and are run locally, using the
-    interactive interactive flag with ``python -i tutorial_script.py``
-    keeps them open.
-
-.. warning::
-
-   These examples sometimes use simulations or shortcuts (such as intentionally
-   adding noise to recordings) to illustrate a point. Use caution when
-   copy-pasting code samples.
+The production entry point is `from ai_cdss import RecommendationService`
+(DB-backed: fetch cohort -> score -> recommend -> persist). See
+scripts/compute_ppf.py and scripts/simulate_phrase.py for DB-backed jobs.
