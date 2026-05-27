@@ -257,7 +257,12 @@ class Imputer:
 
     def init_metrics(self, data: pd.DataFrame) -> pd.DataFrame:
         """Coerce count-style columns to Int64 + zero-fill. DAYS gets an
-        empty list whenever it's NaN/None."""
+        empty list whenever it's NaN/None.
+
+        Copies first — like `impute_metrics` — so the caller's frame is
+        never mutated (the two Imputer methods now share one no-aliasing
+        contract)."""
+        data = data.copy()
         data[DAYS] = data[DAYS].apply(
             lambda x: [] if x is None or (not isinstance(x, list) and pd.isna(x)) else x
         )

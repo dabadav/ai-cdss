@@ -30,8 +30,10 @@ Ranked by payoff.
   `_recommend_for_patients_core` split into 6 helpers.
 - ✅ **#2 — PrescriptionStore write-side port** — `f8`. Writes + idempotency
   no longer touch `repository.interface`.
-- ⬜ #3 — `metrics.py` split (internal, not API).
-- ⬜ Smaller seams (internal).
+- ✅ **#3 — `metrics.py`** — resolved as no-change (already bannered by
+  aggregation level; see item 3).
+- ✅ **Smaller seams** — `scoring.py`→`pipeline.py` + `Imputer` copy done
+  (`f10`); `Cohort` bundle won't-fix; `interface/` flatten deferred.
 
 ---
 
@@ -114,27 +116,39 @@ SQL moves behind `already_prescribed`, off the private `_fetch`.
 
 Pipeline-time vs offline-time, different abstraction levels, one module.
 **Fix:** split feature-builders from offline kernels, or at minimum
-section-banner the three groups. (Not a public-API change if re-exports
-are kept — lower priority, can land separately.)
+section-banner the three groups.
+
+**RESOLVED — no change. `metrics.py` is already section-bannered into 7
+groups organized by tensor aggregation level (the project's chosen mental
+model). The "three audiences" map cleanly onto existing sections (1 =
+signal kernels, 3–5 = pipeline builders, 6 = offline math). Splitting into
+separate files would fight the aggregation-level organization and the
+flat-layout preference (few big bannered files > many small ones). The
+banners already make the audiences navigable.**
 
 ---
 
 ## Smaller seams
 
-- **`scoring.py` undersells itself.** Holds the entire `DataPipeline`
-  (windowing, feature merge, imputation) — actual scoring is the ~20-line
-  `Scorer`. Rename → `pipeline.py` (matches the original target
-  end-state layout).
+- **✅ `scoring.py` undersells itself.** Held the entire `DataPipeline`
+  (windowing, feature merge, imputation) — actual scoring was the ~20-line
+  `Scorer`. **DONE (f10): renamed `scoring.py` → `pipeline.py`** (matches
+  the original target end-state layout). 2 importers updated, no shim.
+- **✅ `Imputer` mutation inconsistency.** `init_metrics` mutated `data`
+  in place; `impute_metrics` did `.copy()` first. **DONE (f10):
+  `init_metrics` now copies first — both methods share one no-aliasing
+  contract.**
 - **`Cohort` half-consumed.** `pipeline.process(cohort)` reads only
-  `patient/session/ppf`; `similarity` is pulled out separately in CDSS
-  (`cdss.py:161`); `whitelist` is audit-only. Bundle passes 6 fields,
-  pipeline reads 3 — fuzzy contract.
-- **`Imputer` mutation inconsistency.** `init_metrics` mutates `data`
-  in place (`scoring.py:261`); `impute_metrics` does `.copy()` first
-  (`:276`). Aliasing footgun — pick one.
-- **`interface/` subdir for one orchestrator + debug helper** is mild
-  fragmentation against the flat-layout philosophy. `app.py` at root
-  would be flatter.
+  `patient/session/ppf`; `similarity` is pulled out separately in the
+  orchestrator; `whitelist` is audit-only. **WON'T-FIX: `Cohort` is a
+  deliberate single-fetch bundle (sklearn.Bunch style). Splitting the
+  argument per-consumer would re-scatter what the Cohort was created to
+  unify. The docstring already documents who consumes each field.**
+- **`interface/` subdir for one orchestrator + debug helper.**
+  **DEFERRED: low value, high churn — moving `interface/cdss.py` → root
+  `app.py` ripples through every external `from ai_cdss.interface...`
+  import for a cosmetic flatten. Revisit alongside the supervisor
+  migration, when those imports are being touched anyway.**
 
 ---
 

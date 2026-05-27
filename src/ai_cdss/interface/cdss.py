@@ -39,7 +39,7 @@ from ai_cdss.data import (
     RGSCohortRepository,
     RGSPrescriptionStore,
 )
-from ai_cdss.scoring import DataPipeline
+from ai_cdss.pipeline import DataPipeline
 from ai_cdss.interface.debug import DebugReport
 from ai_cdss.utils import _json_default
 from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
