@@ -140,10 +140,16 @@ banners already make the audiences navigable.**
   contract.**
 - **`Cohort` half-consumed.** `pipeline.process(cohort)` reads only
   `patient/session/ppf`; `similarity` is pulled out separately in the
-  orchestrator; `whitelist` is audit-only. **WON'T-FIX: `Cohort` is a
-  deliberate single-fetch bundle (sklearn.Bunch style). Splitting the
-  argument per-consumer would re-scatter what the Cohort was created to
-  unify. The docstring already documents who consumes each field.**
+  orchestrator; `whitelist` is audit-only (the stored `Cohort.whitelist`
+  field is never read downstream — pure trace; left as-is). **WON'T-FIX:
+  `Cohort` is a deliberate single-fetch bundle (sklearn.Bunch style).**
+  Attempted a `PipelineInputs` Protocol fix (f11) and **reverted it**:
+  it duplicated `PreparedInputs` (same three fields, different stage) for
+  near-zero gain — `process` is duck-typed, so a 3-field stub already
+  worked without the Protocol. The lesson: the cure (a second look-alike
+  input type) was worse than the documented smell. A behavioral test
+  (`test_pipeline_runs_on_three_field_stub`) was kept to pin the 3-field
+  dependency; the Protocol was dropped.
 - **`interface/` subdir for one orchestrator + debug helper.**
   **DEFERRED: low value, high churn — moving `interface/cdss.py` → root
   `app.py` ripples through every external `from ai_cdss.interface...`
