@@ -16,21 +16,31 @@ from ai_cdss.constants import (
     BY_PP,
     CLINICAL_END,
     CLINICAL_START,
+    CONTRIB,
     DAYS,
     DELTA_DM,
     PATIENT_ID,
     PPF,
+    PRESCRIPTION_ENDING_DATE,
+    PRESCRIPTION_ID,
+    PRESCRIPTION_STARTING_DATE,
     PROTOCOL_ID,
     RECENT_ADHERENCE,
     SCORE,
     SESSION_DATE,
     USAGE,
     USAGE_WEEK,
+    WEEKDAY_INDEX,
     WEEKS_SINCE_START,
 )
+from types import SimpleNamespace
+
+from ai_cdss.data import Cohort
 from ai_cdss.pipeline import (
     ContractError,
+    DataPipeline,
     MergedFeatures,
+    PipelineInputs,
     PreparedInputs,
     ProtocolLevelFeatures,
     ScoringInput,
@@ -174,3 +184,62 @@ def test_extra_columns_are_allowed():
     ]
     df = pd.DataFrame(columns=cols)
     ScoringOutput(df=df)
+
+
+# ---------------------------------------------------------------------------
+# PipelineInputs — the pipeline depends on patient/session/ppf only
+
+def _cohort(patient, session, ppf) -> Cohort:
+    return Cohort(
+        patient=patient, session=session, ppf=ppf,
+        similarity=pd.DataFrame(), whitelist=[], missing_ppf=[],
+    )
+
+
+def test_cohort_satisfies_pipeline_inputs():
+    """A full 6-field Cohort structurally satisfies the 3-field contract."""
+    assert isinstance(
+        _cohort(pd.DataFrame(), pd.DataFrame(), pd.DataFrame()), PipelineInputs
+    )
+
+
+def test_three_field_stub_satisfies_pipeline_inputs():
+    """Interface segregation: any object exposing patient/session/ppf is a
+    valid pipeline input — no similarity/whitelist/missing_ppf needed."""
+    stub = SimpleNamespace(
+        patient=pd.DataFrame(), session=pd.DataFrame(), ppf=pd.DataFrame(),
+    )
+    assert isinstance(stub, PipelineInputs)
+
+
+def test_missing_ppf_field_fails_pipeline_inputs():
+    stub = SimpleNamespace(patient=pd.DataFrame(), session=pd.DataFrame())
+    assert not isinstance(stub, PipelineInputs)
+
+
+def test_pipeline_runs_on_three_field_stub():
+    """The prize: `process` runs on a 3-field stub. No DB-shaped Cohort,
+    no similarity — proving the dependency really is just patient/session/
+    ppf. Empty session → bootstrap path → scored frame from the PPF set."""
+    patient = pd.DataFrame({
+        PATIENT_ID: [1],
+        CLINICAL_START: [pd.Timestamp("2025-01-01")],
+        CLINICAL_END: [pd.Timestamp("2025-04-01")],
+    })
+    # Empty session, but carrying the columns include_missing_sessions
+    # touches → no performed sessions → bootstrap path.
+    session = pd.DataFrame(columns=[
+        PATIENT_ID, PROTOCOL_ID, SESSION_DATE, PRESCRIPTION_ID,
+        PRESCRIPTION_STARTING_DATE, PRESCRIPTION_ENDING_DATE, WEEKDAY_INDEX,
+    ])
+    ppf = pd.DataFrame({
+        PATIENT_ID: [1, 1], PROTOCOL_ID: [200, 201],
+        PPF: [0.7, 0.4], CONTRIB: [[0.7], [0.4]],
+    })
+    stub = SimpleNamespace(patient=patient, session=session, ppf=ppf)
+
+    scored = DataPipeline().process(stub, pd.Timestamp("2025-02-01"))
+
+    assert isinstance(scored, pd.DataFrame)
+    assert set(scored[PROTOCOL_ID]) == {200, 201}
+    assert SCORE in scored.columns

@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from functools import reduce
-from typing import Any, ClassVar, Iterable
+from typing import Any, ClassVar, Iterable, Protocol, runtime_checkable
 
 import pandas as pd
 from pandas import Timestamp
@@ -59,7 +59,6 @@ from ai_cdss.constants import (
     USAGE_WEEK,
     WEEKS_SINCE_START,
 )
-from ai_cdss.data import Cohort
 from ai_cdss.metrics import (
     build_delta_dm,
     build_prescription_days,
@@ -87,6 +86,25 @@ logger = logging.getLogger(__name__)
 
 class ContractError(ValueError):
     """Raised when a frame doesn't carry its declared required columns."""
+
+
+@runtime_checkable
+class PipelineInputs(Protocol):
+    """The frames the pipeline reads from its input bundle: patient,
+    session, ppf — and nothing else.
+
+    `Cohort` (data.py) satisfies this structurally. The pipeline depends
+    on these three only; the Cohort's `similarity` / `whitelist` /
+    `missing_ppf` are the engine's + orchestrator's concern, not ours.
+    Declaring the dependency as a Protocol keeps `process` honest about
+    what it touches and lets it be unit-tested with a 3-field stub —
+    mirroring the EngineState / CohortRepository seams elsewhere in the
+    package. Interface segregation: a consumer depends on the slice it
+    uses, not the whole bundle.
+    """
+    patient: pd.DataFrame
+    session: pd.DataFrame
+    ppf:     pd.DataFrame
 
 
 def _validate_columns(
@@ -339,14 +357,14 @@ class DataPipeline:
     # Public entry.
 
     def process(
-        self, cohort: "Cohort", scoring_date: Timestamp,
+        self, cohort: "PipelineInputs", scoring_date: Timestamp,
     ) -> pd.DataFrame:
         """Run the pipeline and return the scored DataFrame.
 
-        Consumes the three frames the pipeline cares about (`patient`,
-        `session`, `ppf`) off the `Cohort` — the bundle also carries
-        `similarity` / `whitelist` / `missing_ppf`, which the engine
-        consumes downstream, not us.
+        Takes any `PipelineInputs` (patient / session / ppf). `Cohort`
+        satisfies it structurally; the Cohort's `similarity` / `whitelist`
+        / `missing_ppf` are consumed downstream (engine + orchestrator),
+        not here.
         """
         inputs = self._prepare(cohort, scoring_date)
 
@@ -363,7 +381,7 @@ class DataPipeline:
     # Stage 1 — prepare: clean and window the inputs.
 
     def _prepare(
-        self, cohort: "Cohort", scoring_date: Timestamp,
+        self, cohort: "PipelineInputs", scoring_date: Timestamp,
     ) -> PreparedInputs:
         """Attach clinical window to sessions, clamp session_date to
         [CLINICAL_START, min(CLINICAL_END, scoring_date)]."""
