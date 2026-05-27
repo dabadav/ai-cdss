@@ -33,7 +33,12 @@ from ai_cdss.precompute import (
     persist_ppf,
     persist_similarity,
 )
-from ai_cdss.data import CohortRepository, RGSCohortRepository
+from ai_cdss.data import (
+    CohortRepository,
+    PrescriptionStore,
+    RGSCohortRepository,
+    RGSPrescriptionStore,
+)
 from ai_cdss.scoring import DataPipeline
 from ai_cdss.interface.debug import DebugReport
 from ai_cdss.utils import _json_default
@@ -52,10 +57,17 @@ class CDSS:
         self,
         repository: Optional[CohortRepository] = None,
         pipeline: Optional[DataPipeline] = None,
+        store: Optional[PrescriptionStore] = None,
         debug: bool = False,
     ):
         self.repository = repository or RGSCohortRepository()
         self.pipeline = pipeline or DataPipeline()
+        # Default store shares the repository's DB interface (one
+        # connection); a None interface makes RGSPrescriptionStore open
+        # its own. Inject a fake/in-memory store for tests + backtests.
+        self.store = store or RGSPrescriptionStore(
+            db=getattr(self.repository, "interface", None),
+        )
         self.debug = debug
         if self.debug:
             self.debug_service = DebugReport(DEFAULT_DEBUG_DIR)
@@ -450,29 +462,13 @@ class CDSS:
     def _already_prescribed(
         self, patient_id: int, datetime_start, scoring_ts: pd.Timestamp
     ) -> bool:
-        """True if ``prescription_staging`` already has any row (any STATUS)
-        for ``(patient_id, week_start)``."""
+        """True if the patient already has a prescription for their current
+        trial week. The week-window math is domain logic and stays here;
+        the persistence query is delegated to the store."""
         _, wk_start = self._current_week_window(datetime_start, scoring_ts)
         if wk_start is None:
             return False
-        engine = getattr(self.repository.interface, "engine", None)
-        if engine is None:
-            return False
-        sql = (
-            "SELECT COUNT(*) AS n FROM prescription_staging "
-            "WHERE PATIENT_ID = :pid AND DATE(STARTING_DATE) = :wk"
-        )
-        try:
-            df = self.repository.interface._fetch(
-                query=sql, params={"pid": int(patient_id), "wk": wk_start.isoformat()}
-            )
-            return bool(df is not None and not df.empty and int(df.iloc[0]["n"]) > 0)
-        except Exception:
-            logger.exception(
-                "Duplication check failed for patient %s; treating as not-prescribed.",
-                patient_id,
-            )
-            return False
+        return self.store.already_prescribed(patient_id, wk_start)
 
     def _save_prescriptions(
         self,
@@ -480,18 +476,20 @@ class CDSS:
         unique_id: uuid.UUID,
         datetime_start: datetime.datetime,
     ) -> None:
-        """
-        Persist prescription data.
-        """
+        """Build staging rows from the prescription frame and hand them to
+        the store. Each row's STARTING_DATE is the patient's trial start
+        plus its WEEKS_SINCE_START offset."""
+        rows = []
         for _, row in prescription_df.iterrows():
             weeks = row[WEEKS_SINCE_START]
             weeks = 0 if pd.isna(weeks) else float(weeks)
             start = (datetime_start + timedelta(weeks=weeks)).date()
-            self.repository.interface.add_prescription_staging_entry(
+            rows.append(
                 PrescriptionStagingRow.from_row(
                     row, recommendation_id=unique_id, start=start
                 )
             )
+        self.store.save_prescriptions(rows)
 
     def _save_metrics(
         self,
@@ -499,15 +497,15 @@ class CDSS:
         unique_id: uuid.UUID,
         datetime_now: datetime.datetime,
     ) -> None:
-        """
-        Persist metrics data.
-        """
-        for _, row in metrics_df.iterrows():
-            self.repository.interface.add_recsys_metric_entry(
-                RecsysMetricsRow.from_row(
-                    row, recommendation_id=unique_id, metric_date=datetime_now
-                )
+        """Build metric rows from the metrics frame and hand them to the
+        store."""
+        rows = [
+            RecsysMetricsRow.from_row(
+                row, recommendation_id=unique_id, metric_date=datetime_now
             )
+            for _, row in metrics_df.iterrows()
+        ]
+        self.store.save_metrics(rows)
 
     def compute_patient_fit(self, patient_id: List[int]) -> dict:
         """Compute + persist PPF for one or more patients.

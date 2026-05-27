@@ -29,6 +29,10 @@ This file is sectioned:
     SECTION 5  Clinical mappers — ClinicalSubscales +
                ProtocolToClinicalMapper. Used by the loader's
                specialized accessors for PPF/similarity computation.
+    SECTION 6  Write side — PrescriptionStore Protocol +
+               RGSPrescriptionStore. Symmetric to CohortRepository:
+               the engine reads a Cohort, the store writes the
+               recommendation output back + answers idempotency.
 """
 from __future__ import annotations
 
@@ -37,6 +41,7 @@ import json
 import logging
 import shutil
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any, Callable, List, Optional, Protocol, runtime_checkable
 
@@ -44,6 +49,7 @@ import numpy as np
 import pandas as pd
 import yaml
 from rgs_interface.data.interface import DatabaseInterface
+from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
 
 from ai_cdss import config
 from ai_cdss.constants import (
@@ -490,3 +496,72 @@ class ProtocolToClinicalMapper:
             df_clinical[clinical_scale] = protocol_df[features].apply(agg_func, axis=1)
         df_clinical.index = protocol_df[PROTOCOL_ID]
         return df_clinical
+
+
+# ╔═════════════════════════════════════════════════════════════════════╗
+# ║  SECTION 6 — Write side (PrescriptionStore)                          ║
+# ║                                                                      ║
+# ║  Symmetric to the CohortRepository read side (§ 3). CohortRepository ║
+# ║  answers "what does this cohort look like?"; PrescriptionStore       ║
+# ║  answers "has this patient already been prescribed this week?" and   ║
+# ║  persists the recommendation output (prescriptions + metrics).       ║
+# ║                                                                      ║
+# ║  Keeping it a Protocol means the orchestrator no longer reaches into ║
+# ║  the concrete DB interface (or its private _fetch) — a synthetic /   ║
+# ║  in-memory store can run the full orchestrator without a database.   ║
+# ╚═════════════════════════════════════════════════════════════════════╝
+
+@runtime_checkable
+class PrescriptionStore(Protocol):
+    """Write interface every prescription sink must implement.
+
+    Implementations:
+        RGSPrescriptionStore      production — DB via rgs_interface
+        InMemoryPrescriptionStore tests / synthetic backtests (future)
+    """
+    def already_prescribed(self, patient_id: int, week_start: date) -> bool: ...
+    def save_prescriptions(self, rows: List[PrescriptionStagingRow]) -> None: ...
+    def save_metrics(self, rows: List[RecsysMetricsRow]) -> None: ...
+
+
+class RGSPrescriptionStore:
+    """Production `PrescriptionStore` backed by `DatabaseInterface`.
+
+    Constructed with the same interface instance as `RGSCohortRepository`
+    (see `CDSS.__init__`) so read + write share one DB connection.
+    """
+
+    def __init__(self, db: Optional[DatabaseInterface] = None) -> None:
+        self.interface = db or DatabaseInterface()
+
+    def already_prescribed(self, patient_id: int, week_start: date) -> bool:
+        """True if `prescription_staging` already has any row (any STATUS)
+        for `(patient_id, week_start)`. Swallows query errors as
+        not-prescribed — a failed check must not block a fresh run."""
+        engine = getattr(self.interface, "engine", None)
+        if engine is None:
+            return False
+        sql = (
+            "SELECT COUNT(*) AS n FROM prescription_staging "
+            "WHERE PATIENT_ID = :pid AND DATE(STARTING_DATE) = :wk"
+        )
+        try:
+            df = self.interface._fetch(
+                query=sql,
+                params={"pid": int(patient_id), "wk": week_start.isoformat()},
+            )
+            return bool(df is not None and not df.empty and int(df.iloc[0]["n"]) > 0)
+        except Exception:
+            logger.exception(
+                "Duplication check failed for patient %s; treating as "
+                "not-prescribed.", patient_id,
+            )
+            return False
+
+    def save_prescriptions(self, rows: List[PrescriptionStagingRow]) -> None:
+        for row in rows:
+            self.interface.add_prescription_staging_entry(row)
+
+    def save_metrics(self, rows: List[RecsysMetricsRow]) -> None:
+        for row in rows:
+            self.interface.add_recsys_metric_entry(row)
