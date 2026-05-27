@@ -47,10 +47,21 @@ from rgs_interface.data.schemas import PrescriptionStagingRow, RecsysMetricsRow
 logger = logging.getLogger(__name__)
 
 
-class CDSS:
-    """
-    Main orchestrator for generating clinical decision support recommendations.
-    Coordinates data preparation, processing, and persistence for study cohorts.
+class RecommendationService:
+    """Application orchestrator: cohort fetch → scoring pipeline → engine
+    → persistence, for one or many patients.
+
+    Wires three injected collaborators (all default to production
+    implementations, all swappable for tests / backtests):
+
+      * `repository` (`CohortRepository`) — reads the input `Cohort`.
+      * `pipeline`   (`DataPipeline`)      — Cohort → scored frame.
+      * `store`      (`PrescriptionStore`) — idempotency check + writes
+                                             the recommendation output.
+
+    The per-patient recommendation itself is delegated to `Recommender`
+    (`engine` locally). Note the layering: this class is the *service*;
+    `Recommender` is the *engine*. They are distinct — don't conflate.
     """
 
     def __init__(
@@ -135,150 +146,201 @@ class CDSS:
         context: Dict[str, Any],
         force: bool = False,
     ) -> Dict[str, Any]:
-        """
-        Internal core that runs the full pipeline for a given set of patient_ids.
-        `context` can include study_id or other metadata to echo back in the response.
-        """
+        """Run the full pipeline for a set of patient_ids and return the
+        run payload. `context` echoes caller metadata (study_id, message)
+        back into the response. Never raises — failures are caught and
+        returned as a `status="failure"` payload."""
         logger.info("Starting recommendation generation for patients: %s", patient_ids)
         start_time = time.time()
         unique_id = uuid.uuid4()
         datetime_now = datetime.datetime.now()
 
-        try:
-            if not patient_ids:      # catches None or empty list
-                elapsed = time.time() - start_time
-                payload = {
-                    "status": "warning",
-                    "run_id": str(unique_id),
-                    "patients_processed": 0,
-                    "total_recommendations": 0,
-                    "per_patient": [],
-                    "start_time": datetime_now.isoformat(),
-                    "elapsed_seconds": elapsed,
-                    **context,
-                    "message": (
-                        context.get("message")
-                        or f"No patients provided or resolved for context={context}"
-                    ),
-                }
-                logger.info("No patients to process. Context: %s | Result: %s", context, payload)
-                return payload
+        if not patient_ids:  # catches None or empty list
+            return self._empty_payload(unique_id, datetime_now, start_time, context)
 
+        try:
             cohort = self.repository.find(patient_ids)
             if cohort.missing_ppf:
                 raise RuntimeError(
                     f"PPF data missing for patients: {cohort.missing_ppf}. "
                     "Please compute PPF before proceeding."
                 )
-            protocol_similarity = cohort.similarity
             scores = self.pipeline.process(cohort, scoring_date or pd.Timestamp.today())
-            cdss = Recommender(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
-
-            # Patient start date dict [PATIENT_ID, CLINICAL_START]
-            patient_data = cohort.patient
-            patient_dict = dict(zip(patient_data[PATIENT_ID], patient_data[CLINICAL_START]))
-
-            patient_results = []
-            success_count = 0
-            fail_count = 0
-
-            # --------- Per-patient Processing --------
-            for p in patient_ids:
-                result = self._process_patient(
-                    patient=p,
-                    cdss=cdss,
-                    protocol_similarity=protocol_similarity,
-                    scores=scores,
-                    unique_id=unique_id,
-                    datetime_start=patient_dict[p],
-                    scoring_date=(scoring_date or pd.Timestamp.today()),
-                    force=force,
-                )
-                if result.get("status") == "success":
-                    success_count += 1
-                else:
-                    fail_count += 1
-                patient_results.append(result)
-
-            if success_count == 0 and fail_count > 0:
-                top_status = "failure"
-            elif success_count > 0 and fail_count > 0:
-                top_status = "partial_success"
-            else:
-                top_status = "success"
-
-            total_recommendations = sum(r.get("num_recommendations", 0) for r in patient_results)
-            elapsed = time.time() - start_time
-
-            payload = {
-                "status": top_status,
-                "run_id": str(unique_id),
-                "patients_processed": len(patient_ids),
-                "total_recommendations": total_recommendations,
-                "per_patient": patient_results,
-                "start_time": datetime_now.isoformat(),
-                "elapsed_seconds": elapsed,
-                **context,
-            }
-
-            if self.debug:
-                payload["debug"] = {
-                    "scores": {
-                        "file": self.debug_service.dump_df(scores, unique_id, "scores.csv"),
-                        "preview": self.debug_service.preview_df(scores),
-                    }
-                }
-
-            # ---- persist payload ----           
-            log_path = DEFAULT_LOG_DIR / f"{str(unique_id)}_{datetime_now.date().isoformat()}.json"
-            with log_path.open("w", encoding="utf-8") as f:
-                json.dump(payload, f, default=_json_default, indent=2)
-            payload["log_file"] = str(log_path)
-
+            engine = Recommender(
+                scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day,
+            )
+            patient_results = self._recommend_each(
+                patient_ids, engine=engine, cohort=cohort, scores=scores,
+                unique_id=unique_id, scoring_date=scoring_date, force=force,
+            )
+            payload = self._build_run_payload(
+                patient_results, unique_id=unique_id, datetime_now=datetime_now,
+                start_time=start_time, context=context, scores=scores,
+            )
+            payload["log_file"] = self._persist_run_log(payload, unique_id, datetime_now)
             logger.info(
                 "Finished recommendation generation. Context: %s | status=%s | "
-                "success=%d fail=%d total_recs=%d | Log file: %s",
-                context, top_status, success_count, fail_count, total_recommendations, log_path
+                "total_recs=%d | log=%s",
+                context, payload["status"], payload["total_recommendations"],
+                payload.get("log_file"),
             )
-
             return payload
 
         except Exception as e:
+            return self._failure_payload(e, unique_id, datetime_now, context)
 
-            logger.error(
-                "Failed to generate recommendations. Context=%s Error=%s (%s)",
-                context, e, type(e).__name__, exc_info=True
+    # ==================================================================
+    # Run assembly — per-patient loop, payload builders, log persistence.
+
+    def _recommend_each(
+        self,
+        patient_ids: List[int],
+        *,
+        engine: Recommender,
+        cohort: Any,
+        scores: pd.DataFrame,
+        unique_id: uuid.UUID,
+        scoring_date: Optional[pd.Timestamp],
+        force: bool,
+    ) -> List[Dict[str, Any]]:
+        """Process every patient against the shared engine. Per-patient
+        failures are captured inside `_process_patient` (one bad patient
+        never aborts the batch)."""
+        protocol_similarity = cohort.similarity
+        start_dates = dict(zip(cohort.patient[PATIENT_ID], cohort.patient[CLINICAL_START]))
+        scoring_ts = scoring_date or pd.Timestamp.today()
+        return [
+            self._process_patient(
+                patient=p,
+                engine=engine,
+                protocol_similarity=protocol_similarity,
+                scores=scores,
+                unique_id=unique_id,
+                datetime_start=start_dates[p],
+                scoring_date=scoring_ts,
+                force=force,
             )
-            failure_payload = {
-                "status": "failure",
-                "run_id": str(unique_id),
-                "error": f"{type(e).__name__}: {e}",
-                "patients_processed": 0,
-                "total_recommendations": 0,
-                "per_patient": [],
-                "start_time": datetime_now.isoformat(),
-                **context,
-                "message": "Failed to generate recommendations",
+            for p in patient_ids
+        ]
+
+    @staticmethod
+    def _rollup_status(results: List[Dict[str, Any]]) -> str:
+        """Batch status from per-patient outcomes. Anything not `"success"`
+        (failures + skips) counts against success — matches v0.3.1."""
+        success = sum(1 for r in results if r.get("status") == "success")
+        fail = len(results) - success
+        if success == 0 and fail > 0:
+            return "failure"
+        if success > 0 and fail > 0:
+            return "partial_success"
+        return "success"
+
+    def _build_run_payload(
+        self,
+        patient_results: List[Dict[str, Any]],
+        *,
+        unique_id: uuid.UUID,
+        datetime_now: datetime.datetime,
+        start_time: float,
+        context: Dict[str, Any],
+        scores: pd.DataFrame,
+    ) -> Dict[str, Any]:
+        payload = {
+            "status": self._rollup_status(patient_results),
+            "run_id": str(unique_id),
+            "patients_processed": len(patient_results),
+            "total_recommendations": sum(
+                r.get("num_recommendations", 0) for r in patient_results
+            ),
+            "per_patient": patient_results,
+            "start_time": datetime_now.isoformat(),
+            "elapsed_seconds": time.time() - start_time,
+            **context,
+        }
+        if self.debug:
+            payload["debug"] = {
+                "scores": {
+                    "file": self.debug_service.dump_df(scores, unique_id, "scores.csv"),
+                    "preview": self.debug_service.preview_df(scores),
+                }
             }
+        return payload
 
-            # ---- persist failure payload too ----
-            log_path = DEFAULT_LOG_DIR / f"{str(unique_id)}_{datetime_now.date().isoformat()}.json"
-            try:
-                with log_path.open("w", encoding="utf-8") as f:
-                    json.dump(failure_payload, f, default=_json_default, indent=2)
-                failure_payload["log_file"] = str(log_path)
-            except Exception as log_err:
-                logger.error(
-                    "Failed to persist failure payload for run_id=%s: %s (%s)",
-                    str(unique_id), log_err, type(log_err).__name__, exc_info=True
-                )
+    def _empty_payload(
+        self,
+        unique_id: uuid.UUID,
+        datetime_now: datetime.datetime,
+        start_time: float,
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        payload = {
+            "status": "warning",
+            "run_id": str(unique_id),
+            "patients_processed": 0,
+            "total_recommendations": 0,
+            "per_patient": [],
+            "start_time": datetime_now.isoformat(),
+            "elapsed_seconds": time.time() - start_time,
+            **context,
+            "message": (
+                context.get("message")
+                or f"No patients provided or resolved for context={context}"
+            ),
+        }
+        logger.info("No patients to process. Context: %s | Result: %s", context, payload)
+        return payload
 
-            return failure_payload
+    def _failure_payload(
+        self,
+        error: Exception,
+        unique_id: uuid.UUID,
+        datetime_now: datetime.datetime,
+        context: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        logger.error(
+            "Failed to generate recommendations. Context=%s Error=%s (%s)",
+            context, error, type(error).__name__, exc_info=True,
+        )
+        payload = {
+            "status": "failure",
+            "run_id": str(unique_id),
+            "error": f"{type(error).__name__}: {error}",
+            "patients_processed": 0,
+            "total_recommendations": 0,
+            "per_patient": [],
+            "start_time": datetime_now.isoformat(),
+            **context,
+            "message": "Failed to generate recommendations",
+        }
+        log_file = self._persist_run_log(payload, unique_id, datetime_now)
+        if log_file:
+            payload["log_file"] = log_file
+        return payload
+
+    @staticmethod
+    def _persist_run_log(
+        payload: Dict[str, Any],
+        unique_id: uuid.UUID,
+        datetime_now: datetime.datetime,
+    ) -> Optional[str]:
+        """Write the run payload to the log dir as JSON. Returns the path,
+        or None if persistence itself failed (logged, never raised)."""
+        log_path = DEFAULT_LOG_DIR / f"{unique_id}_{datetime_now.date().isoformat()}.json"
+        try:
+            with log_path.open("w", encoding="utf-8") as f:
+                json.dump(payload, f, default=_json_default, indent=2)
+            return str(log_path)
+        except Exception as log_err:
+            logger.error(
+                "Failed to persist run payload for run_id=%s: %s (%s)",
+                str(unique_id), log_err, type(log_err).__name__, exc_info=True,
+            )
+            return None
 
     def _process_patient(
         self,
         patient,
-        cdss,
+        engine,
         protocol_similarity,
         scores,
         unique_id,
@@ -291,7 +353,7 @@ class CDSS:
 
         Args:
             patient: The patient ID to process.
-            cdss: The Recommender instance for generating recommendations.
+            engine: The Recommender instance for generating recommendations.
             protocol_similarity: Protocol similarity data for recommendations.
             scores: DataFrame of all scored protocols.
             unique_id: UUID for this batch run.
@@ -332,7 +394,7 @@ class CDSS:
                     "status":              "skipped",
                 }
 
-            result = cdss.recommend(patient, protocol_similarity)
+            result = engine.recommend(patient, protocol_similarity)
             # result is a RecommendationResult — `.recommendations` is the
             # final DataFrame, `.trace` is the structured audit dict, plus
             # typed views like `.swap_decisions`, `.mvt_mean`, etc.
@@ -539,4 +601,11 @@ class CDSS:
             "message": "Protocol similarity computation and persistence successful.",
             "saved_to": str(file_path),
         }
+
+
+# Back-compat alias. The orchestrator was named `CDSS` through v0.3.1;
+# external callers (cdss-supervisor, examples) still import that name.
+# Removal is tracked in SUPERVISOR_MIGRATION_PLAN.md — migrate consumers
+# to `RecommendationService`, then drop this.
+CDSS = RecommendationService
 

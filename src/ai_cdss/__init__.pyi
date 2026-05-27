@@ -1,3 +1,3 @@
-from .interface import CDSS
+from .interface import CDSS, RecommendationService
 
-__all__ = ["CDSS"]
+__all__ = ["RecommendationService", "CDSS"]

@@ -1,1 +1,1 @@
-from .cdss import CDSS
+from .cdss import CDSS, RecommendationService

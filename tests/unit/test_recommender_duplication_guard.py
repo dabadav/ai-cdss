@@ -77,7 +77,7 @@ def test_process_patient_skips_when_already_prescribed():
 
     res = iface._process_patient(
         patient=4904,
-        cdss=cdss,
+        engine=cdss,
         protocol_similarity=None,
         scores=pd.DataFrame({
             "PATIENT_ID": [1], "PROTOCOL_ID": [200],
@@ -108,7 +108,7 @@ def test_process_patient_skips_pre_trial_cohort_entries():
 
     res = iface._process_patient(
         patient=4999,
-        cdss=cdss,
+        engine=cdss,
         protocol_similarity=None,
         scores=pd.DataFrame({
             "PATIENT_ID": [1], "PROTOCOL_ID": [200],
@@ -134,7 +134,7 @@ def test_process_patient_force_bypasses_guard():
 
     res = iface._process_patient(
         patient=4904,
-        cdss=cdss,
+        engine=cdss,
         protocol_similarity=None,
         scores=pd.DataFrame({
             "PATIENT_ID": [1], "PROTOCOL_ID": [200],
@@ -159,7 +159,7 @@ def test_process_patient_runs_when_no_existing_rows():
 
     res = iface._process_patient(
         patient=4904,
-        cdss=cdss,
+        engine=cdss,
         protocol_similarity=None,
         scores=pd.DataFrame({
             "PATIENT_ID": [1], "PROTOCOL_ID": [200],
