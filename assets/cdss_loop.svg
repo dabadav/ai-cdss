@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 680 250" role="img" font-family="'Montserrat',sans-serif" xmlns="http://www.w3.org/2000/svg"><style>body{font-family:'Montserrat',sans-serif;background:#fff;margin:0;
-  padding:32px 24px;max-width:960px;margin:0 auto}
+<svg viewBox="0 0 680 250" role="img" font-family="'Montserrat',sans-serif" xmlns="http://www.w3.org/2000/svg"><style>body{font-family:'Montserrat',sans-serif;background:#fff;margin:0;padding:0}
 
 svg .step{transition:opacity .25s ease}
 svg:has(.step:hover) .step{opacity:.28}
@@ -14,7 +13,7 @@ svg:has(.step:hover) .step:hover{opacity:1}</style>
 <rect x="185" y="40" width="455" height="160" rx="16" fill="#F0FAFB" stroke="#1FAAB7" stroke-width="1"/>
 <text class="cdss" x="205" y="63" text-anchor="start" fill="#145C64">CDSS</text>
 
-<g class="step" onclick="sendPrompt('Tell me more about the patient status measurement stage in the CDSS loop')">
+<g class="step" onclick="parent.location.hash='step-1'">
 <rect x="30" y="84" width="120" height="96" rx="8" fill="#E2F5F7" stroke="#1FAAB7" stroke-width="1"/>
 <line x1="90" y1="95" x2="90" y2="113" stroke="#1FAAB7" stroke-width="2.4" stroke-linecap="round"/>
 <line x1="81" y1="104" x2="99" y2="104" stroke="#1FAAB7" stroke-width="2.4" stroke-linecap="round"/>
@@ -24,7 +23,7 @@ svg:has(.step:hover) .step:hover{opacity:1}</style>
 <text class="sub" x="90" y="156" text-anchor="middle" dominant-baseline="central" fill="#1B7E88">Patient status</text>
 </g>
 
-<g class="step" onclick="sendPrompt('Tell me more about how the CDSS selects the most effective activities')">
+<g class="step" onclick="parent.location.hash='step-2'">
 <rect x="205" y="84" width="120" height="96" rx="8" fill="#E7F7EE" stroke="#4BC280" stroke-width="1"/>
 <rect x="255" y="93" width="20" height="22" rx="3" fill="none" stroke="#4BC280" stroke-width="1.6"/>
 <path d="M258 100 l2 2 l4 -5" fill="none" stroke="#4BC280" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -35,7 +34,7 @@ svg:has(.step:hover) .step:hover{opacity:1}</style>
 <text class="sub" x="265" y="156" text-anchor="middle" dominant-baseline="central" fill="#379A63">Select activities</text>
 </g>
 
-<g class="step" onclick="sendPrompt('Tell me more about optimising the patient model')">
+<g class="step" onclick="parent.location.hash='step-3'">
 <rect x="350" y="84" width="120" height="96" rx="8" fill="#E2F5F7" stroke="#1FAAB7" stroke-width="1"/>
 <polyline points="398,104 404,104 407,95 412,113 415,104 422,104" fill="none" stroke="#1FAAB7" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
 <circle cx="368" cy="104" r="11" fill="#1FAAB7"/>
@@ -44,7 +43,7 @@ svg:has(.step:hover) .step:hover{opacity:1}</style>
 <text class="sub" x="410" y="156" text-anchor="middle" dominant-baseline="central" fill="#1B7E88">Update model</text>
 </g>
 
-<g class="step" onclick="sendPrompt('Tell me more about individualising the plan based on activity effectiveness feedback')">
+<g class="step" onclick="parent.location.hash='step-4'">
 <rect x="495" y="84" width="120" height="96" rx="8" fill="#E7F7EE" stroke="#4BC280" stroke-width="1"/>
 <line x1="544" y1="100" x2="566" y2="100" stroke="#4BC280" stroke-width="1.6" stroke-linecap="round"/>
 <line x1="544" y1="109" x2="566" y2="109" stroke="#4BC280" stroke-width="1.6" stroke-linecap="round"/>
