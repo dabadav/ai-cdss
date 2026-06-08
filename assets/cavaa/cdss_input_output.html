@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDSS · simple flow</title>
+<style>
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5/400.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5/500.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5/600.css');
+body{font-family:'Montserrat',sans-serif;background:#fff;margin:0;
+  padding:36px 24px;display:flex;justify-content:center}
+svg{max-width:100%;height:auto}
+svg text{font-family:'Montserrat',sans-serif}
+</style>
+</head>
+<body>
+<svg viewBox="0 0 940 220" width="940" role="img" aria-label="A simple flow: a smaller input box on the left, the CDSS in the middle, a smaller output box on the right.">
+<defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+  </marker>
+</defs>
+
+<!-- Input (gray, small, translucent) -->
+<rect x="50" y="60" width="200" height="100" rx="14" fill="#ECEEF0" stroke="#6B7574" stroke-width="1.8"></rect>
+<text x="150" y="100" text-anchor="middle" dominant-baseline="central" font-size="22" font-weight="600" fill="#3D4544">RGS Data</text>
+<text x="150" y="128" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#6B7574">input · patient state and history</text>
+
+<line x1="258" y1="110" x2="332" y2="110" stroke="#3D4544" stroke-width="2.4" marker-end="url(#ah)"></line>
+
+<!-- CDSS (blue, larger, translucent) -->
+<rect x="340" y="40" width="260" height="140" rx="16" fill="#E2F5F7" stroke="#1FAAB7" stroke-width="2.2"></rect>
+<text x="470" y="100" text-anchor="middle" dominant-baseline="central" font-size="32" font-weight="600" fill="#145C64">CAVAA Agent</text>
+<text x="470" y="138" text-anchor="middle" dominant-baseline="central" font-size="13" fill="#1B7E88">the system</text>
+
+<line x1="608" y1="110" x2="682" y2="110" stroke="#3D4544" stroke-width="2.4" marker-end="url(#ah)"></line>
+
+<!-- Output (orange, small, translucent) -->
+<rect x="690" y="60" width="200" height="100" rx="14" fill="#FDE3CA" stroke="#EA7B11" stroke-width="1.8"></rect>
+<text x="790" y="100" text-anchor="middle" dominant-baseline="central" font-size="22" font-weight="600" fill="#A8550B">RGS Activities</text>
+<text x="790" y="128" text-anchor="middle" dominant-baseline="central" font-size="11" fill="#C2700F">output · weekly activity selection</text>
+</svg>
+
+
+</body></html>

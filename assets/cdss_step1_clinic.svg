@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 680 300" role="img" font-family="'Montserrat',sans-serif" xmlns="http://www.w3.org/2000/svg"><style>.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+svg text{font-family:'Montserrat',sans-serif}
+.ttl{font-weight:600;font-size:14px}
+.sub{font-weight:400;font-size:12px}
+.num{font-weight:600;font-size:12px;fill:#ffffff}
+svg g[onclick]{cursor:pointer}
+svg g[onclick]:hover{opacity:.85}</style>
+<title>Clinic step: patient assessment regions and clinical scales</title>
+<desc>A front-facing line-art standing patient figure with a wide torso,
+ arms hanging at the sides, and two legs ending in rounded feet. The 
+head ring is highlighted in teal, mapped to the MoCA cognitive 
+assessment. Both arms, shown as the green limbs at the sides of the 
+body, are mapped to the ARAT and Fugl-Meyer upper extremity motor 
+scales. The torso and legs are a neutral grey outline.</desc>
+
+<circle cx="28" cy="24" r="11" fill="#1FAAB7"></circle>
+<text class="num" x="28" y="24" text-anchor="middle" dominant-baseline="central">1</text>
+<text class="ttl" x="46" y="24" dominant-baseline="central" fill="#145C64">Clinic</text>
+<text class="sub" x="93" y="25" dominant-baseline="central" fill="#1B7E88">· patient status measurement</text>
+
+<!-- Torso, legs and shoulders (neutral grey) -->
+<path d="M 149.0 93.0 C 141.5 94.5 131.0 98.2 126.0 102.0 C 121.0 105.8 120.3 109.2 119.0 116.0 C 117.7 122.8 118.2 134.0 118.0 143.0 C 117.8 152.0 117.5 163.2 118.0 170.0 C 118.5 176.8 118.5 181.2 121.0 184.0 C 123.5 186.8 130.9 181.0 133.0 187.0 C 135.1 193.0 133.3 209.2 133.5 220.0 C 133.7 230.8 133.8 244.8 134.0 252.0 C 134.2 259.2 133.2 260.3 135.0 263.0 C 136.8 265.7 140.8 267.5 145.0 268.0 C 149.2 268.5 155.0 266.0 160.0 266.0 C 165.0 266.0 170.8 268.5 175.0 268.0 C 179.2 267.5 183.2 265.7 185.0 263.0 C 186.8 260.3 185.8 259.2 186.0 252.0 C 186.2 244.8 186.3 230.8 186.5 220.0 C 186.7 209.2 184.9 193.0 187.0 187.0 C 189.1 181.0 196.5 186.8 199.0 184.0 C 201.5 181.2 201.5 176.8 202.0 170.0 C 202.5 163.2 202.2 152.0 202.0 143.0 C 201.8 134.0 202.3 122.8 201.0 116.0 C 199.7 109.2 199.0 105.8 194.0 102.0 C 189.0 98.2 178.5 94.5 171.0 93.0 C 163.5 91.5 156.5 91.5 149.0 93.0 Z" fill="none" stroke="#82908F" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M 160 182 C 160 210 160 238 160 264" fill="none" stroke="#82908F" stroke-width="6" stroke-linecap="round"></path>
+
+<!-- Arms (upper-limb motor: ARAT and FM-UE) -->
+<g onclick="sendPrompt('Tell me more about the upper-limb motor assessments ARAT and FM-UE in the clinic step')">
+<path d="M 126.0 102.0 C 121.0 105.8 120.3 109.2 119.0 116.0 C 117.7 122.8 118.2 134.0 118.0 143.0 C 117.8 152.0 117.5 163.2 118.0 170.0 C 118.5 176.8 118.5 181.2 121.0 184.0 C 123.5 186.8 130.9 181.0 133.0 187.0" fill="none" stroke="#4BC280" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M 187.0 187.0 C 189.1 181.0 196.5 186.8 199.0 184.0 C 201.5 181.2 201.5 176.8 202.0 170.0 C 202.5 163.2 202.2 152.0 202.0 143.0 C 201.8 134.0 202.3 122.8 201.0 116.0 C 199.7 109.2 199.0 105.8 194.0 102.0" fill="none" stroke="#4BC280" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M 138 107 C 137.5 131 137 156 137 180" fill="none" stroke="#4BC280" stroke-width="6" stroke-linecap="round"></path>
+<path d="M 182 107 C 182.5 131 183 156 183 180" fill="none" stroke="#4BC280" stroke-width="6" stroke-linecap="round"></path>
+</g>
+
+<!-- Head (cognition: MoCA) -->
+<g onclick="sendPrompt('Tell me more about the MoCA cognitive assessment in the clinic step')">
+<circle cx="160" cy="67" r="20" fill="none" stroke="#1FAAB7" stroke-width="8"></circle>
+</g>
+
+<line x1="176" y1="54" x2="300" y2="92" stroke="#9AA9AB" stroke-width="0.8" stroke-dasharray="4 4"></line>
+<circle cx="176" cy="54" r="2.4" fill="#1FAAB7"></circle>
+<line x1="202" y1="150" x2="300" y2="188" stroke="#9AA9AB" stroke-width="0.8" stroke-dasharray="4 4"></line>
+<circle cx="202" cy="150" r="2.4" fill="#4BC280"></circle>
+
+<rect x="300" y="62" width="350" height="64" rx="10" fill="#E2F5F7" stroke="#1FAAB7" stroke-width="1"></rect>
+<text class="ttl" x="320" y="88" dominant-baseline="central" fill="#145C64">Cognitive clinical assessment</text>
+<text class="sub" x="320" y="108" dominant-baseline="central" fill="#1B7E88">MoCA · Montreal Cognitive Assessment</text>
+
+<rect x="300" y="150" width="350" height="100" rx="10" fill="#E7F7EE" stroke="#4BC280" stroke-width="1"></rect>
+<text class="ttl" x="320" y="176" dominant-baseline="central" fill="#2C7A4E">Motor clinical assessment</text>
+<text class="sub" x="320" y="204" dominant-baseline="central" fill="#379A63">ARAT · Action Research Arm Test</text>
+<text class="sub" x="320" y="228" dominant-baseline="central" fill="#379A63">FM-UE · Fugl-Meyer Upper Extremity</text>
+</svg>

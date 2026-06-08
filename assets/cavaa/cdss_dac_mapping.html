@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CDSS ↔ DAC mapping</title>
+<style>
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5/400.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5/500.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/montserrat@5/600.css');
+:root{
+  --teal:#1FAAB7; --green:#4BC280; --teal-d:#145C64; --teal-m:#1B7E88;
+  --teal-t:#E2F5F7; --green-t:#E7F7EE; --green-d:#2C7A4E; --green-m:#379A63;
+  --grey:#82908F; --ink:#2A3433; --border:#D5DBDC; --rowb:#F3F7F7;
+}
+*{box-sizing:border-box}
+body{font-family:'Montserrat',sans-serif;color:var(--ink);margin:0;
+  background:#fff;padding:32px 28px;max-width:1320px;margin:0 auto;line-height:1.45}
+h2{font-weight:600;color:var(--teal-d);font-size:20px;margin:34px 0 12px}
+section:first-of-type h2{margin-top:6px}
+table{border-collapse:collapse;width:100%;border:1px solid var(--border);
+  font-size:13.5px;table-layout:fixed}
+thead th{color:#fff;font-weight:600;text-align:left;padding:11px 13px;font-size:13.5px}
+.t1 thead th{background:var(--teal)}
+.t2 thead th{background:var(--green)}
+tbody td{padding:11px 13px;vertical-align:top;border-top:1px solid var(--border)}
+tbody td+td{border-left:1px solid var(--border)}
+tbody tr:nth-child(even){background:var(--rowb)}
+td.layer{font-weight:600;border-left:5px solid var(--accent);color:var(--accent)}
+.muted{color:#55615F}
+.diagram{margin-top:8px}
+svg text{font-family:'Montserrat',sans-serif}
+.cap{font-size:12.5px;color:var(--grey);margin:2px 0 14px}
+</style>
+</head>
+<body>
+
+<section class="diagram">
+<svg viewBox="0 76 1280 620" width="100%" role="img" aria-label="The CDSS mapped onto the four DAC layers, comparing the current implementation with the DAC agent version.">
+<defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>
+  </marker>
+</defs>
+
+<!-- decision node (shared output of both designs) -->
+<rect x="395" y="86" width="490" height="66" rx="14" fill="#145C64"></rect>
+<text x="640" y="116" text-anchor="middle" font-size="19" font-weight="600" fill="#fff">Weekly activity selection</text>
+<text x="640" y="137" text-anchor="middle" font-size="12" fill="#CFEAED">the agent’s action: choose K activities for the coming week</text>
+
+<!-- column headers -->
+<text x="507" y="172" text-anchor="middle" font-size="13.5" font-weight="600" fill="#82908F">Current CAVAA Agent</text>
+<text x="943" y="172" text-anchor="middle" font-size="13.5" font-weight="600" fill="#2C7A4E">Future CAVAA Agent</text>
+
+<!-- bands : each band has three sections divided by two vertical lines -->
+<!-- Virtualization -->
+<rect x="120" y="180" width="1040" height="104" rx="13" fill="#E7F7EE" stroke="#4BC280" stroke-width="1.5"></rect>
+<rect x="289" y="181" width="431" height="102" fill="#E0E5E6"></rect>
+<line x1="288" y1="196" x2="288" y2="268" stroke="#4BC280" stroke-width="1" opacity="0.5"></line>
+<line x1="720" y1="196" x2="720" y2="268" stroke="#4BC280" stroke-width="1" opacity="0.5"></line>
+<text x="142" y="222" font-size="18" font-weight="600" fill="#2C7A4E">Virtualization</text>
+<text x="142" y="245" font-size="11" fill="#82908F">simulate before acting</text>
+<text x="505" y="237" text-anchor="middle" font-size="13" font-style="italic" fill="#7A8584">layer not present in current CDSS</text>
+<text x="737" y="220" font-size="15" font-weight="600" fill="#2A3433">Simulation</text>
+<text x="737" y="245" font-size="12.5" fill="#55615F">backtesting over pool of memories with exploration term</text>
+
+<!-- Contextual -->
+<rect x="120" y="306" width="1040" height="104" rx="13" fill="#E2F5F7" stroke="#1B7E88" stroke-width="1.5"></rect>
+<rect x="289" y="307" width="431" height="102" fill="#E0E5E6"></rect>
+<line x1="288" y1="322" x2="288" y2="394" stroke="#1B7E88" stroke-width="1" opacity="0.5"></line>
+<line x1="720" y1="322" x2="720" y2="394" stroke="#1B7E88" stroke-width="1" opacity="0.5"></line>
+<text x="142" y="348" font-size="18" font-weight="600" fill="#1B7E88">Contextual</text>
+<text x="142" y="371" font-size="11" fill="#82908F">episodic value</text>
+<text x="505" y="363" text-anchor="middle" font-size="13" font-style="italic" fill="#7A8584">layer not present in current CDSS</text>
+<text x="737" y="346" font-size="15" font-weight="600" fill="#2A3433">Episodic value</text>
+<text x="737" y="371" font-size="12.5" fill="#55615F">per-patient memory of each activity’s past ΔDM and adherence</text>
+
+<!-- Adaptive -->
+<rect x="120" y="432" width="1040" height="104" rx="13" fill="#E7F7EE" stroke="#4BC280" stroke-width="1.5"></rect>
+<line x1="288" y1="448" x2="288" y2="520" stroke="#4BC280" stroke-width="1" opacity="0.5"></line>
+<line x1="720" y1="448" x2="720" y2="520" stroke="#4BC280" stroke-width="1" opacity="0.5"></line>
+<text x="142" y="474" font-size="18" font-weight="600" fill="#2C7A4E">Adaptive</text>
+<text x="142" y="497" font-size="11" fill="#82908F">representation</text>
+<text x="305" y="472" font-size="15" font-weight="600" fill="#2A3433">State representation</text>
+<text x="305" y="497" font-size="12.5" fill="#55615F">deficit vector · activity profiles · recent ΔDM &amp; adherence</text>
+<text x="737" y="472" font-size="15" font-weight="600" fill="#2A3433">State representation</text>
+<text x="737" y="497" font-size="12.5" fill="#82908F" font-style="italic">= unchanged · already compact</text>
+
+<!-- Reactive -->
+<rect x="120" y="558" width="1040" height="104" rx="13" fill="#E2F5F7" stroke="#1FAAB7" stroke-width="1.5"></rect>
+<line x1="288" y1="574" x2="288" y2="646" stroke="#1FAAB7" stroke-width="1" opacity="0.5"></line>
+<line x1="720" y1="574" x2="720" y2="646" stroke="#1FAAB7" stroke-width="1" opacity="0.5"></line>
+<text x="142" y="600" font-size="18" font-weight="600" fill="#145C64">Reactive</text>
+<text x="142" y="623" font-size="11" fill="#82908F">needs / allostasis</text>
+<text x="305" y="598" font-size="15" font-weight="600" fill="#2A3433">Patient needs</text>
+<text x="305" y="623" font-size="12.5" fill="#55615F">3 needs implicit in Score: learning, engagement, coverage</text>
+<text x="737" y="598" font-size="15" font-weight="600" fill="#2A3433">Patient needs</text>
+<text x="737" y="623" font-size="12.5" fill="#55615F">learning · engagement · coverage · novelty  (the regulated target)</text>
+
+<!-- top band -> decision -->
+<line x1="640" y1="180" x2="640" y2="156" stroke="#82908F" stroke-width="1.6" marker-end="url(#ah)"></line>
+
+<!-- upstream arrow (right) -->
+<line x1="1208" y1="660" x2="1208" y2="166" stroke="#1B7E88" stroke-width="2.4" marker-end="url(#ah)"></line>
+<text x="1232" y="413" font-size="13" font-weight="500" fill="#1B7E88" transform="rotate(-90 1232 413)" text-anchor="middle">upstream processing</text>
+
+<!-- downstream loop (left channel) -->
+<path d="M395 138 H66 V610 H118" fill="none" stroke="#379A63" stroke-width="2.2" marker-end="url(#ah)"></path>
+<text x="44" y="380" font-size="12.5" font-weight="500" fill="#379A63" transform="rotate(-90 44 380)" text-anchor="middle">prescription acts on the patient</text>
+</svg>
+</section>
+
+<section>
+<h2>Mapping the CDSS to the DAC layers</h2>
+<table class="t1">
+<thead><tr><th style="width:13%">Layer</th><th style="width:40%">What the DAC layer does</th><th style="width:47%">CDSS mapping</th></tr></thead>
+<tbody>
+<tr>
+  <td class="layer" style="--accent:#1FAAB7">Reactive</td>
+  <td>Internal needs with setpoints; the gap from setpoint drives action; competing needs are kept in balance.</td>
+  <td>The patient needs that the weekly choice can move (learning, 
+engagement, coverage, novelty), estimated from their signals and 
+regulated through activity selection.</td>
+</tr>
+<tr>
+  <td class="layer" style="--accent:#4BC280">Adaptive</td>
+  <td>Compress sensory and internal state into a low-dimensional cognitive map; tile the space.</td>
+  <td>Almost a no-op here: the state is already compact and engineered: 
+deficit vector, activity profiles, and recent ΔDM and adherence. Little 
+extra compression needed.</td>
+</tr>
+<tr>
+  <td class="layer" style="--accent:#1B7E88">Contextual</td>
+  <td>Store state–action–reward episodes; retrieve them by similarity and reward.</td>
+  <td>Per-patient memory of each activity’s past ΔDM and adherence; 
+weekly retrieval scores the candidates via Score = adherence + ΔDM + 
+PPF.</td>
+</tr>
+<tr>
+  <td class="layer" style="--accent:#2C7A4E">Virtualization</td>
+  <td>Simulate or replay outcomes to evaluate strategies before acting; curiosity adds an information-gain reward.</td>
+  <td>Backtesting candidate prescriptions over NEST and AISN, plus the currently-absent exploration / novelty term.</td>
+</tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2>Candidate patient needs (movable by weekly selection)</h2>
+<table class="t2">
+<thead><tr><th style="width:20%">Patient need</th><th style="width:34%">How weekly selection moves it</th><th style="width:24%">Signal</th><th style="width:22%">Failure mode</th></tr></thead>
+<tbody>
+<tr>
+  <td class="layer" style="--accent:#1FAAB7">Learning / progress</td>
+  <td>Pick activities where the patient still has headroom</td>
+  <td>ΔDM (read from RGS)</td>
+  <td>Plateau (ΔDM → 0)</td>
+</tr>
+<tr>
+  <td class="layer" style="--accent:#4BC280">Engagement</td>
+  <td>Pick activities the patient actually completes</td>
+  <td>Adherence / Δadherence</td>
+  <td>Dropout</td>
+</tr>
+<tr>
+  <td class="layer" style="--accent:#1B7E88">Recovery coverage</td>
+  <td>Pick activities matching impaired domains</td>
+  <td>PPF + clinical-scale change</td>
+  <td>A deficit domain left untrained</td>
+</tr>
+<tr>
+  <td class="layer" style="--accent:#2C7A4E">Novelty / anti-habituation</td>
+  <td>Rotate the set; limit repetition</td>
+  <td>Decay of ΔDM / adherence on repeat</td>
+  <td>Staleness</td>
+</tr>
+</tbody>
+</table>
+</section>
+
+
+
+</body></html>

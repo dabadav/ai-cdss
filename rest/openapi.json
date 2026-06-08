@@ -1,0 +1,243 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI-CDSS API",
+    "description": "Clinical Decision Support System (CDSS) for personalized rehabilitation protocol recommendations.",
+    "contact": {
+      "name": "Eodyne Systems",
+      "email": "contact@eodyne.com"
+    },
+    "license": {
+      "name": "MIT License",
+      "url": "https://opensource.org/licenses/MIT"
+    },
+    "version": "0.1.3"
+  },
+  "paths": {
+    "/recommend": {
+      "post": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Get personalized rehabilitation recommendations",
+        "description": "Generate a list of protocol recommendations for each patient in the request.\n    Recommendations are based on patient profiles, time series data, and computed protocol suitability.\n    Each recommendation includes a computed PPF score, adherence values, usage history,\n    and an explanation field identifying the top contributing clinical subscales.",
+        "operationId": "recommend_recommend_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compute_metrics/{patient_id}": {
+      "post": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Compute Patient-Protocol Fit",
+        "description": "Computes Patient-Protocol Fit (PPF) based on loaded data.\nReturns the computed PPF with contributions.",
+        "operationId": "compute_metrics_compute_metrics__patient_id__post",
+        "parameters": [
+          {
+            "name": "patient_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Patient Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/compute_protocol_metrics": {
+      "post": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "Compute Protocol Similarity Metrics",
+        "description": "Computes Protocol Similarity Metrics based on loaded data.\nReturns the computed similarity metrics.",
+        "operationId": "compute_protocol_metrics_compute_protocol_metrics_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Health check for service and dependencies",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "RecommendationRequest": {
+        "properties": {
+          "study_id": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Study Id",
+            "example": [
+              1
+            ]
+          },
+          "n": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N",
+            "example": 12
+          },
+          "days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days",
+            "example": 7
+          },
+          "protocols_per_day": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocols Per Day",
+            "example": 5
+          }
+        },
+        "type": "object",
+        "required": [
+          "study_id"
+        ],
+        "title": "RecommendationRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

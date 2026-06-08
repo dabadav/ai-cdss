@@ -1,0 +1,66 @@
+/* RGS / Eodyne brand palette — derived from the cdss_loop SVGs (same
+   design system as RGS MIMS). Teal primary, green accent, Montserrat. */
+
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color:        #1FAAB7;
+  --md-primary-fg-color--light: #38B0BC;
+  --md-primary-fg-color--dark:  #145C64;
+  --md-primary-bg-color:        #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+}
+
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color:             #4BC280;
+  --md-accent-fg-color--transparent: rgba(75, 194, 128, 0.1);
+}
+
+/* Links + inline accents toward the brand teal. */
+[data-md-color-scheme="default"] {
+  --md-typeset-a-color: #1B7E88;
+}
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:       #1FAAB7;
+  --md-primary-fg-color--dark: #0f3e44;
+  --md-typeset-a-color:        #5FC1CB;
+}
+
+/* Montserrat headings, weighted like the brand diagrams (600). */
+.md-typeset h1,
+.md-typeset h2,
+.md-typeset h3,
+.md-header__title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.md-typeset h1 { color: var(--md-primary-fg-color--dark); }
+
+/* Center Mermaid diagrams. */
+.md-typeset .mermaid {
+  text-align: center;
+}
+.md-typeset .mermaid svg {
+  display: block;
+  margin: 0 auto;
+  max-width: min(100%, 660px);   /* scale the whole diagram down + center */
+  height: auto;
+}
+
+/* Layout: wider readable body, narrower left nav menu. Only on desktop
+   (the sidebars collapse to a drawer below 76.25em — leave that alone). */
+@media screen and (min-width: 76.25em) {
+  .md-grid { max-width: 72rem; }          /* wider content column */
+  .md-sidebar--primary { width: 11rem; }  /* narrower left menu */
+}
+
+/* Grid cards: soft teal border + lift on hover, echoing the SVG panels. */
+.md-typeset .grid.cards > :is(ul, ol) > li,
+.md-typeset .grid > .card {
+  border: 1px solid #C9E9ED;
+  border-radius: 12px;
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+.md-typeset .grid.cards > :is(ul, ol) > li:hover {
+  border-color: #1FAAB7;
+  box-shadow: 0 4px 16px rgba(31, 170, 183, 0.15);
+  transform: translateY(-2px);
+}
