@@ -155,7 +155,8 @@ class CDSSInterface:
                 logger.info("No patients to process. Context: %s | Result: %s", context, payload)
                 return payload
 
-            rgs_data, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
+            valid_ids, rgs_data, protocol_similarity = self.data_service.prepare(patient_list=patient_ids)
+            skipped_ids = [p for p in patient_ids if p not in set(valid_ids)]
             scores = self.processor.process_data(rgs_data, scoring_date or pd.Timestamp.today())
             cdss = CDSS(scoring=scores, n=n, days=days, protocols_per_day=protocols_per_day)
 
@@ -167,8 +168,18 @@ class CDSSInterface:
             success_count = 0
             fail_count = 0
 
+            # Patients excluded upstream (e.g. missing PPF) are surfaced but do not
+            # count as failures — the run still succeeds for everyone with data.
+            for p in skipped_ids:
+                patient_results.append({
+                    "patient_id": p,
+                    "num_recommendations": 0,
+                    "status": "skipped",
+                    "skipped_reason": "missing_ppf",
+                })
+
             # --------- Per-patient Processing --------
-            for p in patient_ids:
+            for p in valid_ids:
                 result = self._process_patient(
                     patient=p,
                     cdss=cdss,
@@ -198,7 +209,8 @@ class CDSSInterface:
             payload = {
                 "status": top_status,
                 "run_id": str(unique_id),
-                "patients_processed": len(patient_ids),
+                "patients_processed": len(valid_ids),
+                "patients_skipped": len(skipped_ids),
                 "total_recommendations": total_recommendations,
                 "per_patient": patient_results,
                 "start_time": datetime_now.isoformat(),
